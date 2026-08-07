@@ -474,12 +474,17 @@ The browser posts the frozen manifest and canvas composite to the Next.js
 key, and forwards the multipart request to Cloud Run with an explicit timeout.
 The browser never contacts Gemini or the scoring service directly.
 
-The agent must return JSON data conforming to schema version 2. Important
-fields are:
+The detailed request/response contract is maintained in
+[Conductor Score API Schema](conductor-score-schema.md).
+
+The production agent must return JSON data conforming to schema version 3.
+Version 3 is the target contract for XWALK KEYBOARDS; the version 2 prototype
+validators in the earlier experiments must be migrated together with the web
+app before this endpoint is enabled. Important fields are:
 
 ```ts
 type Score = {
-  schemaVersion: "2";
+  schemaVersion: "3";
   batchId: string;
   intervalSeconds: 5;
   durationSeconds: 60;
@@ -499,6 +504,10 @@ type Score = {
     pan: number;
     octaveShift: -1 | 0 | 1;
     arpeggioSpacingSeconds: number;
+    visual: {
+      presentation: "grid" | "hero";
+      rationale: string;
+    };
   }>;
 };
 ```

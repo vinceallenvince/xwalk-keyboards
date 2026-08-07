@@ -50,6 +50,13 @@ epics:
           - { node: "110-2", shot: null } # Camera 01 active
           - { node: "112-2", shot: null } # Camera 02 active
 
+      # The hero-event UI is presently authored within the preparation section
+      # in Figma, without a dedicated `scenario` frame for this story.
+      - story: "As a visitor, I can experience conductor-selected visual emphasis"
+        scenario: null
+        ui:
+          - { node: "204-2", shot: null } # hero presentation over the grid
+
       - story: "As a visitor, I can view the Orchestration performance full screen"
         scenario: "116-1123"
         ui:

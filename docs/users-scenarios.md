@@ -315,6 +315,31 @@ And no crosswalk stripe highlight is rendered in the Orchestration grid
 And the active camera remains active for five seconds
 ```
 
+### As a visitor, I can experience conductor-selected visual emphasis
+
+The conductor may emphasize a distinctive active interval without changing
+which frozen image or five-second score event is being presented. It selects a
+bounded presentation mode; the browser owns the visual transition mechanics.
+
+```gherkin
+Given a complete Orchestration batch and its validated conductor score are active
+And the active score event has visual presentation "grid"
+When that five-second event begins
+Then its camera remains in its assigned location in the 3 × 4 grid
+And that active tile is displayed in full color while every non-active tile remains black and white
+And no edge-to-edge hero layer is shown
+
+Given a complete Orchestration batch and its validated conductor score are active
+And the active score event has visual presentation "hero"
+When that five-second event begins
+Then the event's exact frozen active-camera image is rendered edge to edge in a layer above the grid
+And the 3 × 4 grid remains hidden behind the hero layer
+And the corresponding event audio and visual presentation begin in the same five-second interval
+And the browser uses its fixed visual transition rather than agent-generated animation instructions
+When the next five-second event begins
+Then the browser removes or replaces the hero layer according to that next event's validated visual presentation
+```
+
 ### As a visitor, I can hear pedestrians turn an active crosswalk into a keyboard
 
 Only pedestrians inside the active camera's crosswalk create music. Each
@@ -361,19 +386,20 @@ And the app continues polling every camera feed and adding newly available image
 ### As a visitor, I experience only complete, synchronized Orchestration batches
 
 Each 60-second performance uses one immutable set of twelve camera images and
-its matching score. The next batch is prepared in the background; it cannot
-replace the visible batch until its images and score are both ready and valid.
+its matching score and visual sequence. The next batch is prepared in the
+background; it cannot replace the visible batch until its images and score are
+both ready and valid.
 
 ```gherkin
 Given a complete twelve-camera batch is playing in the Orchestration study
 When newer camera images become available
 Then the app prepares the next twelve-camera batch in the background
-And the currently displayed images and their score remain paired for the entire 60-second loop
-And a delayed or invalid score is never applied to a newer set of camera images
+And the currently displayed images, their score, and their visual presentation directions remain paired for the entire 60-second loop
+And a delayed or invalid score or visual sequence is never applied to a newer set of camera images
 When the next batch has twelve frozen camera images and a valid matching score
 Then it becomes eligible to replace the current batch at the next loop boundary
 When the next batch's score is unavailable, invalid, or late at the loop boundary
-Then the app replays the prior valid batch and its matching score
+Then the app replays the prior valid batch and its matching score and visual sequence
 And the app does not display an unscored or mismatched new batch
 ```
 
