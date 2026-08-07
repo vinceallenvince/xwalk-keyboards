@@ -1,0 +1,96 @@
+# Maps the user stories in users-scenarios.md to their Figma Design frames,
+# following the taxonomy Epic -> Story -> Scenario -> UI. Figma authoring
+# convention (keeps this file regenerable with no manual node entry):
+#
+#   Page:  "<Epic>"
+#     └─ Section: "<exact story title>"   → story  (the mapping key)
+#          ├─ "scenario"                  → scenario
+#          ├─ "ui: …"                     → ui[0]  } reading order
+#          └─ "ui: …"                     → ui[1]  } (top→bottom, left→right)
+#
+# Each `ui` entry is { node, shot }: the Figma node id (hyphen form) and the stem
+# of the Playwright screenshot — runtime/e2e/__screens__/<epic_dir>/<shot>.png —
+# that captures the same state. `shot: null` means no runtime screenshot exists
+# yet. Node ids change when frames are rebuilt — re-run the sync to regenerate.
+#
+# The current Homepage Figma story combines the initial hero and selector
+# interactions in one section. Its UI frames retain the initial state, neutral
+# selector state, and the two hover-preview states in reading order.
+
+file_key: VgqJ1zX1eByz9c8Ui8otpY
+project_name: XWALK KEYBOARDS
+
+epics:
+
+  - epic: "Homepage"
+    page: "0-1"
+    epic_dir: "homepage"
+    stories:
+      - story: "As a visitor, I arrive at an immersive XWalk Keyboards homepage"
+        scenario: "57-19"
+        ui:
+          - { node: "3-6", shot: null }    # homepage initial hero
+          - { node: "69-354", shot: null } # scrolled selector: both options inactive
+          - { node: "10-5", shot: null }   # scrolled selector: Realtime hover preview
+          - { node: "69-327", shot: null } # scrolled selector: Orchestration hover preview
+
+  - epic: "Orchestration Study"
+    page: "73-976"
+    epic_dir: "orchestration-study"
+    stories:
+      - story: "As a visitor, I can see the complete orchestration grid while it prepares to perform"
+        scenario: "106-2"
+        ui:
+          - { node: "89-5", shot: null }   # initial image queues loading
+          - { node: "89-251", shot: null } # queues ready to perform
+
+      - story: "As a visitor, I can experience one camera as the active performer"
+        scenario: "104-1006"
+        ui:
+          - { node: "110-2", shot: null } # Camera 01 active
+          - { node: "112-2", shot: null } # Camera 02 active
+
+      - story: "As a visitor, I can view the Orchestration performance full screen"
+        scenario: "116-1123"
+        ui:
+          - { node: "117-2", shot: null } # fullscreen 3 × 4 grid
+
+  - epic: "Realtime Study"
+    page: "57-23"
+    epic_dir: "realtime-study"
+    stories:
+      - story: "As a visitor, I can see that the Realtime study is connecting"
+        scenario: "57-24"
+        ui:
+          - { node: "57-104", shot: null } # camera and inference both starting
+
+      - story: "As a visitor, I can see a live camera while inference is still starting"
+        scenario: "57-181"
+        ui:
+          - { node: "57-131", shot: null } # camera ready, inference starting
+
+      - story: "As a visitor, I can see that inference is ready while the camera is still connecting"
+        scenario: "57-233"
+        ui:
+          - { node: "57-155", shot: null } # inference ready, camera connecting
+
+      - story: "As a visitor, I can experience the fully active Realtime study"
+        scenario: "57-259"
+        ui:
+          - { node: "57-80", shot: null }  # camera and inference active
+
+      # The Figma section currently repeats the preceding story name, but its
+      # scenario copy and UI frame describe the fullscreen interaction.
+      - story: "As a visitor, I can view the live Realtime study full screen"
+        scenario: "57-302"
+        ui:
+          - { node: "57-127", shot: null } # edge-to-edge live feed
+
+  - epic: "Camera Registry"
+    page: "72-382"
+    epic_dir: "camera-registry"
+    stories:
+      - story: "As a user, I can review every registered camera and its fallback coverage"
+        scenario: "73-696"
+        ui:
+          - { node: "73-723", shot: null } # priority/fallback grids and live-feed column
