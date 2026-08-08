@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { FALLBACK_CAMERAS, PRIORITY_CAMERAS, type CameraRecord } from "@/data/cameras";
 import { requestCrosswalkScore } from "@/lib/crosswalk-agent-client";
@@ -9,7 +9,7 @@ import {
   createInitialOrchestrationSlots,
   firstUnreservedFallback,
   isQueuedBatchReady,
-  nextActiveSlot,
+  nextPresentationStep,
   type OrchestrationSlot,
 } from "@/lib/orchestration-batch";
 import { createCrosswalkComposite } from "@/lib/crosswalk-composite";
@@ -42,6 +42,11 @@ type InferenceCandidate = {
 type SnapshotInferenceResult =
   | { kind: "complete"; imageUrl: string; insideCount: number; outsideCount: number; predictionCount: number }
   | { kind: "uncalibrated" | "unconfigured" | "failed" };
+
+type PreparedPerformance = {
+  frames: LoadedSlot[];
+  score: CrosswalkScore;
+};
 
 function fingerprintImage(image: Blob) {
   return image.arrayBuffer().then((buffer) => {
@@ -131,6 +136,33 @@ export function OrchestrationGrid() {
   const activeIndexRef = useRef(0);
   const scoreRef = useRef<CrosswalkScore | null>(null);
   const scorePlayerRef = useRef<CrosswalkScorePlayer | null>(null);
+  const preparedPerformanceRef = useRef<PreparedPerformance | null>(null);
+
+  const activatePerformance = useCallback((performance: PreparedPerformance) => {
+    const firstQueuedFrame = performance.frames[0];
+    queuedFramesRef.current = performance.frames;
+    activeIndexRef.current = 0;
+    scoreRef.current = performance.score;
+    setActiveIndex(0);
+    setActiveScore(performance.score);
+    setScoreTitle(performance.score.musicDirection.title);
+    // A queued image enters the grid when its matching camera becomes active.
+    // At a loop boundary, Camera 01 is the first frame promoted.
+    if (firstQueuedFrame) {
+      setLoadedSlots((current) => current.map((slot) => (
+        slot.slot === firstQueuedFrame.slot ? firstQueuedFrame : slot
+      )));
+    }
+    setPhase("playing");
+  }, []);
+
+  const promotePreparedPerformance = useCallback(() => {
+    const preparedPerformance = preparedPerformanceRef.current;
+    if (!preparedPerformance) return;
+    preparedPerformanceRef.current = null;
+    activatePerformance(preparedPerformance);
+    setQueuedSlotCount(0);
+  }, [activatePerformance]);
 
   const applyScoreEvent = (event: CrosswalkScore["events"][number]) => {
     const nextQueuedFrame = queuedFramesRef.current[event.index];
@@ -152,7 +184,10 @@ export function OrchestrationGrid() {
     if (!audioEnabledRef.current || scoreRef.current?.batchId !== score.batchId) return;
     setAudioTransportActive(true);
     await player.play(score, applyScoreEvent, () => {
-      if (audioEnabledRef.current && scoreRef.current?.batchId === score.batchId) void startAudioPerformance();
+      if (audioEnabledRef.current && scoreRef.current?.batchId === score.batchId) {
+        promotePreparedPerformance();
+        void startAudioPerformance();
+      }
     });
   };
 
@@ -187,7 +222,7 @@ export function OrchestrationGrid() {
     const candidateVersions = new Map<number, number>();
     const pendingInference = new Map<number, InferenceCandidate>();
     let polling = false;
-    let batchFrozen = false;
+    let batchPreparing = false;
     let batchSequence = 0;
     let activeInferenceWorkers = 0;
     let staticInferenceConfigured = true;
@@ -200,10 +235,16 @@ export function OrchestrationGrid() {
 
     const beginPerformanceIfReady = () => {
       setQueuedSlotCount(queuedBySlot.size);
-      if (!isQueuedBatchReady(queuedBySlot.size, initialSlots.length)) return;
+      if (
+        batchPreparing ||
+        preparedPerformanceRef.current ||
+        !isQueuedBatchReady(queuedBySlot.size, initialSlots.length)
+      ) return;
 
-      batchFrozen = true;
       const frozenBatch = initialSlots.map((slot) => queuedBySlot.get(slot.slot)).filter((slot): slot is LoadedSlot => Boolean(slot));
+      queuedBySlot.clear();
+      setQueuedSlotCount(0);
+      batchPreparing = true;
       batchSequence += 1;
       const manifest = createCrosswalkBatchManifest(
         `batch-${new Date().toISOString().replace(/[^0-9]/g, "")}-${batchSequence}`,
@@ -215,39 +256,37 @@ export function OrchestrationGrid() {
           sourceTimestamp: null,
         }))
       );
-      setPhase("stitching");
+      if (!scoreRef.current) setPhase("stitching");
 
       void (async () => {
         try {
           const composite = await createCrosswalkComposite(frozenBatch);
           if (abortController.signal.aborted) return;
-          setPhase("scoring");
+          if (!scoreRef.current) setPhase("scoring");
           const score = await requestCrosswalkScore(manifest, composite);
           if (abortController.signal.aborted) return;
-          const firstQueuedFrame = frozenBatch[0];
-          queuedFramesRef.current = frozenBatch;
-          activeIndexRef.current = 0;
-          setActiveIndex(0);
-          scoreRef.current = score;
-          setActiveScore(score);
-          setScoreTitle(score.musicDirection.title);
-          // Preserve the initial grid until its matching camera performs. This
-          // makes the incoming queued image visible at the exact active turn,
-          // rather than replacing all twelve views at once.
-          if (firstQueuedFrame) {
-            setLoadedSlots((current) => current.map((slot) => (
-              slot.slot === firstQueuedFrame.slot ? firstQueuedFrame : slot
-            )));
-          }
-          setPhase("playing");
+          const preparedPerformance = { frames: frozenBatch, score };
+          if (scoreRef.current) preparedPerformanceRef.current = preparedPerformance;
+          else activatePerformance(preparedPerformance);
         } catch {
-          if (!abortController.signal.aborted) setPhase("score-unavailable");
+          // A failed next score must not interrupt the currently valid batch.
+          // Without an active batch, surface the initial preparation failure.
+          if (!abortController.signal.aborted && !scoreRef.current) setPhase("score-unavailable");
+        } finally {
+          batchPreparing = false;
         }
       })();
     };
 
     const drainInferenceQueue = () => {
-      while (!abortController.signal.aborted && staticInferenceConfigured && activeInferenceWorkers < 2 && pendingInference.size > 0) {
+      while (
+        !abortController.signal.aborted &&
+        !batchPreparing &&
+        !preparedPerformanceRef.current &&
+        staticInferenceConfigured &&
+        activeInferenceWorkers < 2 &&
+        pendingInference.size > 0
+      ) {
         const candidate = pendingInference.values().next().value as InferenceCandidate;
         pendingInference.delete(candidate.slot.slot);
         activeInferenceWorkers += 1;
@@ -265,7 +304,13 @@ export function OrchestrationGrid() {
             setInferenceBlocked("calibration");
             return;
           }
-          if (result.kind !== "complete" || candidateVersions.get(candidate.slot.slot) !== candidate.version || queuedBySlot.has(candidate.slot.slot)) return;
+          if (
+            result.kind !== "complete" ||
+            batchPreparing ||
+            preparedPerformanceRef.current ||
+            candidateVersions.get(candidate.slot.slot) !== candidate.version ||
+            queuedBySlot.has(candidate.slot.slot)
+          ) return;
 
           queuedBySlot.set(candidate.slot.slot, {
             ...candidate.slot,
@@ -284,7 +329,12 @@ export function OrchestrationGrid() {
     };
 
     const enqueueInference = (slot: LoadedSlot, image: Blob, imageHash: string) => {
-      if (!staticInferenceConfigured || queuedBySlot.has(slot.slot)) return;
+      if (
+        batchPreparing ||
+        preparedPerformanceRef.current ||
+        !staticInferenceConfigured ||
+        queuedBySlot.has(slot.slot)
+      ) return;
       const version = (candidateVersions.get(slot.slot) ?? 0) + 1;
       candidateVersions.set(slot.slot, version);
       pendingInference.set(slot.slot, { image, imageHash, slot, version });
@@ -292,7 +342,12 @@ export function OrchestrationGrid() {
     };
 
     const pollForQueuedFrames = async () => {
-      if (polling || batchFrozen || abortController.signal.aborted) return;
+      if (
+        polling ||
+        batchPreparing ||
+        preparedPerformanceRef.current ||
+        abortController.signal.aborted
+      ) return;
       polling = true;
 
       try {
@@ -303,7 +358,11 @@ export function OrchestrationGrid() {
           return { slot, result: await requestSnapshot(sourceCamera, abortController.signal) };
         }));
 
-        if (abortController.signal.aborted) return;
+        if (
+          abortController.signal.aborted ||
+          batchPreparing ||
+          preparedPerformanceRef.current
+        ) return;
         for (const { slot, result } of updates) {
           if (result.kind !== "available") continue;
           if (initialHashes.get(slot.slot) === result.imageHash) continue;
@@ -398,16 +457,18 @@ export function OrchestrationGrid() {
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       objectUrlsRef.current = [];
       queuedFramesRef.current = [];
+      preparedPerformanceRef.current = null;
       audioEnabledRef.current = false;
       scorePlayerRef.current?.dispose();
       scorePlayerRef.current = null;
     };
-  }, []);
+  }, [activatePerformance]);
 
   useEffect(() => {
     if (phase !== "playing" || audioTransportActive || loadedSlots.length !== PRIORITY_CAMERAS.length) return;
     const interval = window.setInterval(() => {
-      const nextIndex = nextActiveSlot(activeIndexRef.current, loadedSlots.length);
+      const { loopBoundary, nextIndex } = nextPresentationStep(activeIndexRef.current, loadedSlots.length);
+      if (loopBoundary) promotePreparedPerformance();
       const nextQueuedFrame = queuedFramesRef.current[nextIndex];
       if (nextQueuedFrame) {
         setLoadedSlots((current) => current.map((slot) => (
@@ -418,7 +479,7 @@ export function OrchestrationGrid() {
       setActiveIndex(nextIndex);
     }, PRESENTATION_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [audioTransportActive, loadedSlots.length, phase]);
+  }, [audioTransportActive, loadedSlots.length, phase, promotePreparedPerformance]);
 
   const status = phase === "loading"
     ? `PREPARING INITIAL VIEWS // ${loadedSlots.length}/12 SOURCES READY`

@@ -21,6 +21,14 @@ export function nextActiveSlot(currentIndex: number, slotCount: number) {
   return (currentIndex + 1) % slotCount;
 }
 
+export function nextPresentationStep(currentIndex: number, slotCount: number) {
+  const nextIndex = nextActiveSlot(currentIndex, slotCount);
+  return {
+    loopBoundary: nextIndex === 0,
+    nextIndex,
+  };
+}
+
 /** A frozen performance may only begin once every slot has a fresh frame. */
 export function isQueuedBatchReady(queuedSlotCount: number, slotCount: number) {
   return Number.isInteger(queuedSlotCount)

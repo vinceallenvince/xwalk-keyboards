@@ -6,6 +6,7 @@ import {
   firstUnreservedFallback,
   isQueuedBatchReady,
   nextActiveSlot,
+  nextPresentationStep,
 } from "./orchestration-batch";
 
 describe("orchestration batch baseline", () => {
@@ -25,5 +26,10 @@ describe("orchestration batch baseline", () => {
     expect(isQueuedBatchReady(0, 12)).toBe(false);
     expect(isQueuedBatchReady(11, 12)).toBe(false);
     expect(isQueuedBatchReady(12, 12)).toBe(true);
+  });
+
+  it("identifies the only safe boundary for promoting a prepared batch", () => {
+    expect(nextPresentationStep(10, 12)).toEqual({ loopBoundary: false, nextIndex: 11 });
+    expect(nextPresentationStep(11, 12)).toEqual({ loopBoundary: true, nextIndex: 0 });
   });
 });
