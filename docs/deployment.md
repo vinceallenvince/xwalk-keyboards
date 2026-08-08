@@ -20,7 +20,7 @@ Cloud Run. We will deploy both the web app and the score agent there.
 
 | Service | Repository / runtime | Responsibility | Status |
 | --- | --- | --- | --- |
-| `xwalk-keyboards` | Next.js | Public web app, server-side camera/Roboflow proxies, batch-score proxy | Not deployed |
+| `xwalk-keyboards` | Next.js | Public web app, server-side camera/Roboflow proxies, batch-score proxy | Deployed |
 | `crosswalk-score-agent` | Python, Google ADK | Gemini visual scoring of immutable Orchestration batches | Not deployed to this project |
 
 The existing `crosswalk-agent` prototype was previously deployed to a separate
@@ -124,7 +124,7 @@ CROSSWALK_AGENT_API_KEY
 After deployment, record the Cloud Run URL here:
 
 ```text
-Web app URL: pending
+Web app URL: https://xwalk-keyboards-21826886868.us-central1.run.app
 ```
 
 ## Deployment order
@@ -163,7 +163,7 @@ Add an entry for every production deployment:
 
 | Date | Service | Revision | URL | Deployed by | Notes |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | — |
+| 2026-08-07 | `xwalk-keyboards` | `xwalk-keyboards-00005-m82` | https://xwalk-keyboards-21826886868.us-central1.run.app | `vince@vinceallen.com` | Public web app; Roboflow and score-agent keys injected from Secret Manager. |
 
 ## Related references
 
