@@ -2,23 +2,23 @@
 
 ## Feature: Discover and choose an XWALK KEYBOARDS study
 
-The homepage introduces XWALK KEYBOARDS over a fixed, darkened West Street
-traffic-camera feed, then invites the visitor to choose a study mode.
+The homepage introduces XWALK KEYBOARDS over a fixed, darkened West Street at
+W. 34 St traffic-camera feed, then invites the visitor to choose a study mode.
 
 ## Homepage
 
 ### As a visitor, I arrive at an immersive XWALK KEYBOARDS homepage
 
-The homepage uses the live West Street camera as a darkened, full-viewport
-canvas. The title and the quiet technical metadata establish the study before
-asking the visitor to scroll.
+The homepage uses the live West Street at W. 34 St camera as a darkened,
+full-viewport canvas. The title and the quiet technical metadata establish the
+study before asking the visitor to scroll.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 When the homepage finishes loading
-Then a live West Street at W23 Street video feed fills the viewport background
+Then a live West Street at W34 Street video feed fills the viewport background
 And the video feed remains darkened so foreground content is legible
-And the upper-left status indicator reads "FEED LIVE // WEST STREET @ W23 ST"
+And the upper-left status indicator reads "FEED LIVE // WEST STREET @ W34 ST"
 And the centered hero title displays "XWALK KEYBOARDS"
 And the hero title includes the three-line mint visual mark at its left
 And a "SCROLL" down-arrow indicator appears below the title
@@ -118,11 +118,11 @@ Given I have chosen the "REALTIME" study from XWALK KEYBOARDS
 When the Realtime study opens
 Then the page header reads "XWALK KEYBOARDS | REALTIME"
 And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
-And the feed status reads "CONNECTING // WEST STREET @ W23 ST"
+And the feed status reads "CONNECTING // WEST STREET @ W34 ST"
 And the inference status reads "STARTING ROBOFLOW GPU ..."
 And a large dark camera viewport is reserved in the center of the page
 And the "FULLSCREEN" and "SOUND ON" controls are visible but visually inactive
-And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 402"
+And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
 And no spinner or unrelated loading indicator is shown
 ```
 
@@ -133,9 +133,9 @@ should appear immediately; it must not be held behind the inference startup.
 
 ```gherkin
 Given I am on the Realtime study page
-And the West Street camera feed becomes active before Roboflow inference
+And the West Street at W. 34 St camera feed becomes active before Roboflow inference
 When the live camera frame is available
-Then the feed status reads "FEED LIVE // WEST STREET @ W23 ST"
+Then the feed status reads "FEED LIVE // WEST STREET @ W34 ST"
 And the live camera video fills the reserved central viewport
 And the inference status continues to read "STARTING ROBOFLOW GPU ..."
 And sound and detection-dependent feedback remain unavailable until inference is active
@@ -148,10 +148,10 @@ without falsely presenting a camera image that has not yet arrived.
 
 ```gherkin
 Given I am on the Realtime study page
-And Roboflow inference becomes active before the West Street camera feed
+And Roboflow inference becomes active before the West Street at W. 34 St camera feed
 When the Roboflow GPU has started
 Then the inference status reads "STATUS: ROBOFLOW ACTIVE"
-And the feed status continues to read "CONNECTING // WEST STREET @ W23 ST"
+And the feed status continues to read "CONNECTING // WEST STREET @ W34 ST"
 And the large camera viewport remains in its waiting state until a live camera frame is available
 ```
 
@@ -163,16 +163,16 @@ and quiet technical metadata so the moving image remains the focus.
 
 ```gherkin
 Given I am on the Realtime study page
-And the West Street camera feed is active
+And the West Street at W. 34 St camera feed is active
 And Roboflow inference is active
 When both active states are available at the same time
 Then the page header reads "XWALK KEYBOARDS | REALTIME"
-And the feed status reads "FEED LIVE // WEST STREET @ W23 ST"
+And the feed status reads "FEED LIVE // WEST STREET @ W34 ST"
 And the inference status reads "STATUS: ROBOFLOW ACTIVE"
 And the live camera video fills the reserved central viewport
 And the "FULLSCREEN" control is available at the lower-right of the viewport
 And the sound control is available beside it and indicates its current sound state
-And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 402"
+And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
 ```
 
 ### As a visitor, I can see and hear pedestrians play the Realtime crosswalk
@@ -184,7 +184,7 @@ crosswalk stripe, not to a floating marker above the pedestrian.
 
 ```gherkin
 Given I am viewing an active Realtime study
-And the West Street camera feed and Roboflow inference are active
+And the West Street at W. 34 St camera feed and Roboflow inference are active
 When a pedestrian is detected inside the calibrated crosswalk
 Then the app maps the pedestrian's position to the corresponding crosswalk stripe
 And the left-most white stripe maps to the piano note "C"
@@ -308,6 +308,7 @@ Then every camera image in the 3 × 4 grid changes to black and white
 And Camera 01 becomes the active camera
 And Camera 01 is displayed in full color
 And every non-active camera remains displayed in black and white
+And each non-active camera is the black-and-white presentation of its matching frozen batch image
 And the active camera renders its next queued image
 And the active camera image shows a purple triangle above each detected pedestrian outside its crosswalk
 And the active camera image shows a green triangle above each detected pedestrian inside its crosswalk
@@ -358,7 +359,31 @@ When a detected pedestrian is outside the active camera's crosswalk
 Then the pedestrian is shown with a purple triangle
 And the pedestrian does not trigger a note
 When no pedestrians are inside the active camera's crosswalk
-Then the active interval is silent
+Then the active interval plays no pedestrian note
+```
+
+### As a visitor, I can hear the Orchestration study as one continuous composition
+
+The Orchestration study supplies a restrained rhythmic pulse even when a
+camera’s crosswalk is empty. The pulse gives every five-second camera interval
+a clear place in the same 60-second composition without delaying or inventing
+pedestrian notes.
+
+```gherkin
+Given the Orchestration performance cycle is active
+And the sound control reads "SOUND ON"
+When the 60-second performance begins
+Then a fixed 96 BPM, 4/4 Tone.js transport begins with the performance
+And the background beat continues across the full 60-second loop
+And each active camera occupies exactly two bars, or five seconds
+When an active camera has occupied crosswalk stripes
+Then its pedestrian notes begin on the current two-bar beat grid
+And its note gesture remains synchronized with the background beat
+When an active camera has no occupied crosswalk stripes
+Then no pedestrian note is played for that camera
+And the background beat continues without interruption
+When Camera 12 completes its active interval
+Then Camera 01 begins on the next loop boundary in time with the continuing transport
 ```
 
 ### As a visitor, I can follow the repeating twelve-camera performance

@@ -1,1 +1,11 @@
 .DS_Store
+node_modules/
+.pnpm-store/
+.next/
+.env
+.env.local
+.env.*.local
+coverage/
+playwright-report/
+test-results/
+docs/images/

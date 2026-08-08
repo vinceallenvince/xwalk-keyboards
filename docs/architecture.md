@@ -161,7 +161,7 @@ type CameraRecord = {
 ```
 
 The production registry contains exactly twelve priority snapshot cameras,
-the configured fallback group, and the live West Street source. A fallback is
+the configured fallback group, and the live Realtime source (View `5056`). A fallback is
 assigned to the unavailable priority camera's **slot**, not inserted as a new
 thirteenth tile. A given fallback may be assigned to at most one slot at a
 time.
@@ -174,7 +174,7 @@ pixel coordinates:
 
 ```json
 {
-  "camera_5059": {
+  "camera_5056": {
     "referenceFrame": { "width": 352, "height": 240 },
     "leftCrosswalk": [[0, 0]],
     "rightCrosswalk": [[0, 0]],
@@ -194,7 +194,8 @@ x_target = x_reference * targetWidth / referenceWidth
 y_target = y_reference * targetHeight / referenceHeight
 ```
 
-For West Street, preserve the left and right crosswalks as distinct polygons
+For the Realtime source (View `5056`, West Street at W. 34 St), preserve the
+left and right crosswalks as distinct polygons
 with an unplayable median between them. Its stripe mapping is one continuous
 keyboard: right-side stripes have higher notes, followed by the left-side
 stripes at lower notes as a person walks right-to-left toward and beyond the
@@ -206,7 +207,7 @@ Validate calibration at build/test time:
 
 - every priority camera has its required crosswalk configuration;
 - every configured polygon has finite points and a valid reference frame;
-- every West Street stripe is ordered and has a unique note;
+- every Realtime stripe is ordered and has a unique note;
 - a fallback camera has calibration before it can substitute into a scored
   slot, or is marked registry-only and excluded from Orchestration fallback.
 
@@ -442,6 +443,15 @@ Before the first complete scored batch is ready, display the initial full-color
 grid and a non-blocking preparation indicator. Once ready, render the active
 slot in full color and the other eleven tiles in grayscale.
 
+For each frozen batch, the browser pre-renders a single 3 × 4 grayscale grid
+base in Canvas (or OffscreenCanvas where available). It draws each frozen
+camera image once with the grayscale presentation filter applied, then reuses
+that bitmap across all twelve five-second intervals. At each interval, the
+renderer composites the active camera's matching full-color annotated image
+over its own cell in the grayscale base. It must not repeatedly transform all
+twelve images on every paint. A `hero` presentation may retain this base during
+its transition, but the opaque edge-to-edge hero layer ultimately hides it.
+
 The active tile uses the annotated snapshot:
 
 - a green triangle marks a pedestrian inside the calibrated crosswalk;
@@ -453,10 +463,24 @@ state swap and the score event at `event.index * 5` on the same Tone Transport;
 use `Tone.Draw` to synchronize React state with the audio clock instead of an
 independent browser `setInterval`.
 
+The client fixes that transport at **96 BPM in 4/4**: one bar is 2.5 seconds,
+each five-second camera interval is exactly two bars, and the complete
+twelve-camera loop is 24 bars / 60 seconds. The client schedules a restrained
+continuous background beat for the entire transport loop, so sparse camera
+intervals remain part of one intentional composition.
+
+The agent does not control tempo, time signature, beat placement, or arbitrary
+note timestamps. Its existing `gesture` selects a client-defined, two-bar
+rhythmic pattern; the renderer quantizes pedestrian note attacks and releases
+to that pattern's beat grid. In an interval with no occupied stripes, the
+renderer plays no pedestrian note but preserves the background beat. This is a
+client renderer contract and does not change the conductor score schema.
+
 The fixed audio renderer builds only an allowlisted set of voices and effects
 (FM/AM/poly/pluck, limited effects, pan, velocity, durations, and gestures).
 The agent returns data, not code. The renderer owns the limiter, gains,
-polyphony limits, deterministic scatter, disposal, and fade/release behavior.
+polyphony limits, deterministic scatter, disposal, fade/release behavior, and
+the fixed rhythmic patterns.
 
 `SOUND ON` means future qualifying score events are audible. `SOUND OFF` stops
 new events and silences currently sounding/fading nodes while the visual loop
