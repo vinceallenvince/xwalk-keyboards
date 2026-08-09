@@ -11,6 +11,11 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# The build needs devDependencies (TypeScript, the ESLint config, the Next
+# plugin); the runtime does not. Drop them so test-only packages such as
+# @playwright/test never reach the deployed image.
+RUN npm prune --omit=dev
+
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
