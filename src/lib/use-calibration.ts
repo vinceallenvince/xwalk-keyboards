@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { REALTIME_CALIBRATION, type Stripe } from "@/lib/realtime-calibration";
+import { REALTIME_CALIBRATION, type Point, type Stripe } from "@/lib/realtime-calibration";
 
 export type CalibrationStatus = "ok" | "degraded" | "no_crosswalk" | "feed_down" | "needs_review";
 
 export type LiveCalibration = {
   status: CalibrationStatus;
   reasoning: string | null;
+  leftCrosswalk: readonly Point[] | null;
+  rightCrosswalk: readonly Point[] | null;
   stripes: readonly Stripe[];
   updatedAt: string | null;
   source: "live" | "reference";
@@ -18,6 +20,8 @@ type CalibrationResponse = {
   status: CalibrationStatus;
   reasoning?: string;
   updatedAt?: string;
+  leftCrosswalk?: number[][];
+  rightCrosswalk?: number[][];
   stripes?: Array<{
     stripeIndex: number;
     segment: "left" | "right";
@@ -42,9 +46,16 @@ function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
     }));
 }
 
+function toPolygon(raw: number[][] | undefined): readonly Point[] | null {
+  if (!raw?.length) return null;
+  return raw.map(([x, y]) => [x, y] as const);
+}
+
 const REFERENCE: LiveCalibration = {
   status: "ok",
   reasoning: null,
+  leftCrosswalk: REALTIME_CALIBRATION.leftCrosswalk.map(([x, y]) => [x, y] as const),
+  rightCrosswalk: REALTIME_CALIBRATION.rightCrosswalk.map(([x, y]) => [x, y] as const),
   stripes: REALTIME_CALIBRATION.stripes,
   updatedAt: null,
   source: "reference",
@@ -76,6 +87,8 @@ export function useCalibration(cameraId: number): LiveCalibration {
         setCalibration({
           status: data.status ?? "ok",
           reasoning: data.reasoning ?? null,
+          leftCrosswalk: toPolygon(data.leftCrosswalk) ?? REFERENCE.leftCrosswalk,
+          rightCrosswalk: toPolygon(data.rightCrosswalk) ?? REFERENCE.rightCrosswalk,
           stripes,
           updatedAt: data.updatedAt ?? null,
           source: "live",
