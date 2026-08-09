@@ -6,12 +6,13 @@ This document defines the production architecture for **XWALK KEYBOARDS**. It
 is based on the working `511NY-test` and `crosswalk-agent` prototypes, but is
 written as the implementation contract for the production app.
 
-The app has two deliberately different studies:
+The app has three deliberately different studies:
 
 | Study | Source | Vision path | Audio path | Timing model |
 | --- | --- | --- | --- | --- |
 | Realtime | One live 511NY HLS camera | Roboflow Workflow over WebRTC | Browser Web Audio API | Event-driven, current frame only |
 | Orchestration | Twelve curated 511NY snapshots | Roboflow Workflow per changed snapshot, then Gemini/ADK batch scoring | Tone.js | Immutable 60-second batches; 5 seconds per camera |
+| Sequence | Rolling static snapshot buffer | Roboflow annotation per snapshot, then Gemini/ADK four-image phrase scoring | Tone.js | Rolling 20-second phrases; 5 seconds per image |
 
 The Camera Registry is an internal diagnostic view. It fetches one snapshot
 per registered static camera and may display independent live previews, but
@@ -23,12 +24,69 @@ The architecture is designed around three non-negotiable properties:
    in server-side environment variables or Secret Manager.
 2. **A visual frame and its sound must be attributable to the same source.**
    Realtime only uses current prediction data. Orchestration only plays a
-   score with the exact frozen twelve-image batch that was scored.
+   score with the exact frozen batch that was scored. Sequence also keeps each
+   note event paired to its immutable annotated detection.
 3. **Media work stops when its route is left.** Navigation disposes of HLS,
    WebRTC, polling, queued inference, audio schedules, and audio nodes that
    belong to the previous route.
 
 ## System overview
+
+### High-level system diagram
+
+```text
++------------------------------+
+| Browser                      |
+| Homepage, Realtime,          |
+| Orchestration, Sequence,     |
+| and Camera Registry          |
+|                              |
+| Owns UI, audio scheduling,   |
+| phase offsets, and cleanup.  |
++--------------+---------------+
+               |
+               | same-origin HTTP
+               | GET /api/hls/*, GET /api/snapshot/*
+               | POST /api/roboflow/*, POST /api/score-*
+               v
++--------------+------------------------------------+
+| Next.js web app / Cloud Run: xwalk-keyboards      |
+| media/source proxies | vendor-key boundary        |
+| Roboflow + agent proxies | input/schema validation|
++---------+----------------------+------------------+
+          |                      |                  |
+          | server-side GETs     | secret-auth       | secret-auth
+          |                      | workflow calls    | score requests
+          v                      v                  v
++--------------------+  +----------------------+  +-----------------------+
+| 511NY / NYSDOT     |  | Roboflow Workflows   |  | Crosswalk Score Agent |
+| HLS View 5056      |  | Realtime predictions |  | Cloud Run + ADK       |
+| static snapshots   |  | Snapshot annotation  |  | score-batch: 12 frames|
+|                    |  | + detection geometry |  | score-sequence: 4     |
++--------------------+  +----------------------+  | frames per phrase     |
+                                                   +-----------+-----------+
+                                                               |
+                                                               | Vertex AI
+                                                               v
+                                                   +-----------------------+
+                                                   | Gemini / Vertex AI    |
+                                                   +-----------------------+
+
++-----------------------+
+| Secret Manager        |
+| server-only keys and  |
+| configuration for the |
+| Next.js app and agent |
++-----------------------+
+
+Interfaces
+──────────
+Browser → Next.js: HLS/snapshot GETs; multipart inference and score requests.
+Next.js → Roboflow: secret-authenticated WebRTC setup or snapshot workflow call.
+Next.js → Agent: secret-authenticated immutable manifest + image composite.
+Agent → Browser (via Next.js): validated declarative stripe/event data, never code.
+Secret Manager → Next.js / Agent: API keys and service configuration only; never browser.
+```
 
 ```mermaid
 flowchart LR
@@ -55,8 +113,8 @@ flowchart LR
 The browser owns presentation and audio scheduling. The Next.js service acts
 as a boundary for third-party sources and secrets. Roboflow performs object
 detection and crosswalk classification. The scoring agent makes a constrained
-visual and musical interpretation of a complete Orchestration batch; it never
-returns JavaScript for the browser to evaluate.
+visual and musical interpretation of an immutable Orchestration batch or
+Sequence phrase; it never returns JavaScript for the browser to evaluate.
 
 ## Deployment units and responsibilities
 
@@ -79,6 +137,7 @@ The client is responsible for:
 - page state, route transitions, and fullscreen behavior;
 - rendering HLS video and static camera images;
 - creating the 4 × 3 Orchestration composite with an off-screen canvas;
+- creating four-image Sequence phrase composites and their manifests;
 - rendering the Realtime stripe overlay with a canvas above the local video;
 - starting audio only after a user gesture;
 - disposing all route-owned resources on unmount.
@@ -126,11 +185,15 @@ uses Google ADK and Gemini through Vertex AI and exposes only:
 ```text
 GET  /health                 public health check
 POST /api/score-batch        application-key protected
+POST /api/score-sequence     application-key protected
 ```
 
 `POST /api/score-batch` accepts multipart fields `manifest` and `composite`.
 It validates the manifest and image, sends the composite plus a constrained
 prompt to Gemini, normalizes the result, and returns declarative score data.
+`POST /api/score-sequence` does the same for a separately versioned immutable
+four-image phrase manifest. It does not weaken Orchestration's twelve-image
+contract.
 
 The service must use a least-privilege Cloud Run runtime service account for
 Vertex AI and Secret Manager. The app-to-agent key belongs in Secret Manager
@@ -293,6 +356,242 @@ visitor enables sound:
 `SOUND ON` is a current-state label: qualifying new events must be audible.
 An interval with no eligible pedestrian is intentionally silent. Fullscreen
 retains video and overlay, hides surrounding UI, and exits on click or Escape.
+
+## Sequence study architecture
+
+### Rolling twelve-image buffer
+
+Sequence uses twelve static traffic images as a rolling buffer, arranged as
+three four-image rows. The first row is the active twenty-second phrase; the
+second is the next phrase; the third is on deck. Sequence requests all twelve
+initial images but holds them in memory while the loading view is shown. It
+does not render source imagery into the grid until the first row is safe to
+play.
+
+Each sequence position is immutable for the duration of the phrase in which it
+appears and records:
+
+```ts
+type SequenceFrame = {
+  frameId: string;                 // opaque, unique per fetched image
+  cameraId: number;
+  imageHash: string;
+  sourceState: "active" | "fallback";
+  inferenceState: "pending" | "annotated" | "unannotated";
+  annotatedImageUrl?: string;
+  sourceImageUrl: string;
+  detections: SequenceDetection[];
+};
+
+type SequenceDetection = {
+  detectionId: string;             // immutable within frameId
+  anchorX: number;                 // native image pixels; arrow anchor
+  anchorY: number;
+  classification: "inside" | "outside";
+};
+```
+
+The same-origin snapshot route owns fetch failures and maintenance detection.
+On a terminal source failure it supplies a configured inert fallback image for
+that exact position. Roboflow failures retain the source image unannotated.
+Both states are displayable and advance the row queue, but contain no playable
+pedestrian detections.
+
+The server-side Roboflow proxy must return the annotated image **and** the
+sanitized, frame-relative detection geometry needed for Sequence. It must
+never expose a Roboflow key. The browser trusts a `detectionId` only when it
+was returned with the matching `frameId` and image hash; it must not attach an
+annotation, geometry record, or agent event to another position.
+
+### Phrase preparation and scoring
+
+The first four sequence positions have detection priority. Once every frame in
+a four-image phrase has reached a terminal inference state, the browser
+freezes those four frames and creates a 4 × 1 phrase composite plus a manifest.
+It posts them to a dedicated, server-proxied `POST /api/score-sequence` route.
+The current Orchestration `/api/score-batch` contract remains fixed at twelve
+frames and sixty seconds.
+
+```ts
+type SequencePhraseManifest = {
+  schemaVersion: "1";
+  phraseId: string;
+  intervalSeconds: 5;
+  durationSeconds: 20;
+  frames: Array<{
+    index: 0 | 1 | 2 | 3;
+    frameId: string;
+    cameraId: number;
+    imageHash: string;
+    inferenceState: "annotated" | "unannotated";
+    insideDetections: Array<{ detectionId: string; anchorX: number; anchorY: number }>;
+  }>;
+};
+
+type SequencePhraseScore = {
+  schemaVersion: "1";
+  phraseId: string;
+  row1Description: string;          // plain text, 1–250 characters; diagnostic only
+  events: Array<{
+    frameIndex: 0 | 1 | 2 | 3;
+    detectionId: string;
+    occupiedStripeIndex: number;
+  }>;
+};
+```
+
+The score agent sees the frozen phrase composite and its candidate green-arrow
+geometry. It returns only occupied stripe assignments for immutable detection
+IDs. The app and agent reject a response with an unknown phrase, frame,
+detection, duplicate assignment, invalid stripe index, or an event for an
+unannotated/fallback frame. `row1Description` is required plain text after
+trimming and is limited to 250 characters. The app retains it with the matching
+phrase ID for developer diagnostics (for example, a development-only inspector
+or network response), but never renders it into participant-facing HTML, ARIA
+text, fullscreen UI, audio, or visual behavior. The agent never returns pitch
+spellings, tempo, event timestamps, CSS transforms, or executable code.
+
+If scoring fails or returns an invalid result, the phrase receives a
+schema-valid silent score with a bounded diagnostic fallback description. This
+keeps its visual sequence intact but produces no green-arrow pop or pedestrian
+note. A phrase is ready for playback only after its four frames and its valid
+or silent-fallback score are frozen.
+
+### Browser-owned phase quantization and playback
+
+Tone.js owns a fixed 96 BPM, 4/4 transport. A five-second frame interval is
+eight quarter-note beats (two bars); a four-frame phrase is twenty seconds
+(eight bars). The browser schedules the image swap, playback head, beat, arrow
+motion, and piano notes on that same transport.
+
+For Sequence, “nearest downbeat” means the nearest quarter-note transport grid
+point (every 625 ms), rather than only the first beat of a bar. This gives each
+five-second image eight practical alignment targets without changing its
+two-bar duration.
+
+For each scored frame, the browser selects the scored inside-crosswalk
+detection with the smallest `anchorX` as its reference event. It calculates:
+
+```text
+naturalCrossingSeconds = anchorX / nativeImageWidth * 5
+beatSeconds            = 60 / 96
+nearestDownbeatSeconds = round(naturalCrossingSeconds / beatSeconds) * beatSeconds
+phaseOffsetSeconds     = nearestDownbeatSeconds - naturalCrossingSeconds
+phaseOffsetPixels      = phaseOffsetSeconds / 5 * displayedImageWidth
+```
+
+The browser applies that bounded phase offset to the frame's visual crop so
+the vertical playback head intersects the reference green arrow on the nearest
+beat. It uses the same offset for the reference arrow-pop and its C-rooted
+chromatic note. Other arrows retain their relative positions inside the frame;
+their note events use their own crossing time plus the same frame phase offset.
+
+The correction is limited to half a quarter-note beat (312.5 ms, or 6.25% of
+the five-second image width) and uses an overscanned, clipped image crop so it
+does not reveal an empty edge. It never changes transport tempo, playback-head
+speed, a neighboring frame's timing, or the agent's score. Frames without a
+scored inside detection use a zero offset and are silent.
+
+The browser derives each pitch from the returned stripe index using a chromatic
+C-rooted map. It schedules note attacks only when the playback head reaches a
+scored green arrow and `SOUND ON` is enabled. Outside detections never produce
+Sequence notes.
+
+### Row promotion and recovery
+
+While row 1 plays, Sequence continues fetching replacement images, running
+bounded Roboflow inference, and preparing/scoring later four-image phrases.
+Row 1 is immutable for its twenty-second phrase. Rows 2 and 3 may replace a
+matching pending source image with its annotated result, but only before that
+row is frozen and promoted.
+
+At a phrase boundary the browser atomically removes row 1, promotes row 2 to
+row 1, promotes row 3 to row 2, and inserts a complete ready four-image phrase
+as row 3. If no complete scored phrase is ready, it replays the previous valid
+row-1 phrase rather than showing a partial row or a visual/audio mismatch.
+
+On route exit, Sequence aborts source, Roboflow, and score requests; clears
+phrase/beat schedules; disposes its Tone graph; revokes image URLs; and rejects
+late responses using generation IDs.
+
+### Assci system diagram
+
+```text
+INITIALIZE
+==========
+
+  511NY configured static sources
+                |
+                | GET /api/snapshot/:cameraId  (same-origin, no-store)
+                v
+  +-----------------------------------------------+
+  | Browser Sequence buffer: 12 immutable frames  |
+  | positions 01-04 = row 1, 05-08 = row 2,       |
+  | positions 09-12 = row 3                       |
+  +-----------------------+-----------------------+
+                          |
+                          | do not render source images yet
+                          v
+  +-------------------------------------------------------+
+  | Row-first inference queue                             |
+  | 01 -> 02 -> 03 -> 04 -> 05 ... -> 12                 |
+  | bounded concurrent POST /api/roboflow/image requests  |
+  +-----------------------+-------------------------------+
+                          |
+                          v
+  +-------------------------------------------------------+
+  | Next.js -> Roboflow snapshot workflow                 |
+  | returns annotated image + sanitized detection geometry |
+  | terminal failure -> raw source / fallback, no events   |
+  +-----------------------+-------------------------------+
+                          |
+                          | positions 01-04 terminal
+                          v
+  +-------------------------------------------------------+
+  | Freeze four-frame phrase                              |
+  | 4 x 5 seconds = 20 seconds                            |
+  | composite + immutable frame/detection-ID manifest     |
+  +-----------------------+-------------------------------+
+                          |
+                          | POST /api/score-sequence
+                          v
+  +-------------------------------------------------------+
+  | Next.js -> Crosswalk Score Agent -> Vertex AI         |
+  | returns detectionId -> occupiedStripeIndex assignments |
+  | invalid/late result -> schema-valid silent score       |
+  +-----------------------+-------------------------------+
+                          |
+                          v
+
+PLAY + REFILL
+=============
+
+  +-------------------------------------------------------+
+  | Browser Tone.js transport: 96 BPM, 4/4                |
+  | Row 1: color/full opacity, current 20-second phrase   |
+  | Row 2: dimmed B&W, next frozen phrase                 |
+  | Row 3: dimmest B&W, on-deck phrase/loading            |
+  +-----------------------+-------------------------------+
+                          |
+                          | for each row-1 frame
+                          v
+  +-------------------------------------------------------+
+  | Browser-only timing                                   |
+  | left-most scored green arrow -> nearest downbeat       |
+  | bounded image phase offset -> head/arrow alignment     |
+  | stripe index -> C-rooted chromatic note + arrow pop    |
+  +-----------------------+-------------------------------+
+                          |
+                          | meanwhile: fetch/infer/score next four frames
+                          v
+  +-------------------------------------------------------+
+  | 20-second phrase boundary                             |
+  | ready row 2 -> row 1                                  |
+  | ready row 3 -> row 2                                  |
+  | complete scored next phrase -> row 3                  |
+  | no complete next phrase -> replay current row 1        |
+  +-------------------------------------------------------+
+```
 
 ## Orchestration study architecture
 
@@ -557,10 +856,11 @@ Recommended Next.js API routes:
 | Route | Consumer | Responsibility |
 | --- | --- | --- |
 | `GET /api/hls/:cameraId/:path*` | Realtime video | Validated HLS proxy; identity encoding and range support |
-| `GET /api/snapshot/:cameraId` | Registry, Orchestration | Validated static-image proxy; source status and metadata headers |
+| `GET /api/snapshot/:cameraId` | Registry, Orchestration, Sequence | Validated static-image proxy; source status and metadata headers |
 | `POST /api/roboflow/webrtc?frameWidth=&frameHeight=` | Realtime | Validated WebRTC offer; server initializes workflow with scaled polygons |
-| `POST /api/roboflow/image` | Orchestration | Image validation; per-source calibration; snapshot workflow call |
+| `POST /api/roboflow/image` | Orchestration, Sequence | Image validation; per-source calibration; snapshot workflow call; Sequence receives sanitized detection geometry with its annotation |
 | `POST /api/score-batch` | Orchestration | Manifest/composite validation; authenticated agent proxy; returned-score validation |
+| `POST /api/score-sequence` | Sequence | Four-frame phrase manifest/composite validation; authenticated agent proxy; immutable detection-ID/stripe-assignment validation |
 | `GET /api/roboflow/turn` | Realtime | Optional TURN configuration proxy, if required by the Roboflow connector |
 
 At minimum, configure these server-only environment values:
@@ -601,6 +901,8 @@ Emit structured metrics/logs for:
 - Roboflow inference queue depth, latency, retries, and error rate;
 - batch creation, scoring latency, validation failures, replay count, and
   active/ready batch IDs;
+- Sequence frame/phrase queue depth, first-row readiness, quantization offset,
+  phrase-score latency, row-promotion replay count, and silent fallback count;
 - audio enablement, transport start/stop, and scheduling drift;
 - agent model, duration, response source (`agent` or `fallback`), and safe
   confidence summaries.
@@ -626,6 +928,7 @@ Every study component must cancel its own work on unmount:
 | --- | --- |
 | Realtime | Destroy `hls.js`, pause and unload video, stop captured media tracks, clean up WebRTC worker, clear canvas state, suspend/close `AudioContext`, clear note occupancy |
 | Orchestration | Abort or ignore outstanding polls/inference/score requests, clear timers, revoke object URLs, dispose Tone Transport and audio graph, release scheduled events, clear frame queues |
+| Sequence | Abort or ignore snapshot/inference/phrase-score requests, clear playback-head and phrase schedules, revoke image URLs, dispose Tone Transport and audio graph, clear rolling row buffers |
 | Camera Registry | Abort snapshot/live-preview loads and release preview players |
 
 Use `AbortController`, generation IDs, and `cancelled` guards so that a late
@@ -653,8 +956,10 @@ Integration tests should cover:
   batch;
 - unavailable primary substitution and later primary recovery;
 - late/invalid score causing prior valid batch replay;
+- Sequence first-row readiness, detection-ID/stripe-score matching, bounded
+  reference-arrow quantization, and atomic four-image row promotion;
 - `SOUND ON`/`SOUND OFF`, five-second event timing, and fullscreen exit;
-- cleanup when moving between Homepage, Realtime, Orchestration, and Registry.
+- cleanup when moving between Homepage, Realtime, Orchestration, Sequence, and Registry.
 
 ## User-scenario alignment
 
@@ -665,8 +970,9 @@ This architecture aligns with [`users-scenarios.md`](users-scenarios.md):
 | Independent Realtime camera and GPU startup/recovery | Separate HLS and WebRTC state machines; neither restarts the other |
 | Realtime striped-keyboard visual/audio with no triangles | Local video + canvas stripe overlay + Web Audio API, based only on inside predictions |
 | Orchestration 3 × 4, color active tile, grayscale ensemble, green/purple triangles | Snapshot workflow returns annotated frames; fixed transport updates one active slot every five seconds |
+| Sequence rolling 3 × 4 piano roll, green-arrow notes, and beat-aligned first event | Twelve-image buffer, four-frame immutable phrase scores, browser-owned geometry quantization, and atomic row promotion |
 | Initial color grid plus non-blocking preparation | Initial snapshots render immediately; changed snapshots build background queues and batches |
 | Continuous polling, fallbacks, and later recovery | Per-slot polling, image health fingerprints, reserved fallback assignment, periodic primary probes |
 | Matched visual/audio 60-second loop and prior-batch replay | Frozen manifest, canvas composite, strict score `batchId`, double buffer, loop-boundary promotion |
-| Realtime browser audio and Orchestration Tone.js | Separate audio engines and user-gesture enablement contracts |
+| Realtime browser audio and Orchestration/Sequence Tone.js | Separate audio engines and user-gesture enablement contracts |
 | Fullscreen, sound controls, Camera Registry, navigation cleanup | Route-scoped component resources, fullscreen presentation modes, Registry bypasses inference |

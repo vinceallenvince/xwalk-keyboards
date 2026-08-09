@@ -508,9 +508,10 @@ And the loading state remains visible until the first four sequence positions ea
 ### As a visitor, I can begin playback as soon as the first row is safe to play
 
 A first-row position is safe to play when Roboflow has returned an annotated
-image, or when a failed detection or fetch has produced its explicitly silent
+image and the Sequence score agent has returned a valid matching phrase score,
+or when a failed detection, fetch, or score has produced its explicitly silent
 fallback result. The study does not hold the first phrase forever waiting for a
-perfect inference response.
+perfect response.
 
 ```gherkin
 Given the Sequence study has received its initial 12-image buffer
@@ -531,13 +532,16 @@ And the beat is audible only when the visitor has enabled sound through a browse
 
 Each green in-crosswalk arrow is both a visual event and a note event. The
 crosswalk stripes are a chromatic keyboard: the left-most mapped stripe is C,
-and each stripe to its right advances one semitone.
+and each stripe to its right advances one semitone. The Sequence score agent
+identifies the stripe occupied by each immutable green-arrow detection; the
+browser derives pitches and controls timing.
 
 ```gherkin
 Given the Sequence playback head is moving across a full-color row-1 image
 And that image has a successful Roboflow annotation
+And the Sequence score agent has returned a valid score for that image's four-image phrase
 When the playback head intersects a green arrow for a pedestrian inside the calibrated crosswalk
-Then the app maps the pedestrian to the crosswalk stripe containing the pedestrian's detection position
+Then the score identifies that green arrow's immutable detection ID and occupied crosswalk stripe
 And the left-most mapped stripe plays the chromatic root note "C"
 And each stripe to the right maps to the next chromatic piano note
 And the app triggers the note mapped to that stripe when sound is enabled
@@ -549,6 +553,44 @@ Then that marker does not trigger a piano note
 
 Given the playback head intersects a silent fallback or unannotated image
 Then no pedestrian note or arrow-pop event is triggered for that image
+```
+
+### As a developer, I can inspect a concise phrase description without exposing it in the study UI
+
+The Sequence score agent returns a short diagnostic description of the current
+row-1 phrase. It supports debugging and does not act as participant-facing
+copy, visual direction, or audio instruction.
+
+```gherkin
+Given the Sequence score agent returns a valid score for a four-image row-1 phrase
+Then the score includes one plain-text row-1 description no longer than 250 characters
+And the description is retained with its matching immutable phrase ID for developer diagnostics
+And the description is never rendered in the Sequence grid, status bar, footer, fullscreen view, or accessible participant-facing text
+And the description does not alter note selection, beat placement, image phase offsets, or visual transitions
+```
+
+### As a visitor, I can feel the first pedestrian event land on the beat
+
+The first playable green arrow in each image establishes only that image's
+visual phase. The score agent never controls tempo, beat placement, image
+translation, or animation. The browser uses the arrow's returned geometry to
+make a bounded visual correction so the playback head crosses it on the nearest
+musical beat.
+
+```gherkin
+Given a Sequence image has a valid phrase score and one or more scored green arrows
+When the browser prepares that image for playback
+Then the browser selects the left-most scored green arrow as the image's first playback event
+And the browser calculates that arrow's unadjusted crossing time from its horizontal anchor coordinate and the five-second image interval
+And the browser quantizes that crossing time to the nearest downbeat of the fixed 96 BPM transport
+And the browser calculates and applies a bounded per-image visual phase offset so the playback head and selected green arrow are vertically aligned on that beat
+And the same offset is used for the arrow-pop treatment and its scheduled piano note
+And the offset never changes the phrase tempo, playback-head speed, or another image's timing
+
+Given a Sequence image has no scored green arrow
+When the browser prepares that image for playback
+Then the image uses a zero visual phase offset
+And the image produces no pedestrian note or arrow-pop event
 ```
 
 ### As a visitor, I can follow the rolling image queue while a phrase plays
@@ -564,8 +606,9 @@ When Roboflow returns an annotation for an image assigned to row 2 or row 3
 Then the app replaces only that matching upcoming image with its annotated version
 And the updated upcoming image remains black and white and dimmed until it reaches row 1
 And row 1's four images remain unchanged for the duration of the current phrase
+And the app prepares an immutable four-image phrase score only after every image in that upcoming phrase has a terminal Roboflow result
 And the app continues queueing later buffered images and replacement images while playback continues
-And no annotation, green arrow, or note mapping is associated with a different image or sequence position
+And no annotation, green arrow, phrase score, or note mapping is associated with a different image or sequence position
 ```
 
 ### As a visitor, I can experience an uninterrupted rolling sequence
