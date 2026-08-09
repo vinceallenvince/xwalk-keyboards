@@ -229,6 +229,28 @@ Then the inference status becomes active again
 And crosswalk highlights and qualifying notes resume from new detections
 ```
 
+### As a visitor, if the video feed is unavailable, I see a confirmation message
+
+When the camera feed cannot be reached or the calibration agent reports that
+the feed is down, the study communicates honestly rather than showing a blank
+viewport or pretending the instrument is available.
+
+```gherkin
+Given I am viewing the Realtime study
+When the camera feed is unavailable due to a source outage or network failure
+Then the feed status reads "FEED DOWN // WEST STREET @ W34 ST" in its inactive state
+And the inference status reads "FEED UNAVAILABLE" in red
+And the viewport displays the last received frame darkened to 35% opacity
+And a centered overlay reads "VIDEO FEED UNAVAILABLE" in bold 18px white
+And a subtitle reads "The camera feed for this intersection is currently offline."
+And the FULLSCREEN and SOUND controls remain visible but visually inactive at reduced opacity
+And no crosswalk stripe highlights or notes are produced
+And the RECALIBRATE button remains available so an operator can trigger a manual check
+When the camera feed recovers
+Then the study resumes its normal live state with current detections
+And the unavailable overlay is removed
+```
+
 ### As a visitor, I can view the live Realtime study full screen
 
 Fullscreen removes the surrounding study interface and makes the live camera

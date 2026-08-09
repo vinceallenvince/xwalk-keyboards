@@ -97,6 +97,11 @@ epics:
       # The Figma section currently repeats the preceding story name, but its
       # scenario copy and UI frame describe the fullscreen interaction. The
       # frame itself is an empty placeholder with no authored content.
+      - story: "As a visitor, if the video feed is unavailable, I see a confirmation message"
+        scenario: "283-2"
+        ui:
+          - { node: "285-2", shot: null }  # feed down overlay
+
       - story: "As a visitor, I can view the live Realtime study full screen"
         scenario: "57-302"
         ui:

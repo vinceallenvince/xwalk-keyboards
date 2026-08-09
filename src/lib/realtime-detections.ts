@@ -80,3 +80,13 @@ export function occupiedNotesFromRealtimeOutputs(
 export function countPredictionsForOutput(workflowOutput: unknown, outputName: string) {
   return predictionRecords(namedOutput(workflowOutput, outputName)).length;
 }
+
+/** Extract the foot-point of every detection in a named output. */
+export function footPointsFromOutput(workflowOutput: unknown, outputName: string): [number, number][] {
+  const points: [number, number][] = [];
+  for (const prediction of predictionRecords(namedOutput(workflowOutput, outputName))) {
+    const point = lowerBodyPoint(prediction);
+    if (point) points.push(point);
+  }
+  return points;
+}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { expandPolygonY, processPolygon, simplifyPolygon } from "@/lib/polygon-utils";
 import { REALTIME_CALIBRATION, type Point, type Stripe } from "@/lib/realtime-calibration";
 
 export type CalibrationStatus = "ok" | "degraded" | "no_crosswalk" | "feed_down" | "needs_review";
@@ -42,13 +43,21 @@ function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
       stripeIndex: s.stripeIndex,
       segment: s.segment,
       note: s.note,
-      polygon: s.polygon.map(([x, y]) => [x, y] as const),
+      // Simplify the jagged instance-segmentation outlines into clean quads,
+      // then expand ~15% so a fast-walking pedestrian stepping slightly off
+      // the paint still triggers the note.
+      polygon: processPolygon(s.polygon.map(([x, y]) => [x, y] as const)),
     }));
 }
 
 function toPolygon(raw: number[][] | undefined): readonly Point[] | null {
   if (!raw?.length) return null;
-  return raw.map(([x, y]) => [x, y] as const);
+  const points = raw.map(([x, y]) => [x, y] as const);
+  // Simplify the jagged segmentation outline, then expand only vertically —
+  // the crosswalk boundary should be wider top-to-bottom (to catch people
+  // stepping just off the edge) but not wider left-to-right (to avoid
+  // bleeding into the median or the road).
+  return expandPolygonY(simplifyPolygon(points), 1.2);
 }
 
 const REFERENCE: LiveCalibration = {
@@ -75,7 +84,13 @@ export function useCalibration(cameraId: number): LiveCalibration {
 
     const load = async () => {
       try {
-        const response = await fetch(`/api/calibration/${cameraId}`, { cache: "no-store" });
+        let response = await fetch(`/api/calibration/${cameraId}`, { cache: "no-store" });
+
+        // In local dev the GCS proxy returns 502 (no metadata server for auth).
+        // Fall back to a cached snapshot so the live polygons are still usable.
+        if (!response.ok) {
+          response = await fetch("/calibration-fallback.json", { cache: "no-store" });
+        }
         if (!response.ok) return; // keep current (reference or last-known-good)
 
         const data: CalibrationResponse = await response.json();
@@ -101,9 +116,16 @@ export function useCalibration(cameraId: number): LiveCalibration {
     void load();
     timerRef.current = setInterval(() => void load(), REFETCH_INTERVAL_MS);
 
+    // The RECALIBRATE button dispatches this event after a successful run so
+    // the hook picks up the new calibration immediately rather than waiting
+    // for the next 5-minute interval.
+    const onUpdated = () => void load();
+    window.addEventListener("calibration-updated", onUpdated);
+
     return () => {
       cancelled = true;
       if (timerRef.current) clearInterval(timerRef.current);
+      window.removeEventListener("calibration-updated", onUpdated);
     };
   }, [cameraId]);
 

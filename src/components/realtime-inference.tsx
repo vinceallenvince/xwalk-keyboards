@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 
 import {
   countPredictionsForOutput,
+  footPointsFromOutput,
   occupiedNotesFromRealtimeOutputs,
 } from "@/lib/realtime-detections";
 import { REALTIME_CALIBRATION, scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
@@ -19,6 +20,9 @@ type RealtimeInferenceProps = {
   audioEnabledRef: { current: boolean };
   connectionKey: number;
   onActive: () => void;
+  /** Reports detected pedestrian foot-points each frame, for the debug overlay. */
+  onDetectionPoints: (points: [number, number][]) => void;
+  onFrameSize: (size: FrameSize) => void;
   onStatusChange: (status: InferenceStatus) => void;
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
   /** Live stripe polygons from the calibration agent, or the baked-in reference. */
@@ -101,11 +105,46 @@ function playPianoNote(context: AudioContext, note: string) {
   harmonic.stop(startedAt + 1.12);
 }
 
+// TODO: restore to 20_000ms after testing
+const BEAT_RESUME_DELAY_MS = 5_000;
+// Orchestration uses a MembraneSynth at C2 on quarter notes at 96 BPM = 625ms.
+const BEAT_INTERVAL_MS = 625;
+
+/**
+ * Membrane-style kick matching the Orchestration study's background beat:
+ * MembraneSynth({ octaves: 2, pitchDecay: .02, envelope: { attack: .001,
+ * decay: .07, release: .02 } }) at C2, velocity 0.11.
+ *
+ * Recreated in raw Web Audio: a sine oscillator whose frequency sweeps from
+ * C4 (2 octaves up) down to C2 over 20ms — that fast pitch drop is what gives
+ * a membrane synth its kick character.
+ */
+function playBeat(context: AudioContext) {
+  const now = context.currentTime;
+  const baseFreq = noteFrequency("C2");
+  const osc = context.createOscillator();
+  const gain = context.createGain();
+  osc.type = "sine";
+  // Pitch sweep: start 2 octaves up (C4), drop to C2 over 20ms.
+  osc.frequency.setValueAtTime(baseFreq * 4, now);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.02);
+  // Envelope: fast attack, short decay. Gain raised for testing.
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(0.35, now + 0.001);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+  osc.connect(gain);
+  gain.connect(context.destination);
+  osc.start(now);
+  osc.stop(now + 0.1);
+}
+
 export function RealtimeInference({
   audioContextRef,
   audioEnabledRef,
   connectionKey,
   onActive,
+  onDetectionPoints,
+  onFrameSize,
   onStatusChange,
   sourceVideoRef,
   stripes: liveStripes,
@@ -113,6 +152,10 @@ export function RealtimeInference({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeNotesRef = useRef(new Set<string>());
   const lastTriggeredAtRef = useRef(new Map<string, number>());
+  // Beat state: plays when people are detected but none are in the crosswalk.
+  const beatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const beatResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastInsideTimestampRef = useRef<number>(0);
   const [activeNotes, setActiveNotes] = useState<string[]>([]);
   const [frame, setFrame] = useState<FrameSize | null>(null);
   const [insideCount, setInsideCount] = useState<number | null>(null);
@@ -121,6 +164,29 @@ export function RealtimeInference({
   const clearOccupancy = () => {
     activeNotesRef.current.clear();
     setActiveNotes([]);
+  };
+
+  const startBeat = () => {
+    if (beatIntervalRef.current) return; // already running
+    const ctx = audioContextRef.current;
+    if (!ctx || !audioEnabledRef.current) return;
+    playBeat(ctx); // immediate first pulse
+    beatIntervalRef.current = setInterval(() => {
+      if (audioContextRef.current && audioEnabledRef.current) {
+        playBeat(audioContextRef.current);
+      }
+    }, BEAT_INTERVAL_MS);
+  };
+
+  const stopBeat = () => {
+    if (beatIntervalRef.current) {
+      clearInterval(beatIntervalRef.current);
+      beatIntervalRef.current = null;
+    }
+    if (beatResumeTimerRef.current) {
+      clearTimeout(beatResumeTimerRef.current);
+      beatResumeTimerRef.current = null;
+    }
   };
 
   useEffect(() => {
@@ -162,6 +228,7 @@ export function RealtimeInference({
         };
         if (inputFrame.width < 1 || inputFrame.height < 1) throw new Error("The HLS video did not report dimensions");
         setFrame(inputFrame);
+        onFrameSize(inputFrame);
 
         const { connectors, webrtc } = await import("@roboflow/inference-sdk");
         connection = await webrtc.useStream({
@@ -176,16 +243,58 @@ export function RealtimeInference({
             const notes = occupiedNotesFromRealtimeOutputs(output, configuration.outputBindings, inputFrame);
             const occupied = new Set(notes);
             setActiveNotes(notes);
-            setInsideCount(
+
+            const insideNow =
               countPredictionsForOutput(output, configuration.outputBindings.insideLeft) +
-              countPredictionsForOutput(output, configuration.outputBindings.insideRight)
-            );
+              countPredictionsForOutput(output, configuration.outputBindings.insideRight);
+            setInsideCount(insideNow);
+
+            const totalPeople = countPredictionsForOutput(output, configuration.outputBindings.all);
+
+            // Report all foot-points for the debug overlay.
+            const allPoints = [
+              ...footPointsFromOutput(output, configuration.outputBindings.insideLeft),
+              ...footPointsFromOutput(output, configuration.outputBindings.insideRight),
+            ];
+            onDetectionPoints(allPoints);
 
             if (!audioEnabledRef.current || !audioContextRef.current) {
               activeNotesRef.current.clear();
+              stopBeat();
               return;
             }
+
+            // --- Beat logic ---------------------------------------------------
+            // Play a subtle beat when people are detected outside the crosswalk
+            // but none are inside it — the intersection is "listening" but no
+            // one is playing. Stop the beat the moment someone enters the
+            // crosswalk. Resume after 20 seconds of nobody inside.
             const now = performance.now();
+
+            if (insideNow > 0) {
+              // Someone is playing — stop the beat.
+              stopBeat();
+              lastInsideTimestampRef.current = now;
+            } else if (totalPeople > 0 && !beatIntervalRef.current) {
+              // People detected but none inside. Start (or schedule) the beat.
+              const elapsed = now - lastInsideTimestampRef.current;
+              if (lastInsideTimestampRef.current === 0 || elapsed >= BEAT_RESUME_DELAY_MS) {
+                // Either first time or 20s has passed — start immediately.
+                startBeat();
+              } else if (!beatResumeTimerRef.current) {
+                // Schedule the beat to resume after the remaining delay.
+                const remaining = BEAT_RESUME_DELAY_MS - elapsed;
+                beatResumeTimerRef.current = setTimeout(() => {
+                  beatResumeTimerRef.current = null;
+                  startBeat();
+                }, remaining);
+              }
+            } else if (totalPeople === 0) {
+              // Nobody in frame at all — silence.
+              stopBeat();
+            }
+
+            // --- Note triggers ------------------------------------------------
             for (const note of occupied) {
               const lastTriggeredAt = lastTriggeredAtRef.current.get(note) ?? 0;
               if (!activeNotesRef.current.has(note) && now - lastTriggeredAt >= 600) {
@@ -215,10 +324,12 @@ export function RealtimeInference({
     return () => {
       abortController.abort();
       clearOccupancy();
+      stopBeat();
       if (connection) void connection.cleanup();
       else sourceStream?.getTracks().forEach((track) => track.stop());
     };
-  }, [audioContextRef, audioEnabledRef, connectionKey, onActive, onStatusChange, sourceVideoRef]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- startBeat/stopBeat only use stable refs
+  }, [audioContextRef, audioEnabledRef, connectionKey, onActive, onDetectionPoints, onFrameSize, onStatusChange, sourceVideoRef]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -244,17 +355,38 @@ export function RealtimeInference({
       const scaleY = contentHeight / frame.height;
       const notes = new Set(activeNotes);
 
+      const tracePath = (ctx: CanvasRenderingContext2D, points: [number, number][]) => {
+        const [first, ...rest] = points;
+        if (!first) return;
+        ctx.beginPath();
+        ctx.moveTo(offsetX + first[0] * scaleX, offsetY + first[1] * scaleY);
+        for (const pt of rest) ctx.lineTo(offsetX + pt[0] * scaleX, offsetY + pt[1] * scaleY);
+        ctx.closePath();
+      };
+
+      // Glow is built from three blur passes at increasing radii, drawn
+      // lightest-and-widest first so the layers composite additively. The
+      // `filter` property applies a true gaussian blur to the fill itself,
+      // not just a shadow behind it, which is what makes the edges soft.
+      const glowLayers: Array<{ blur: number; fill: string }> = [
+        { blur: 20, fill: "rgba(148, 215, 181, 0.15)" },  // wide halo
+        { blur: 10, fill: "rgba(148, 215, 181, 0.25)" },  // medium bloom
+        { blur: 3,  fill: "rgba(148, 215, 181, 0.45)" },  // tight core
+      ];
+
       for (const stripe of liveStripes) {
         if (!notes.has(stripe.note)) continue;
-        const polygon = scalePolygon(stripe.polygon, frame);
-        const [firstPoint, ...rest] = polygon;
-        if (!firstPoint) continue;
-        context.beginPath();
-        context.moveTo(offsetX + firstPoint[0] * scaleX, offsetY + firstPoint[1] * scaleY);
-        for (const point of rest) context.lineTo(offsetX + point[0] * scaleX, offsetY + point[1] * scaleY);
-        context.closePath();
-        context.fillStyle = "rgba(148, 215, 181, 0.42)";
-        context.fill();
+        const points = scalePolygon(stripe.polygon, frame);
+        if (points.length < 3) continue;
+
+        for (const layer of glowLayers) {
+          context.save();
+          context.filter = `blur(${layer.blur * scaleX}px)`;
+          tracePath(context, points);
+          context.fillStyle = layer.fill;
+          context.fill();
+          context.restore();
+        }
       }
     };
     draw();
