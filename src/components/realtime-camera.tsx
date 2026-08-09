@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RealtimeInference, type InferenceStatus } from "@/components/realtime-inference";
+import { useCalibration } from "@/lib/use-calibration";
 
 type CameraStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
@@ -37,6 +38,7 @@ export function RealtimeCamera() {
   const [connectionKey, setConnectionKey] = useState(0);
   const [inferenceStatus, setInferenceStatus] = useState<InferenceStatus>("waiting");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const calibration = useCalibration(5056);
 
   const restart = useCallback(() => {
     setCameraStatus("reconnecting");
@@ -201,6 +203,7 @@ export function RealtimeCamera() {
             onActive={handleInferenceActive}
             onStatusChange={reportInferenceStatus}
             sourceVideoRef={videoRef}
+            stripes={calibration.stripes}
           />
         )}
         <div className={`realtime-controls${isLive ? "" : " realtime-controls--idle"}`}>

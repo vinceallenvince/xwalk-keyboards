@@ -6,7 +6,7 @@ import {
   countPredictionsForOutput,
   occupiedNotesFromRealtimeOutputs,
 } from "@/lib/realtime-detections";
-import { REALTIME_CALIBRATION, scalePolygon, type FrameSize } from "@/lib/realtime-calibration";
+import { REALTIME_CALIBRATION, scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
 
 export type InferenceStatus = "waiting" | "starting" | "active" | "reconnecting" | "unavailable";
 
@@ -21,6 +21,8 @@ type RealtimeInferenceProps = {
   onActive: () => void;
   onStatusChange: (status: InferenceStatus) => void;
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
+  /** Live stripe polygons from the calibration agent, or the baked-in reference. */
+  stripes: readonly Stripe[];
 };
 
 type OutputBindings = {
@@ -106,6 +108,7 @@ export function RealtimeInference({
   onActive,
   onStatusChange,
   sourceVideoRef,
+  stripes: liveStripes,
 }: RealtimeInferenceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeNotesRef = useRef(new Set<string>());
@@ -241,7 +244,7 @@ export function RealtimeInference({
       const scaleY = contentHeight / frame.height;
       const notes = new Set(activeNotes);
 
-      for (const stripe of REALTIME_CALIBRATION.stripes) {
+      for (const stripe of liveStripes) {
         if (!notes.has(stripe.note)) continue;
         const polygon = scalePolygon(stripe.polygon, frame);
         const [firstPoint, ...rest] = polygon;
@@ -258,7 +261,7 @@ export function RealtimeInference({
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [activeNotes, frame]);
+  }, [activeNotes, frame, liveStripes]);
 
   return (
     <>
