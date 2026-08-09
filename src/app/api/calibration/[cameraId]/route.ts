@@ -9,6 +9,27 @@ const PREFIX = process.env.CALIBRATION_GCS_PREFIX ?? "calibration";
 type RouteContext = { params: Promise<{ cameraId: string }> };
 
 /**
+ * Fetch an access token from the GCE metadata server. On Cloud Run this
+ * returns the runtime service account's token; locally it returns nothing
+ * (and the route falls back to unauthenticated access, which will 401/403
+ * against a private bucket — acceptable for dev since the client falls back
+ * to the baked-in reference).
+ */
+async function getAccessToken(): Promise<string | null> {
+  try {
+    const response = await fetch(
+      "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+      { headers: { "Metadata-Flavor": "Google" }, signal: AbortSignal.timeout(2_000) },
+    );
+    if (!response.ok) return null;
+    const data = await response.json() as { access_token?: string };
+    return data.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * GET /api/calibration/[cameraId]
  *
  * Returns the current calibration JSON from GCS. The web client calls this on
@@ -29,9 +50,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const objectPath = `${PREFIX}/current/camera_${cameraId}.json`;
   const url = `https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`;
 
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   try {
     const upstream = await fetch(url, {
       cache: "no-store",
+      headers,
       signal: AbortSignal.timeout(8_000),
     });
 
