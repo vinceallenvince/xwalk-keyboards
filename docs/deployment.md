@@ -164,6 +164,7 @@ Add an entry for every production deployment:
 | Date | Service | Revision | URL | Deployed by | Notes |
 | --- | --- | --- | --- | --- | --- |
 | 2026-08-07 | `xwalk-keyboards` | `xwalk-keyboards-00005-m82` | https://xwalk-keyboards-21826886868.us-central1.run.app | `vince@vinceallen.com` | Public web app; Roboflow and score-agent keys injected from Secret Manager. |
+| 2026-08-09 | `xwalk-keyboards` | `xwalk-keyboards-00006-769` | https://xwalk-keyboards-21826886868.us-central1.run.app | `vince@vinceallen.com` | Figma alignment pass across Homepage, Realtime, and Camera Registry. Source deploy with no env/secret flags, so existing Secret Manager bindings and IAM carried forward. Runtime image now prunes devDependencies. Smoke test: `/api/health` 200, all four routes 200. |
 
 ## Related references
 
