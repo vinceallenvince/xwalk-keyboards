@@ -39,6 +39,7 @@ export function RealtimeCamera() {
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>("connecting");
   const [connectionKey, setConnectionKey] = useState(0);
   const [inferenceStatus, setInferenceStatus] = useState<InferenceStatus>("waiting");
+  const [inferenceMessage, setInferenceMessage] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [frameSize, setFrameSize] = useState<FrameSize | null>(null);
   const [detectionPoints, setDetectionPoints] = useState<[number, number][]>([]);
@@ -54,8 +55,9 @@ export function RealtimeCamera() {
     setConnectionKey((key) => key + 1);
   }, []);
 
-  const reportInferenceStatus = useCallback((status: InferenceStatus) => {
+  const reportInferenceStatus = useCallback((status: InferenceStatus, statusMessage?: string) => {
     setInferenceStatus(status);
+    setInferenceMessage(statusMessage ?? null);
   }, []);
 
   const enableAudio = useCallback(async () => {
@@ -251,7 +253,7 @@ export function RealtimeCamera() {
           )}
         </span>
         <span className={`realtime-inference-status realtime-inference-status--${effectiveCamera === "unavailable" ? "unavailable" : inferenceStatus}`}>
-          {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE" : inferenceLabels[inferenceStatus]}
+          {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE" : inferenceMessage ?? inferenceLabels[inferenceStatus]}
         </span>
       </div>
       <div ref={viewportRef} className="realtime-viewport">

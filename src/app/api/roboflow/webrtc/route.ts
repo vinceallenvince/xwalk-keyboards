@@ -63,7 +63,10 @@ export async function POST(request: Request) {
           [configuration.polygonInputs.right]: crosswalkPolygons.right,
         },
         streamOutputNames: [],
-        dataOutputNames: Object.values(configuration.outputBindings),
+        // Only request the 'all' output — client-side classification handles
+        // inside/outside using the live calibration boundaries, so the
+        // workflow's per-polygon outputs are no longer needed.
+        dataOutputNames: [configuration.outputBindings.all],
         realtimeProcessing: true,
         requestedPlan: configuration.requestedPlan,
         requestedRegion: configuration.region,

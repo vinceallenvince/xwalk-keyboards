@@ -24,7 +24,7 @@ type RealtimeInferenceProps = {
   /** Reports detected pedestrian foot-points each frame, for the debug overlay. */
   onDetectionPoints: (points: [number, number][]) => void;
   onFrameSize: (size: FrameSize) => void;
-  onStatusChange: (status: InferenceStatus) => void;
+  onStatusChange: (status: InferenceStatus, statusMessage?: string) => void;
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
   /** Live calibration for client-side inside/outside classification. */
   calibration: ClientCalibration;
@@ -197,15 +197,25 @@ export function RealtimeInference({
     const abortController = new AbortController();
     let sourceStream: MediaStream | null = null;
     let connection: Awaited<ReturnType<typeof import("@roboflow/inference-sdk").webrtc.useStream>> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const start = async () => {
+    const MAX_RETRIES = 5;
+    const BASE_DELAY_MS = 2_000;
+
+    const attempt = async (retryCount: number) => {
       const sourceVideo = sourceVideoRef.current as CapturableVideo | null;
-      if (!sourceVideo) return;
+      if (!sourceVideo || abortController.signal.aborted) return;
       clearOccupancy();
-      setFrame(null);
-      setInsideCount(null);
-      onStatusChange("starting");
-      setMessage("Connecting to pedestrian inference");
+
+      if (retryCount === 0) {
+        setFrame(null);
+        setInsideCount(null);
+        onStatusChange("starting");
+        setMessage("Connecting to pedestrian inference");
+      } else {
+        onStatusChange("reconnecting");
+        setMessage(`Reconnecting to inference (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
+      }
 
       try {
         const configResponse = await fetch("/api/roboflow/realtime-config", {
@@ -321,14 +331,33 @@ export function RealtimeInference({
       } catch (error) {
         if (abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
         clearOccupancy();
-        onStatusChange("unavailable");
-        setMessage(error instanceof Error ? error.message : "Realtime inference unavailable");
+        stopBeat();
+
+        // Clean up the failed connection before retrying.
+        if (connection) { void connection.cleanup(); connection = null; }
+        else sourceStream?.getTracks().forEach((track) => track.stop());
+        sourceStream = null;
+
+        if (retryCount < MAX_RETRIES) {
+          const delay = BASE_DELAY_MS * 2 ** retryCount; // 2s, 4s, 8s, 16s, 32s
+          const retryMsg = `RECONNECTING ${retryCount + 1}/${MAX_RETRIES}...`;
+          onStatusChange("reconnecting", retryMsg);
+          setMessage(`Inference failed, retrying in ${Math.round(delay / 1000)}s...`);
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            void attempt(retryCount + 1);
+          }, delay);
+        } else {
+          onStatusChange("unavailable");
+          setMessage(error instanceof Error ? error.message : "Realtime inference unavailable");
+        }
       }
     };
 
-    void start();
+    void attempt(0);
     return () => {
       abortController.abort();
+      if (retryTimer) clearTimeout(retryTimer);
       clearOccupancy();
       stopBeat();
       if (connection) void connection.cleanup();
