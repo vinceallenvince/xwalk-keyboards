@@ -1,11 +1,12 @@
-import { stripeForPoint, type FrameSize } from "./realtime-calibration";
+import {
+  isPointInPolygon,
+  scalePolygon,
+  type FrameSize,
+  type Point,
+  type Stripe,
+} from "./realtime-calibration";
 
 type UnknownRecord = Record<string, unknown>;
-
-export type RealtimeOutputBindings = {
-  insideLeft: string;
-  insideRight: string;
-};
 
 function isRecord(value: unknown): value is UnknownRecord {
   return Boolean(value) && typeof value === "object";
@@ -60,19 +61,84 @@ export function lowerBodyPoint(prediction: UnknownRecord): [number, number] | nu
   return [x + boxWidth / 2, y + boxHeight];
 }
 
-export function occupiedNotesFromRealtimeOutputs(
+/**
+ * Client-side stripe-for-point using live calibration data.
+ *
+ * Replaces the server-side polygon filtering that Roboflow used to do. The
+ * workflow now returns all person detections, and this function decides which
+ * ones are inside a stripe (or inside a crosswalk boundary and near a stripe).
+ */
+function stripeForPointLive(
+  point: Point,
+  frame: FrameSize,
+  stripes: readonly Stripe[],
+  leftBoundary: readonly Point[] | null,
+  rightBoundary: readonly Point[] | null,
+): Stripe | null {
+  const scaledStripes = stripes.map((stripe) => ({
+    ...stripe,
+    polygon: scalePolygon(stripe.polygon, frame),
+  }));
+
+  // Direct hit — foot-point is inside a stripe polygon.
+  const directHit = scaledStripes.find((s) => isPointInPolygon(point, s.polygon));
+  if (directHit) return directHit;
+
+  // Fallback — foot-point is inside a crosswalk boundary, assign to nearest stripe.
+  const left = leftBoundary ? scalePolygon(leftBoundary, frame) : null;
+  const right = rightBoundary ? scalePolygon(rightBoundary, frame) : null;
+  const segment = (left && isPointInPolygon(point, left))
+    ? "left"
+    : (right && isPointInPolygon(point, right))
+      ? "right"
+      : null;
+  if (!segment) return null;
+
+  const segmentStripes = scaledStripes.filter((s) => s.segment === segment);
+  if (segmentStripes.length === 0) return null;
+
+  let nearest = segmentStripes[0];
+  let nearestDist = Number.POSITIVE_INFINITY;
+  for (const stripe of segmentStripes) {
+    for (const vertex of stripe.polygon) {
+      const dist = (point[0] - vertex[0]) ** 2 + (point[1] - vertex[1]) ** 2;
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = stripe;
+      }
+    }
+  }
+  return nearest;
+}
+
+export type ClientCalibration = {
+  stripes: readonly Stripe[];
+  leftCrosswalk: readonly Point[] | null;
+  rightCrosswalk: readonly Point[] | null;
+};
+
+/**
+ * Client-side classification: read all detections from the `all` output and
+ * test each foot-point against the live calibration stripes and boundaries.
+ */
+export function occupiedNotesFromAllDetections(
   workflowOutput: unknown,
-  outputBindings: RealtimeOutputBindings,
-  frame: FrameSize
+  allOutputName: string,
+  frame: FrameSize,
+  calibration: ClientCalibration,
 ) {
   const notes = new Set<string>();
-  for (const outputName of [outputBindings.insideLeft, outputBindings.insideRight]) {
-    const output = namedOutput(workflowOutput, outputName);
-    for (const prediction of predictionRecords(output)) {
-      const point = lowerBodyPoint(prediction);
-      const stripe = point && stripeForPoint(point, frame);
-      if (stripe) notes.add(stripe.note);
-    }
+  const output = namedOutput(workflowOutput, allOutputName);
+  for (const prediction of predictionRecords(output)) {
+    const point = lowerBodyPoint(prediction);
+    if (!point) continue;
+    const stripe = stripeForPointLive(
+      point, frame,
+      calibration.stripes,
+      calibration.leftCrosswalk,
+      calibration.rightCrosswalk,
+    );
+    if (stripe) notes.add(stripe.note);
   }
   return [...notes];
 }

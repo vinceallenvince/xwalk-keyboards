@@ -217,8 +217,10 @@ export function RealtimeCamera() {
       });
 
       if (response.ok) {
-        // The agent published to GCS; force the hook to re-fetch immediately.
-        // A full re-fetch picks up both stripes and boundaries.
+        // Give GCS a moment to propagate the new object, then re-fetch.
+        // The agent writes to GCS before returning, but eventual consistency
+        // means an immediate read can still return the old version.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
         window.dispatchEvent(new Event("calibration-updated"));
       }
     } catch {
@@ -264,6 +266,11 @@ export function RealtimeCamera() {
           <RealtimeInference
             audioContextRef={audioContextRef}
             audioEnabledRef={audioEnabledRef}
+            calibration={{
+              stripes: calibration.stripes,
+              leftCrosswalk: calibration.leftCrosswalk,
+              rightCrosswalk: calibration.rightCrosswalk,
+            }}
             connectionKey={connectionKey}
             onActive={handleInferenceActive}
             onDetectionPoints={reportDetectionPoints}

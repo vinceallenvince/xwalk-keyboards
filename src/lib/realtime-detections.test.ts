@@ -3,20 +3,31 @@ import { describe, expect, it } from "vitest";
 import {
   countPredictionsForOutput,
   lowerBodyPoint,
-  occupiedNotesFromRealtimeOutputs,
+  occupiedNotesFromAllDetections,
 } from "./realtime-detections";
+import { REALTIME_CALIBRATION } from "./realtime-calibration";
 
 describe("Realtime prediction mapping", () => {
-  it("maps only inside outputs to their calibrated stripe notes", () => {
+  const calibration = {
+    stripes: REALTIME_CALIBRATION.stripes,
+    leftCrosswalk: REALTIME_CALIBRATION.leftCrosswalk.map(([x, y]) => [x, y] as const),
+    rightCrosswalk: REALTIME_CALIBRATION.rightCrosswalk.map(([x, y]) => [x, y] as const),
+  };
+
+  it("classifies detections client-side using live calibration", () => {
     const output = {
-      insideLeft: { predictions: [{ x: 72, y: 115, width: 8, height: 10 }] },
-      insideRight: { predictions: [{ x: 320, y: 138, width: 6, height: 12 }] },
-      outside: { predictions: [{ x: 250, y: 180, width: 12, height: 12 }] },
+      all: { predictions: [
+        { x: 72, y: 115, width: 8, height: 10 },   // inside left crosswalk
+        { x: 320, y: 138, width: 6, height: 12 },   // inside right crosswalk
+        { x: 250, y: 180, width: 12, height: 12 },   // outside both crosswalks
+      ]},
     };
-    expect(occupiedNotesFromRealtimeOutputs(output, {
-      insideLeft: "insideLeft", insideRight: "insideRight",
-    }, { width: 352, height: 240 })).toEqual(["G4", "Bb5"]);
-    expect(countPredictionsForOutput(output, "outside")).toBe(1);
+    const notes = occupiedNotesFromAllDetections(
+      output, "all", { width: 352, height: 240 }, calibration,
+    );
+    // Foot-point (72, 120) falls on F#4 with direct polygon hit testing.
+    expect(notes).toEqual(["F#4", "Bb5"]);
+    expect(countPredictionsForOutput(output, "all")).toBe(3);
   });
 
   it("uses a detection foot point", () => {

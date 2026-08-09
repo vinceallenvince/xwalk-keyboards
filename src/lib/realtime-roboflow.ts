@@ -68,7 +68,71 @@ export function readRealtimeRoboflowConfiguration(
   };
 }
 
-export function scaledRealtimeCrosswalkPolygons(frame: FrameSize) {
+/**
+ * Fetch the live calibration from GCS if available, fall back to the baked-in
+ * reference. This runs server-side in the WebRTC route so the polygons sent to
+ * Roboflow reflect the agent's latest detection, not the stale hand-drawn reference.
+ */
+async function liveCalibrationPolygons(): Promise<{
+  left: readonly (readonly [number, number])[];
+  right: readonly (readonly [number, number])[];
+}> {
+  const bucket = process.env.CALIBRATION_BUCKET ?? "xwalk-keyboards-01";
+  const prefix = process.env.CALIBRATION_GCS_PREFIX ?? "calibration";
+  const cameraId = REALTIME_CALIBRATION.cameraId;
+  const objectPath = `${prefix}/current/camera_${cameraId}.json`;
+  const url = `https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(objectPath)}?alt=media`;
+
+  try {
+    // Get an access token from the metadata server (Cloud Run).
+    let token: string | null = null;
+    try {
+      const tokenResp = await fetch(
+        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+        { headers: { "Metadata-Flavor": "Google" }, signal: AbortSignal.timeout(2_000) },
+      );
+      if (tokenResp.ok) {
+        const data = await tokenResp.json() as { access_token?: string };
+        token = data.access_token ?? null;
+      }
+    } catch {
+      // Running locally — fall through to reference.
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const resp = await fetch(url, {
+      cache: "no-store",
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!resp.ok) throw new Error(`GCS ${resp.status}`);
+
+    const data = await resp.json() as {
+      leftCrosswalk?: number[][];
+      rightCrosswalk?: number[][];
+    };
+
+    const left = data.leftCrosswalk;
+    const right = data.rightCrosswalk;
+    if (left?.length && right?.length) {
+      return {
+        left: left.map(([x, y]) => [x, y] as const),
+        right: right.map(([x, y]) => [x, y] as const),
+      };
+    }
+  } catch {
+    // Fall back to reference on any failure.
+  }
+
+  return {
+    left: REALTIME_CALIBRATION.leftCrosswalk,
+    right: REALTIME_CALIBRATION.rightCrosswalk,
+  };
+}
+
+export async function scaledRealtimeCrosswalkPolygons(frame: FrameSize) {
   if (
     !Number.isInteger(frame.width) ||
     !Number.isInteger(frame.height) ||
@@ -80,8 +144,10 @@ export function scaledRealtimeCrosswalkPolygons(frame: FrameSize) {
     throw new Error("A valid WebRTC frame size is required");
   }
 
+  const polygons = await liveCalibrationPolygons();
+
   return {
-    left: scalePolygon(REALTIME_CALIBRATION.leftCrosswalk, frame),
-    right: scalePolygon(REALTIME_CALIBRATION.rightCrosswalk, frame),
+    left: scalePolygon(polygons.left, frame),
+    right: scalePolygon(polygons.right, frame),
   };
 }

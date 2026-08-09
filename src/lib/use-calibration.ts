@@ -50,14 +50,33 @@ function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
     }));
 }
 
-function toPolygon(raw: number[][] | undefined): readonly Point[] | null {
-  if (!raw?.length) return null;
-  const points = raw.map(([x, y]) => [x, y] as const);
-  // Simplify the jagged segmentation outline, then expand only vertically —
-  // the crosswalk boundary should be wider top-to-bottom (to catch people
-  // stepping just off the edge) but not wider left-to-right (to avoid
-  // bleeding into the median or the road).
-  return expandPolygonY(simplifyPolygon(points), 1.2);
+/**
+ * Build a crosswalk boundary that is guaranteed to enclose all the stripes in
+ * that segment, then expand vertically. The Roboflow boundary detection can
+ * return a polygon tighter than the actual crosswalk when edge stripes are
+ * faded or partially occluded — in that case the stripeForPoint fallback
+ * ("foot-point is inside the boundary → assign to nearest stripe") misses
+ * people on the outermost bars.
+ */
+function toBoundary(
+  raw: number[][] | undefined,
+  stripes: readonly Stripe[],
+): readonly Point[] | null {
+  // Collect all points from the boundary AND every stripe polygon in this
+  // segment into one point cloud, then take the convex hull. This guarantees
+  // the boundary covers every stripe.
+  const allPoints: Point[] = [];
+
+  if (raw?.length) {
+    for (const [x, y] of raw) allPoints.push([x, y] as const);
+  }
+  for (const stripe of stripes) {
+    for (const point of stripe.polygon) allPoints.push(point);
+  }
+
+  if (allPoints.length < 3) return null;
+
+  return expandPolygonY(simplifyPolygon(allPoints), 1.2);
 }
 
 const REFERENCE: LiveCalibration = {
@@ -99,11 +118,14 @@ export function useCalibration(cameraId: number): LiveCalibration {
         const stripes = toStripes(data.stripes);
         if (stripes.length === 0) return; // empty calibration is worse than stale
 
+        const leftStripes = stripes.filter((s) => s.segment === "left");
+        const rightStripes = stripes.filter((s) => s.segment === "right");
+
         setCalibration({
           status: data.status ?? "ok",
           reasoning: data.reasoning ?? null,
-          leftCrosswalk: toPolygon(data.leftCrosswalk) ?? REFERENCE.leftCrosswalk,
-          rightCrosswalk: toPolygon(data.rightCrosswalk) ?? REFERENCE.rightCrosswalk,
+          leftCrosswalk: toBoundary(data.leftCrosswalk, leftStripes) ?? REFERENCE.leftCrosswalk,
+          rightCrosswalk: toBoundary(data.rightCrosswalk, rightStripes) ?? REFERENCE.rightCrosswalk,
           stripes,
           updatedAt: data.updatedAt ?? null,
           source: "live",

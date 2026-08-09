@@ -28,8 +28,9 @@ describe("Realtime Roboflow configuration", () => {
     expect(missingRealtimeRoboflowConfiguration(configuredEnvironment)).toEqual([]);
   });
 
-  it("scales the View 5056 crosswalks to the WebRTC input", () => {
-    const polygons = scaledRealtimeCrosswalkPolygons({ width: 704, height: 480 });
+  it("scales the View 5056 crosswalks to the WebRTC input", async () => {
+    // Falls back to baked-in reference when GCS is unreachable (test env).
+    const polygons = await scaledRealtimeCrosswalkPolygons({ width: 704, height: 480 });
     expect(polygons.left[0]).toEqual([54, 216]);
     expect(polygons.right.at(-1)).toEqual([602, 300]);
   });

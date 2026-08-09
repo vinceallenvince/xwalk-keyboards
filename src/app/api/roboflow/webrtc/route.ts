@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }
 
     const configuration = readRealtimeRoboflowConfiguration();
-    const crosswalkPolygons = scaledRealtimeCrosswalkPolygons({
+    const crosswalkPolygons = await scaledRealtimeCrosswalkPolygons({
       width: frameWidth,
       height: frameHeight,
     });

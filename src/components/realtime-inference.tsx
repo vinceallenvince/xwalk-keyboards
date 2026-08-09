@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   countPredictionsForOutput,
   footPointsFromOutput,
-  occupiedNotesFromRealtimeOutputs,
+  occupiedNotesFromAllDetections,
+  type ClientCalibration,
 } from "@/lib/realtime-detections";
 import { REALTIME_CALIBRATION, scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
 
@@ -25,6 +26,8 @@ type RealtimeInferenceProps = {
   onFrameSize: (size: FrameSize) => void;
   onStatusChange: (status: InferenceStatus) => void;
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
+  /** Live calibration for client-side inside/outside classification. */
+  calibration: ClientCalibration;
   /** Live stripe polygons from the calibration agent, or the baked-in reference. */
   stripes: readonly Stripe[];
 };
@@ -141,6 +144,7 @@ function playBeat(context: AudioContext) {
 export function RealtimeInference({
   audioContextRef,
   audioEnabledRef,
+  calibration,
   connectionKey,
   onActive,
   onDetectionPoints,
@@ -240,22 +244,24 @@ export function RealtimeInference({
           wrtcParams: {},
           onData: (data) => {
             const output = data.serialized_output_data;
-            const notes = occupiedNotesFromRealtimeOutputs(output, configuration.outputBindings, inputFrame);
+
+            // Client-side classification: read ALL detections and test each
+            // foot-point against the live calibration stripes and boundaries.
+            // This replaces the server-side polygon filtering that Roboflow
+            // used to do, so the boundaries are always from the latest
+            // calibration agent run rather than what was set at session init.
+            const notes = occupiedNotesFromAllDetections(
+              output, configuration.outputBindings.all, inputFrame, calibration,
+            );
             const occupied = new Set(notes);
             setActiveNotes(notes);
 
-            const insideNow =
-              countPredictionsForOutput(output, configuration.outputBindings.insideLeft) +
-              countPredictionsForOutput(output, configuration.outputBindings.insideRight);
+            const totalPeople = countPredictionsForOutput(output, configuration.outputBindings.all);
+            const insideNow = notes.length;
             setInsideCount(insideNow);
 
-            const totalPeople = countPredictionsForOutput(output, configuration.outputBindings.all);
-
             // Report all foot-points for the debug overlay.
-            const allPoints = [
-              ...footPointsFromOutput(output, configuration.outputBindings.insideLeft),
-              ...footPointsFromOutput(output, configuration.outputBindings.insideRight),
-            ];
+            const allPoints = footPointsFromOutput(output, configuration.outputBindings.all);
             onDetectionPoints(allPoints);
 
             if (!audioEnabledRef.current || !audioContextRef.current) {
