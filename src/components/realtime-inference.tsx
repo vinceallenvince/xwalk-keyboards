@@ -11,7 +11,14 @@ import { REALTIME_CALIBRATION, scalePolygon, type FrameSize } from "@/lib/realti
 export type InferenceStatus = "waiting" | "starting" | "active" | "reconnecting" | "unavailable";
 
 type RealtimeInferenceProps = {
+  // Audio is owned by RealtimeCamera so its sound control can render before
+  // inference exists; this component only reads the refs while scheduling notes.
+  // While muted, onData keeps the trigger set cleared, so re-enabling sound
+  // never replays an event that fired during the silence.
+  audioContextRef: { current: AudioContext | null };
+  audioEnabledRef: { current: boolean };
   connectionKey: number;
+  onActive: () => void;
   onStatusChange: (status: InferenceStatus) => void;
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
 };
@@ -93,16 +100,16 @@ function playPianoNote(context: AudioContext, note: string) {
 }
 
 export function RealtimeInference({
+  audioContextRef,
+  audioEnabledRef,
   connectionKey,
+  onActive,
   onStatusChange,
   sourceVideoRef,
 }: RealtimeInferenceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioEnabledRef = useRef(false);
   const activeNotesRef = useRef(new Set<string>());
   const lastTriggeredAtRef = useRef(new Map<string, number>());
-  const [audioEnabled, setAudioEnabled] = useState(false);
   const [activeNotes, setActiveNotes] = useState<string[]>([]);
   const [frame, setFrame] = useState<FrameSize | null>(null);
   const [insideCount, setInsideCount] = useState<number | null>(null);
@@ -112,32 +119,6 @@ export function RealtimeInference({
     activeNotesRef.current.clear();
     setActiveNotes([]);
   };
-
-  const toggleAudio = async () => {
-    try {
-      if (audioEnabledRef.current) {
-        audioEnabledRef.current = false;
-        clearOccupancy();
-        setAudioEnabled(false);
-        await audioContextRef.current?.suspend();
-        return;
-      }
-      const context = audioContextRef.current ?? new AudioContext();
-      audioContextRef.current = context;
-      await context.resume();
-      clearOccupancy();
-      audioEnabledRef.current = true;
-      setAudioEnabled(true);
-    } catch {
-      setMessage("Browser audio could not start");
-    }
-  };
-
-  useEffect(() => () => {
-    audioEnabledRef.current = false;
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
-  }, []);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -218,6 +199,7 @@ export function RealtimeInference({
         }
         onStatusChange("active");
         setMessage("Pedestrian inference live");
+        onActive();
       } catch (error) {
         if (abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
         clearOccupancy();
@@ -233,7 +215,7 @@ export function RealtimeInference({
       if (connection) void connection.cleanup();
       else sourceStream?.getTracks().forEach((track) => track.stop());
     };
-  }, [connectionKey, onStatusChange, sourceVideoRef]);
+  }, [audioContextRef, audioEnabledRef, connectionKey, onActive, onStatusChange, sourceVideoRef]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -287,9 +269,6 @@ export function RealtimeInference({
         {insideCount !== null && ` ${insideCount} people inside the crosswalk.`}
         {activeNotes.length > 0 && ` Active notes: ${activeNotes.join(", ")}.`}
       </p>
-      <button type="button" className="realtime-sound-button" onClick={() => void toggleAudio()} aria-pressed={audioEnabled}>
-        {audioEnabled ? "SOUND ON" : "SOUND OFF"}
-      </button>
     </>
   );
 }

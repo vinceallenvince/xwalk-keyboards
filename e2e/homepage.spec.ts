@@ -68,10 +68,17 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
   });
 
-  test("study selector, Orchestration previewed", async ({ page }) => {
+  test("study selector, Orchestration is disabled", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
-    await page.getByRole("link", { name: "ORCHESTRATION" }).hover();
-    await page.screenshot({ path: join(SHOTS, "homepage-scrolled-orchestration.png") });
+    // Orchestration is deliberately not yet a live study from the homepage: no
+    // link role, no rollover highlight, and clicking it must not navigate.
+    await expect(page.getByRole("link", { name: "ORCHESTRATION" })).toHaveCount(0);
+    const orchestration = page.getByText("ORCHESTRATION", { exact: true });
+    await expect(orchestration).toHaveAttribute("aria-disabled", "true");
+    await orchestration.hover();
+    await expect(orchestration).toHaveCSS("color", "rgba(255, 255, 255, 0.31)");
+    await orchestration.click({ force: true });
+    await expect(page).toHaveURL(/\/#studies$|\/$/);
   });
 });

@@ -33,8 +33,7 @@ function CameraCard({ camera, state }: { camera: RegistryCamera; state: Snapshot
         ) : (
           <div className="snapshot-placeholder">{snapshot.message ?? stateLabel}</div>
         )}
-        {snapshot.status === "active" && <div className="snapshot-telemetry"><span>FPS: STATIC</span><span>AGC: AUTO</span></div>}
-        {snapshot.status !== "unavailable" && (
+        {snapshot.status !== "unavailable" && snapshot.status !== "active" && (
           <span className={`snapshot-state snapshot-state--${snapshot.status}`}>{stateLabel}</span>
         )}
       </div>

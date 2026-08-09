@@ -8,21 +8,33 @@ type CameraStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
 const streamUrl = "/api/hls/5056/playlist.m3u8";
 
+const cameraLabels: Record<CameraStatus, string> = {
+  connecting: "CONNECTING // WEST STREET @ W34 ST",
+  live: "FEED LIVE // WEST STREET @ W34 ST",
+  reconnecting: "FEED RECONNECTING // WEST STREET @ W34 ST",
+  unavailable: "FEED UNAVAILABLE // WEST STREET @ W34 ST",
+};
+
 const inferenceLabels: Record<InferenceStatus, string> = {
-  waiting: "INFERENCE: WAITING FOR VIDEO",
-  starting: "INFERENCE: CONNECTING",
-  active: "INFERENCE: ACTIVE",
-  reconnecting: "INFERENCE: RECONNECTING",
-  unavailable: "INFERENCE: UNAVAILABLE",
+  waiting: "STARTING ROBOFLOW GPU...",
+  starting: "STARTING ROBOFLOW GPU...",
+  active: "STATUS: ROBOFLOW ACTIVE",
+  reconnecting: "STATUS: ROBOFLOW RECONNECTING",
+  unavailable: "STATUS: ROBOFLOW UNAVAILABLE",
 };
 
 export function RealtimeCamera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Audio is owned here, not in RealtimeInference, so the sound control can be
+  // rendered (inactive) alongside FULLSCREEN before inference has started.
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioEnabledRef = useRef(false);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioMessage, setAudioMessage] = useState<string | null>(null);
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>("connecting");
   const [connectionKey, setConnectionKey] = useState(0);
-  const [frameSize, setFrameSize] = useState<string | null>(null);
   const [inferenceStatus, setInferenceStatus] = useState<InferenceStatus>("waiting");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -36,17 +48,47 @@ export function RealtimeCamera() {
     setInferenceStatus(status);
   }, []);
 
+  const enableAudio = useCallback(async () => {
+    try {
+      const context = audioContextRef.current ?? new AudioContext();
+      audioContextRef.current = context;
+      await context.resume();
+      audioEnabledRef.current = true;
+      setAudioEnabled(true);
+      setAudioMessage(null);
+    } catch {
+      setAudioMessage("Browser audio could not start");
+    }
+  }, []);
+
+  const disableAudio = useCallback(async () => {
+    audioEnabledRef.current = false;
+    setAudioEnabled(false);
+    await audioContextRef.current?.suspend();
+  }, []);
+
+  const toggleAudio = useCallback(() => {
+    void (audioEnabledRef.current ? disableAudio() : enableAudio());
+  }, [disableAudio, enableAudio]);
+
+  // Sound comes on by itself once inference is live. The visitor reached this
+  // route by clicking through, which satisfies the browser gesture requirement.
+  const handleInferenceActive = useCallback(() => {
+    if (!audioEnabledRef.current) void enableAudio();
+  }, [enableAudio]);
+
+  useEffect(() => () => {
+    audioEnabledRef.current = false;
+    void audioContextRef.current?.close();
+    audioContextRef.current = null;
+  }, []);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     let hls: import("hls.js").default | null = null;
     let cancelled = false;
 
-    const reportFrameSize = () => {
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        setFrameSize(`${video.videoWidth} × ${video.videoHeight}`);
-      }
-    };
     const scheduleRetry = () => {
       if (cancelled || retryRef.current) return;
       setCameraStatus("reconnecting");
@@ -70,7 +112,6 @@ export function RealtimeCamera() {
             maxBufferLength: 15,
           });
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            reportFrameSize();
             void video.play().catch(() => scheduleRetry());
           });
           hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -102,12 +143,8 @@ export function RealtimeCamera() {
       }
     };
 
-    const onPlaying = () => {
-      reportFrameSize();
-      setCameraStatus("live");
-    };
+    const onPlaying = () => setCameraStatus("live");
     video.addEventListener("playing", onPlaying);
-    video.addEventListener("loadedmetadata", reportFrameSize);
     video.addEventListener("error", scheduleRetry);
     void load();
 
@@ -120,7 +157,6 @@ export function RealtimeCamera() {
       video.removeAttribute("src");
       video.load();
       video.removeEventListener("playing", onPlaying);
-      video.removeEventListener("loadedmetadata", reportFrameSize);
       video.removeEventListener("error", scheduleRetry);
     };
   }, [connectionKey, restart]);
@@ -140,37 +176,54 @@ export function RealtimeCamera() {
     }
   };
 
-  const cameraLabel = {
-    connecting: "CONNECTING // WEST STREET @ W34 ST",
-    live: "FEED LIVE // WEST STREET @ W34 ST",
-    reconnecting: "RECONNECTING // WEST STREET @ W34 ST",
-    unavailable: "CAMERA UNAVAILABLE // WEST STREET @ W34 ST",
-  }[cameraStatus];
+  const isLive = cameraStatus === "live";
+  const soundReady = inferenceStatus === "active";
 
   return (
     <section className="realtime-camera" aria-label="Realtime camera">
       <div className="realtime-statusbar">
-        <span><i className={`status-dot status-dot--${cameraStatus}`} />{cameraLabel}</span>
-        <span>{inferenceLabels[inferenceStatus]}</span>
+        <span className={`realtime-feed-status realtime-feed-status--${cameraStatus}`}>
+          <i className={`status-dot status-dot--${cameraStatus}`} />
+          {cameraLabels[cameraStatus]}
+        </span>
+        <span className={`realtime-inference-status realtime-inference-status--${inferenceStatus}`}>
+          {inferenceLabels[inferenceStatus]}
+        </span>
       </div>
       <div ref={viewportRef} className="realtime-viewport">
         <video ref={videoRef} autoPlay muted playsInline crossOrigin="anonymous" />
-        {cameraStatus !== "live" && (
-          <div className="realtime-wait">
-            {cameraStatus === "unavailable" ? "CAMERA SOURCE UNAVAILABLE" : "AWAITING LIVE CAMERA"}
-          </div>
-        )}
-        {cameraStatus === "live" && (
+        {cameraStatus === "unavailable" && <div className="realtime-wait">CAMERA SOURCE UNAVAILABLE</div>}
+        {isLive && (
           <RealtimeInference
+            audioContextRef={audioContextRef}
+            audioEnabledRef={audioEnabledRef}
             connectionKey={connectionKey}
+            onActive={handleInferenceActive}
             onStatusChange={reportInferenceStatus}
             sourceVideoRef={videoRef}
           />
         )}
-        <button type="button" className="realtime-fullscreen-button" onClick={() => void toggleFullscreen()}>
-          {isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}
-        </button>
+        <div className={`realtime-controls${isLive ? "" : " realtime-controls--idle"}`}>
+          <button
+            type="button"
+            className={`realtime-control realtime-fullscreen-button${isLive ? " realtime-fullscreen-button--ready" : ""}`}
+            onClick={() => void toggleFullscreen()}
+          >
+            {isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}
+          </button>
+          <button
+            type="button"
+            className={`realtime-control realtime-sound-button${audioEnabled ? " realtime-sound-button--on" : ""}`}
+            onClick={toggleAudio}
+            disabled={!soundReady}
+            aria-pressed={audioEnabled}
+          >
+            <i aria-hidden="true" className="realtime-sound-button__dot" />
+            {audioEnabled ? "SOUND ON" : "SOUND OFF"}
+          </button>
+        </div>
       </div>
+      {audioMessage && <p className="visually-hidden" aria-live="polite">{audioMessage}</p>}
     </section>
   );
 }

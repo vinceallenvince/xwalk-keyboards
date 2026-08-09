@@ -39,12 +39,17 @@ const fallbackCameraSeeds = [
 
 function createStaticCameras(
   seeds: readonly (readonly [number, string, string])[],
-  role: "priority" | "fallback"
+  role: "priority" | "fallback",
+  // Registry display numbering continues across sections (Camera 01-12
+  // priority, then 13-16 fallback) so no card number appears twice on the
+  // page; `slot` stays independent (1-based within its own section) since
+  // orchestration logic keys fallback substitution off it.
+  displayIndexOffset = 0
 ): CameraRecord[] {
   return seeds.map(([cameraId, sourceId, location], index) => ({
     cameraId,
     cameraKey: `camera_${cameraId}`,
-    displayLabel: `Camera ${String(index + 1).padStart(2, "0")} · View ${cameraId}`,
+    displayLabel: `Camera ${String(displayIndexOffset + index + 1).padStart(2, "0")} · View ${cameraId}`,
     location,
     role,
     slot: index + 1,
@@ -57,7 +62,7 @@ function createStaticCameras(
 // Curated from 511NY-test/src/data/camera.ts. This registry is deliberately
 // source-controlled and has no runtime dependency on the prototype repository.
 export const PRIORITY_CAMERAS = createStaticCameras(priorityCameraSeeds, "priority");
-export const FALLBACK_CAMERAS = createStaticCameras(fallbackCameraSeeds, "fallback");
+export const FALLBACK_CAMERAS = createStaticCameras(fallbackCameraSeeds, "fallback", PRIORITY_CAMERAS.length);
 
 export const REALTIME_CAMERA: CameraRecord = {
   cameraId: 5056,

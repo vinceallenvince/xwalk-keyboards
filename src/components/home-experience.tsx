@@ -24,17 +24,25 @@ export function HomeExperience() {
       <p className="home-feed-status"><span className={feedStatus === "live" ? "" : "home-feed-status__dot--idle"} />{feedLabels[feedStatus]}</p>
       <section className="home-hero" aria-labelledby="home-title">
         <div className="home-title"><span aria-hidden="true"><i /><i /><i /></span><h1 id="home-title">XWALK KEYBOARDS</h1></div>
-        <a className="scroll-cue" href="#studies">SCROLL <b aria-hidden="true">⌄</b></a>
+        <div className="home-cue">
+          <p className="home-speaker-note">FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS</p>
+          <a className="scroll-cue" href="#studies">
+            SCROLL
+            <svg aria-hidden="true" viewBox="0 0 20 8" width="20" height="8" focusable="false">
+              <path d="M1 1 10 7 19 1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+          </a>
+        </div>
       </section>
       <section className="home-studies" id="studies" aria-label="Choose a study">
         <nav className="study-selector">
           <Link href="/realtime">REALTIME</Link>
           <i aria-hidden="true" />
-          <Link href="/orchestration">ORCHESTRATION</Link>
+          <span aria-disabled="true">ORCHESTRATION</span>
         </nav>
       </section>
       <footer className="home-footer">
-        <span>SOURCE: NYC DOT // <Link href="/camera-registry">CAMERA REGISTRY</Link></span>
+        <span>SOURCE: 511NY // <Link href="/camera-registry">CAMERA REGISTRY</Link></span>
         <span className="footer-pattern">PATTERN: MONUMENTAL_ISO <i aria-hidden="true" /> <b>STUDY NO. 042-B</b></span>
       </footer>
     </main>
