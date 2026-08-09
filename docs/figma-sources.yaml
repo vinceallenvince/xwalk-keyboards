@@ -29,10 +29,10 @@ epics:
       - story: "As a visitor, I arrive at an immersive XWalk Keyboards homepage"
         scenario: "57-19"
         ui:
-          - { node: "3-6", shot: null }    # homepage initial hero
-          - { node: "69-354", shot: null } # scrolled selector: both options inactive
-          - { node: "10-5", shot: null }   # scrolled selector: Realtime hover preview
-          - { node: "69-327", shot: null } # scrolled selector: Orchestration hover preview
+          - { node: "3-6", shot: "homepage-initial" }                     # homepage initial hero
+          - { node: "69-354", shot: "homepage-scrolled-inactive" }        # scrolled selector: both options inactive
+          - { node: "10-5", shot: "homepage-scrolled-realtime" }          # scrolled selector: Realtime hover preview
+          - { node: "69-327", shot: "homepage-scrolled-orchestration" }   # scrolled selector: Orchestration hover preview
 
   - epic: "Orchestration Study"
     page: "73-976"
