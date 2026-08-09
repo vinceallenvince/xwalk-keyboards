@@ -93,12 +93,17 @@ Structured JSON output, schema-validated, rejected wholesale on any violation:
     "repaintSuspected": false
   },
   "confidence": 0.0,
-  "reasoning": "short explanation, for the status field and for humans reading logs"
+  "reasoning": "why this geometry and this status — max 250 chars"
 }
 ```
 
 `reasoning` and `conditions` are what make the status field genuinely
-informative rather than a shrug.
+informative rather than a shrug. `reasoning` is capped at **250 characters** —
+long enough for "left crosswalk stripes 1-6 obscured by snow; right crosswalk
+clear and unmoved", short enough to sit in an operator table or a HUD advisory
+without wrapping into an essay. Ask for the limit in the prompt *and* enforce it
+on ingest: truncate rather than reject, since an over-long explanation should
+never be the reason a good calibration is thrown away.
 
 ## Consistency, jitter, and hallucination
 
@@ -212,7 +217,8 @@ against incident records.
 ```
 calibrations/camera_5056
   status            : ok | degraded | no_crosswalk | feed_down | needs_review
-  statusDetail      : model reasoning, surfaced to operators
+  reasoning         : the model's explanation for the detection and the status,
+                      max 250 chars, surfaced to operators
   conditions        : { crosswalkVisible, obstruction, cameraMoved, repaintSuspected }
   updatedAt         : timestamp
   referenceFrame    : { width, height }
@@ -257,8 +263,8 @@ silently and with confidence. Nothing publishes unless **all** hold:
 | `feed_down` | Source outage | Existing feed-unavailable treatment |
 | `needs_review` | Large change awaiting human approval | Serve last-known-good, advisory |
 
-`statusDetail` carries the model's reasoning, so an operator sees "stripes
-covered by snow" rather than "confidence 0.42".
+`reasoning` travels with the status, so an operator sees "stripes covered by
+snow" rather than "confidence 0.42".
 
 This slots into the Realtime status bar that already carries independent feed and
 inference states, either as a third signal or folded into the feed line. The
