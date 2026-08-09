@@ -95,7 +95,7 @@ inherit live connections, background polling, scheduled audio, or fading notes
 from the study that the visitor has left.
 
 ```gherkin
-Given I am viewing a Realtime or Orchestration study
+Given I am viewing a Realtime, Orchestration, or Sequence study
 When I navigate to the homepage, Camera Registry, or another study
 Then the prior study's audio is stopped, including any fading notes
 And its scheduled audio events are cleared
@@ -471,6 +471,172 @@ And I return to the Orchestration study with its controls restored
 
 
 
+
+## Sequence Study
+
+The Sequence study turns a rolling buffer of static traffic-camera images into
+a three-row, four-column piano roll. Its initial buffer contains twelve images:
+the current four-image row, the next four-image row, and an on-deck row. A row
+represents a twenty-second phrase made of four five-second image intervals.
+
+### As a visitor, I can see Sequence prepare its first playable phrase
+
+Sequence receives its initial image buffer before rendering camera imagery in
+the grid. It gives the first, currently-playing row priority in the Roboflow
+queue, so the study can begin as soon as all four of its intervals are safely
+playable.
+
+```gherkin
+Given I have chosen the "SEQUENCE" study from XWALK KEYBOARDS
+When the Sequence study opens
+Then the page header reads "XWALK KEYBOARDS | SEQUENCE"
+And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
+And the page reserves a three-row, four-column sequencer grid without rendering the received camera images into it yet
+And the grid shows its loading treatment and a visible count of received images out of 12
+And the page reports that Roboflow detection is active or preparing
+And the app requests 12 configured traffic-camera images into an in-memory sequence buffer
+And the first four buffered images are placed ahead of later images in the Roboflow detection queue
+And no playback head, phrase beat, or pedestrian note begins during this loading state
+
+Given the Sequence study is receiving its initial image buffer
+When all 12 image requests have completed
+Then every buffer position contains either its fetched camera image or its fallback image
+And the app continues sending queued images to Roboflow in row-first order
+And the loading state remains visible until the first four sequence positions each have a terminal playback result
+```
+
+### As a visitor, I can begin playback as soon as the first row is safe to play
+
+A first-row position is safe to play when Roboflow has returned an annotated
+image, or when a failed detection or fetch has produced its explicitly silent
+fallback result. The study does not hold the first phrase forever waiting for a
+perfect inference response.
+
+```gherkin
+Given the Sequence study has received its initial 12-image buffer
+And the first four sequence positions are being processed ahead of the remaining positions
+When all four first-row positions have a terminal playback result
+Then the loading treatment clears
+And the study renders the three-row, four-column sequencer viewport
+And row 1 contains the first four sequence positions in full color at full opacity
+And row 2 contains the next four sequence positions in black and white at reduced opacity
+And row 3 contains the following four positions in black and white at the lowest opacity
+And the playback head begins at the zero-second mark of row 1
+And the visual phrase duration is 20 seconds
+And a repeating 20-second beat transport begins with the phrase
+And the beat is audible only when the visitor has enabled sound through a browser-permitted sound interaction
+```
+
+### As a visitor, I can see pedestrians play the crosswalk piano roll
+
+Each green in-crosswalk arrow is both a visual event and a note event. The
+crosswalk stripes are a chromatic keyboard: the left-most mapped stripe is C,
+and each stripe to its right advances one semitone.
+
+```gherkin
+Given the Sequence playback head is moving across a full-color row-1 image
+And that image has a successful Roboflow annotation
+When the playback head intersects a green arrow for a pedestrian inside the calibrated crosswalk
+Then the app maps the pedestrian to the crosswalk stripe containing the pedestrian's detection position
+And the left-most mapped stripe plays the chromatic root note "C"
+And each stripe to the right maps to the next chromatic piano note
+And the app triggers the note mapped to that stripe when sound is enabled
+And the intersected green arrow receives a brief pop or equivalent motion treatment synchronized with the note
+And multiple intersected green arrows can trigger their corresponding notes together
+
+Given the playback head intersects a pedestrian marker outside the calibrated crosswalk
+Then that marker does not trigger a piano note
+
+Given the playback head intersects a silent fallback or unannotated image
+Then no pedestrian note or arrow-pop event is triggered for that image
+```
+
+### As a visitor, I can follow the rolling image queue while a phrase plays
+
+The current phrase must remain visually stable while later rows improve in the
+background. Roboflow results may replace their matching upcoming image before
+that image is promoted, but they may never be applied to another sequence
+position.
+
+```gherkin
+Given a 20-second Sequence phrase is playing
+When Roboflow returns an annotation for an image assigned to row 2 or row 3
+Then the app replaces only that matching upcoming image with its annotated version
+And the updated upcoming image remains black and white and dimmed until it reaches row 1
+And row 1's four images remain unchanged for the duration of the current phrase
+And the app continues queueing later buffered images and replacement images while playback continues
+And no annotation, green arrow, or note mapping is associated with a different image or sequence position
+```
+
+### As a visitor, I can experience an uninterrupted rolling sequence
+
+At the twenty-second boundary, Sequence advances by a complete row rather than
+replacing individual images mid-phrase. The lower row is populated atomically
+only once four next images are ready, preserving the instrument's timing.
+
+```gherkin
+Given the Sequence playback head reaches the 20-second end of row 1
+And row 2 contains the next complete four-image phrase
+When the phrase loops to the zero-second mark
+Then the prior row 1 disappears
+And the prior row 2 animates into row 1
+And the prior row 3 animates into row 2
+And the playback head restarts at the zero-second mark of the promoted row 1
+And the 20-second beat transport continues on the phrase boundary
+And the app begins or continues preparing the next four-image row for row 3
+
+Given at least four consecutive next sequence positions are ready for display
+When row 3 becomes available after a phrase boundary
+Then the app populates row 3 with those four images as one row
+And the new row 3 remains black and white at the lowest opacity until promotion
+
+Given fewer than four next sequence positions are ready at a phrase boundary
+Then the app does not partially populate row 3
+And the row 3 loading treatment remains visible
+And the current full row-1 phrase continues to loop until a complete next phrase is ready
+```
+
+### As a visitor, I can continue through unavailable images without false musical events
+
+Sequence distinguishes a successful annotation from an image that is merely
+safe to show. Detection and fetch failures retain their sequence positions so
+timing and row shifts stay intact, but they remain silent when promoted.
+
+```gherkin
+Given an image in the Sequence detection queue cannot be processed by Roboflow
+When the detection request reaches its terminal failure state
+Then the app retains the source image in that exact sequence position without annotation
+And that position counts as ready for row and phrase progression
+And its playback-head intersection triggers no piano note or arrow motion
+And processing continues for later queued images
+
+Given an image request fails before a source image is available
+When the fetch reaches its terminal failure state
+Then the app uses the configured fallback image in that exact sequence position
+And that fallback image counts as ready for row and phrase progression
+And its playback-head intersection triggers no piano note or arrow motion
+And the app continues to fill and process the remaining sequence positions
+```
+
+### As a visitor, I can control Sequence sound without stopping its timeline
+
+The visual sequencer keeps time even when sound is unavailable or disabled.
+The sound control follows browser audio-permission requirements and affects the
+beat and qualifying crosswalk notes together.
+
+```gherkin
+Given the Sequence study is loading or playing
+Then a sound control is visible and indicates its current sound state
+When sound is disabled
+Then the playback head and row-shift animations continue silently
+And no phrase beat or pedestrian piano note is audible
+When I enable sound through the sound control
+Then the current or next phrase beat becomes audible without restarting the visual timeline
+And later qualifying green-arrow intersections can trigger their mapped piano notes
+When I disable sound through the sound control
+Then the phrase beat and any currently sounding pedestrian notes are silenced
+And the visual timeline continues without interruption
+```
 
 ## Camera Registry
 
