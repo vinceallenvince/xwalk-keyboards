@@ -12,6 +12,7 @@ const bigShoulders = Big_Shoulders({ axes: ["opsz"], subsets: ["latin"], variabl
 
 export const metadata: Metadata = {
   description: "XWALK KEYBOARDS — NYC crosswalk keyboard studies.",
+  icons: { icon: "/favicon.svg" },
   title: "XWALK KEYBOARDS",
 };
 
