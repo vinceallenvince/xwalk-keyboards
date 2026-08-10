@@ -160,6 +160,11 @@ export function RealtimeInference({
   const beatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const beatResumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInsideTimestampRef = useRef<number>(0);
+  // Stall detection: if onData hasn't fired in this long, the data channel is
+  // dead even though the SDK hasn't reported it. Trigger a reconnection.
+  const lastDataAtRef = useRef<number>(0);
+  const stallTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const STALL_TIMEOUT_MS = 15_000;
   const [activeNotes, setActiveNotes] = useState<string[]>([]);
   const [frame, setFrame] = useState<FrameSize | null>(null);
   const [insideCount, setInsideCount] = useState<number | null>(null);
@@ -253,6 +258,7 @@ export function RealtimeInference({
           ),
           wrtcParams: {},
           onData: (data) => {
+            lastDataAtRef.current = performance.now();
             const output = data.serialized_output_data;
 
             // Client-side classification: read ALL detections and test each
@@ -328,10 +334,29 @@ export function RealtimeInference({
         onStatusChange("active");
         setMessage("Pedestrian inference live");
         onActive();
+
+        // Start stall detection: if onData stops firing for 15s while the
+        // connection is supposedly active, the data channel has silently died
+        // (the SDK logs "Data channel error" but doesn't throw or close).
+        lastDataAtRef.current = performance.now();
+        stallTimerRef.current = setInterval(() => {
+          if (performance.now() - lastDataAtRef.current > STALL_TIMEOUT_MS) {
+            if (stallTimerRef.current) clearInterval(stallTimerRef.current);
+            stallTimerRef.current = null;
+            // Force cleanup and retry by throwing into the catch block's
+            // retry path. We do this by cleaning up and re-entering attempt().
+            if (connection) { void connection.cleanup(); connection = null; }
+            if (sourceStream) { sourceStream.getTracks().forEach((track) => track.stop()); sourceStream = null; }
+            clearOccupancy();
+            stopBeat();
+            void attempt(retryCount + 1 > MAX_RETRIES ? 0 : retryCount);
+          }
+        }, 5_000);
       } catch (error) {
         if (abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
         clearOccupancy();
         stopBeat();
+        if (stallTimerRef.current) { clearInterval(stallTimerRef.current); stallTimerRef.current = null; }
 
         // Clean up the failed connection before retrying.
         if (connection) { void connection.cleanup(); connection = null; }
@@ -358,6 +383,7 @@ export function RealtimeInference({
     return () => {
       abortController.abort();
       if (retryTimer) clearTimeout(retryTimer);
+      if (stallTimerRef.current) { clearInterval(stallTimerRef.current); stallTimerRef.current = null; }
       clearOccupancy();
       stopBeat();
       if (connection) void connection.cleanup();
