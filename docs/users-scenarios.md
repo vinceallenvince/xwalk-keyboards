@@ -268,6 +268,94 @@ Then fullscreen mode closes
 And I return to the active Realtime study page with its controls and metadata restored
 ```
 
+## Inference Management
+
+Inference uses a shared GPU resource with a limited monthly budget. These
+scenarios govern how the app manages that budget without degrading the
+first-visit experience.
+
+### As a visitor, I experience uninterrupted inference for the first five minutes
+
+The first five minutes of inference are uninterrupted — no modal, no
+countdown, no degradation. This is the window in which the study makes its
+impression, and it must feel like a live instrument, not a metered service.
+
+```gherkin
+Given I have opened the Realtime study and inference is active
+When I have been viewing for less than five minutes
+Then inference, stripe highlights, and audio operate normally
+And no usage indicator, countdown, or modal is shown
+And the five-minute timer is not visible to the visitor
+```
+
+### As a visitor, after five minutes I am asked whether to continue
+
+After five minutes the app pauses inference and presents a modal. The live
+video continues behind it so the page does not go blank. The modal is a
+respectful interruption, not an error state — the study worked, and the
+visitor is invited to continue if they choose.
+
+```gherkin
+Given I have been viewing the Realtime study with active inference for five minutes
+When the five-minute threshold is reached
+Then the WebRTC inference connection is paused
+And crosswalk stripe highlights and audio stop
+And the live camera video continues playing behind the modal
+And a centered modal appears over the viewport
+And the modal explains that inference has been paused to conserve resources
+And the modal offers a "CONTINUE" button and a "CLOSE" button
+And the SOUND ON / FULLSCREEN controls remain visible but inactive
+
+When I select "CONTINUE"
+Then the modal closes
+And inference restarts with a fresh WebRTC connection
+And stripe highlights and audio resume from current detections
+And the five-minute timer resets so I receive another full five-minute window
+
+When I select "CLOSE" or do not respond
+Then the modal closes
+And the live camera video continues without inference
+And no stripe highlights or audio are produced
+And the inference status reads "INFERENCE PAUSED"
+And the visitor may reload the page to start a new five-minute session
+```
+
+### As a visitor, if inference fails during my five-minute window, recovery is transparent
+
+Infrastructure failures (GPU worker death, network interruption) during the
+five-minute window are handled by automatic retry. The five-minute timer
+continues counting during recovery — a hiccup does not buy extra time, but
+it also does not penalise the visitor by showing the pause modal early.
+
+```gherkin
+Given I am viewing the Realtime study within the five-minute window
+When the Roboflow inference connection fails
+Then the app reconnects automatically with exponential backoff
+And the inference status shows the retry attempt number
+And the five-minute timer continues counting during reconnection
+And no modal is shown unless all retry attempts are exhausted
+When all retry attempts are exhausted
+Then the inference status reads "STATUS: ROBOFLOW UNAVAILABLE"
+And no pause modal is shown because the failure is an infrastructure problem, not a usage limit
+```
+
+### As a visitor, if GPU credits are exhausted, I see an honest message
+
+A 402 (Payment Required) from Roboflow means the monthly GPU budget is
+spent. This is not a transient failure and retrying will not help. The app
+communicates honestly and does not show the "Continue" modal because there
+is nothing to continue.
+
+```gherkin
+Given I am viewing the Realtime study
+When Roboflow returns a 402 Payment Required error
+Then the app does not retry
+And the inference status reads "STATUS: ROBOFLOW UNAVAILABLE"
+And the live camera video continues without inference
+And no pause modal or retry countdown is shown
+And the visitor understands this is a resource limit, not a broken feature
+```
+
 ## Orchestration Study
 
 ### As a visitor, I can see the complete orchestration grid while it prepares to perform
