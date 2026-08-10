@@ -312,11 +312,11 @@ And inference restarts with a fresh WebRTC connection
 And stripe highlights and audio resume from current detections
 And the five-minute timer resets so I receive another full five-minute window
 
-When I select "CLOSE" or do not respond
+When I select "CLOSE"
 Then the modal closes
 And the live camera video continues without inference
 And no stripe highlights or audio are produced
-And the inference status reads "INFERENCE PAUSED"
+And the inference status reads "INFERENCE PAUSED: RELOAD TO CONTINUE"
 And the visitor may reload the page to start a new five-minute session
 ```
 

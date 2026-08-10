@@ -10,6 +10,7 @@ import type { FrameSize } from "@/lib/realtime-calibration";
 type CameraStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
 const streamUrl = "/api/hls/5056/playlist.m3u8";
+const INFERENCE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 const cameraLabels: Record<CameraStatus, string> = {
   connecting: "CONNECTING // WEST STREET @ W34 ST",
@@ -44,6 +45,10 @@ export function RealtimeCamera() {
   const [frameSize, setFrameSize] = useState<FrameSize | null>(null);
   const [detectionPoints, setDetectionPoints] = useState<[number, number][]>([]);
   const [forcedUnavailable, setForcedUnavailable] = useState(false);
+  const [inferenceTimedOut, setInferenceTimedOut] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [inferenceClosed, setInferenceClosed] = useState(false);
+  const inferenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calibration = useCalibration(5056);
 
   const reportFrameSize = useCallback((size: FrameSize) => setFrameSize(size), []);
@@ -87,12 +92,36 @@ export function RealtimeCamera() {
   // route by clicking through, which satisfies the browser gesture requirement.
   const handleInferenceActive = useCallback(() => {
     if (!audioEnabledRef.current) void enableAudio();
-  }, [enableAudio]);
+    // Start the 5-minute usage timer when inference first goes active.
+    // Don't restart if already timed out (user clicked Continue, timer resets below).
+    if (!inferenceTimerRef.current && !inferenceTimedOut && !inferenceClosed) {
+      inferenceTimerRef.current = setTimeout(() => {
+        inferenceTimerRef.current = null;
+        setInferenceTimedOut(true);
+        setShowPauseModal(true);
+        void disableAudio();
+      }, INFERENCE_TIMEOUT_MS);
+    }
+  }, [disableAudio, enableAudio, inferenceClosed, inferenceTimedOut]);
+
+  const handlePauseContinue = useCallback(() => {
+    setShowPauseModal(false);
+    setInferenceTimedOut(false);
+    // Restart inference by bumping the connection key.
+    setConnectionKey((key) => key + 1);
+    // The timer restarts in handleInferenceActive when the new connection goes active.
+  }, []);
+
+  const handlePauseClose = useCallback(() => {
+    setShowPauseModal(false);
+    setInferenceClosed(true);
+  }, []);
 
   useEffect(() => () => {
     audioEnabledRef.current = false;
     void audioContextRef.current?.close();
     audioContextRef.current = null;
+    if (inferenceTimerRef.current) clearTimeout(inferenceTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -190,7 +219,8 @@ export function RealtimeCamera() {
 
   const effectiveCamera = forcedUnavailable ? "unavailable" as CameraStatus : cameraStatus;
   const isLive = effectiveCamera === "live";
-  const soundReady = inferenceStatus === "active" && !forcedUnavailable;
+  const inferenceAllowed = isLive && !inferenceTimedOut && !inferenceClosed;
+  const soundReady = inferenceStatus === "active" && !forcedUnavailable && !inferenceTimedOut && !inferenceClosed;
   const [recalibrating, setRecalibrating] = useState(false);
 
   const handleRecalibrate = useCallback(async () => {
@@ -252,8 +282,16 @@ export function RealtimeCamera() {
             </>
           )}
         </span>
-        <span className={`realtime-inference-status realtime-inference-status--${effectiveCamera === "unavailable" ? "unavailable" : inferenceStatus}`}>
-          {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE" : inferenceMessage ?? inferenceLabels[inferenceStatus]}
+        <span className={`realtime-inference-status ${
+          effectiveCamera === "unavailable" ? "realtime-inference-status--unavailable"
+          : inferenceClosed ? "realtime-inference-status--paused"
+          : inferenceTimedOut ? "realtime-inference-status--paused"
+          : `realtime-inference-status--${inferenceStatus}`
+        }`}>
+          {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE"
+           : inferenceClosed ? "INFERENCE PAUSED: RELOAD TO CONTINUE"
+           : inferenceTimedOut ? "INFERENCE PAUSED"
+           : inferenceMessage ?? inferenceLabels[inferenceStatus]}
         </span>
       </div>
       <div ref={viewportRef} className="realtime-viewport">
@@ -264,7 +302,7 @@ export function RealtimeCamera() {
             <p className="realtime-unavailable-subtitle">The camera feed for this intersection is currently offline.</p>
           </div>
         )}
-        {isLive && (
+        {inferenceAllowed && (
           <RealtimeInference
             audioContextRef={audioContextRef}
             audioEnabledRef={audioEnabledRef}
@@ -301,6 +339,21 @@ export function RealtimeCamera() {
             {audioEnabled ? "SOUND ON" : "SOUND OFF"}
           </button>
         </div>
+        {showPauseModal && (
+          <>
+            <div className="realtime-pause-scrim" />
+            <div className="realtime-pause-modal" role="dialog" aria-label="Inference paused">
+              <p className="realtime-pause-modal__title">INFERENCE PAUSED</p>
+              <p className="realtime-pause-modal__subtitle">
+                To conserve resources, inference has been paused<br />after five minutes.
+              </p>
+              <div className="realtime-pause-modal__buttons">
+                <button type="button" className="realtime-pause-modal__btn" onClick={handlePauseClose}>CLOSE</button>
+                <button type="button" className="realtime-pause-modal__btn realtime-pause-modal__btn--continue" onClick={handlePauseContinue}>CONTINUE</button>
+              </div>
+            </div>
+          </>
+        )}
         <RealtimeDebug
           calibration={calibration}
           detectionPoints={detectionPoints}
@@ -308,6 +361,12 @@ export function RealtimeCamera() {
           frame={frameSize}
           onClearUnavailable={() => setForcedUnavailable(false)}
           onForceUnavailable={() => setForcedUnavailable(true)}
+          onForcePause={() => {
+            if (inferenceTimerRef.current) { clearTimeout(inferenceTimerRef.current); inferenceTimerRef.current = null; }
+            setInferenceTimedOut(true);
+            setShowPauseModal(true);
+            void disableAudio();
+          }}
           viewportRef={viewportRef}
         />
       </div>

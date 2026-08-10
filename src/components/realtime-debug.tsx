@@ -18,6 +18,8 @@ type RealtimeDebugProps = {
   onClearUnavailable: () => void;
   /** Whether the unavailable state is currently being forced. */
   forcedUnavailable: boolean;
+  /** Force the 5-minute inference pause modal for testing. */
+  onForcePause: () => void;
   /** The viewport element the debug canvas should cover. */
   viewportRef: React.RefObject<HTMLDivElement | null>;
 };
@@ -31,7 +33,7 @@ type RealtimeDebugProps = {
  * Also provides a RENDER POLYGONS button that draws all stripe outlines over
  * the feed so calibration accuracy can be confirmed visually.
  */
-export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, viewportRef }: RealtimeDebugProps) {
+export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, viewportRef }: RealtimeDebugProps) {
   const [open, setOpen] = useState(false);
   const [showPolygons, setShowPolygons] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -201,6 +203,13 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
             onClick={forcedUnavailable ? onClearUnavailable : onForceUnavailable}
           >
             {forcedUnavailable ? "CLEAR UNAVAILABLE" : "FORCE UNAVAILABLE"}
+          </button>
+          <button
+            type="button"
+            className="realtime-debug-toggle"
+            onClick={onForcePause}
+          >
+            FORCE PAUSE MODAL
           </button>
         </div>
       </div>

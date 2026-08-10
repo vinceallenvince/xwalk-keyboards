@@ -363,7 +363,15 @@ export function RealtimeInference({
         else sourceStream?.getTracks().forEach((track) => track.stop());
         sourceStream = null;
 
-        if (retryCount < MAX_RETRIES) {
+        // Non-retryable errors: stop immediately instead of burning through
+        // retries that will all fail the same way.
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isNonRetryable = /402|payment|quota|billing/i.test(errorMessage);
+
+        if (isNonRetryable) {
+          onStatusChange("unavailable");
+          setMessage("Roboflow GPU quota exceeded");
+        } else if (retryCount < MAX_RETRIES) {
           const delay = BASE_DELAY_MS * 2 ** retryCount; // 2s, 4s, 8s, 16s, 32s
           const retryMsg = `RECONNECTING ${retryCount + 1}/${MAX_RETRIES}...`;
           onStatusChange("reconnecting", retryMsg);
@@ -374,7 +382,7 @@ export function RealtimeInference({
           }, delay);
         } else {
           onStatusChange("unavailable");
-          setMessage(error instanceof Error ? error.message : "Realtime inference unavailable");
+          setMessage(errorMessage || "Realtime inference unavailable");
         }
       }
     };
