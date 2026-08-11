@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RealtimeDebug } from "@/components/realtime-debug";
 import { RealtimeInference, type InferenceStatus } from "@/components/realtime-inference";
+import { RealtimeIntroModal, useSetIntroBlocked } from "@/components/realtime-intro";
 import { useCalibration } from "@/lib/use-calibration";
 import type { FrameSize } from "@/lib/realtime-calibration";
 
@@ -19,12 +20,16 @@ const cameraLabels: Record<CameraStatus, string> = {
   unavailable: "FEED DOWN // WEST STREET @ W34 ST",
 };
 
+// The two status lines speak from two points of view: the feed line is the
+// camera, this one is the instrument. A visitor cannot act on the name of the
+// GPU vendor behind it, but "the keyboard is warming up" tells them exactly
+// what they are waiting for. The underlying inference states are unchanged.
 const inferenceLabels: Record<InferenceStatus, string> = {
-  waiting: "STARTING ROBOFLOW GPU...",
-  starting: "STARTING ROBOFLOW GPU...",
-  active: "STATUS: ROBOFLOW ACTIVE",
-  reconnecting: "STATUS: ROBOFLOW RECONNECTING",
-  unavailable: "STATUS: ROBOFLOW UNAVAILABLE",
+  waiting: "STATUS: KEYBOARD WARMING UP...",
+  starting: "STATUS: KEYBOARD WARMING UP...",
+  active: "STATUS: KEYBOARD READY!",
+  reconnecting: "STATUS: KEYBOARD RECONNECTING",
+  unavailable: "STATUS: KEYBOARD UNAVAILABLE",
 };
 
 export function RealtimeCamera() {
@@ -50,6 +55,15 @@ export function RealtimeCamera() {
   const [inferenceClosed, setInferenceClosed] = useState(false);
   const inferenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calibration = useCalibration(5056);
+  const setIntroBlocked = useSetIntroBlocked();
+
+  // The pause modal owns the viewport for as long as it is up: the instructions
+  // are neither shown over it nor summonable from the header icon. Every path
+  // that shows or hides it goes through here so the two cannot drift apart.
+  const setPauseModal = useCallback((next: boolean) => {
+    setShowPauseModal(next);
+    setIntroBlocked(next);
+  }, [setIntroBlocked]);
 
   const reportFrameSize = useCallback((size: FrameSize) => setFrameSize(size), []);
   const reportDetectionPoints = useCallback((points: [number, number][]) => setDetectionPoints(points), []);
@@ -98,24 +112,24 @@ export function RealtimeCamera() {
       inferenceTimerRef.current = setTimeout(() => {
         inferenceTimerRef.current = null;
         setInferenceTimedOut(true);
-        setShowPauseModal(true);
+        setPauseModal(true);
         void disableAudio();
       }, INFERENCE_TIMEOUT_MS);
     }
-  }, [disableAudio, enableAudio, inferenceClosed, inferenceTimedOut]);
+  }, [disableAudio, enableAudio, inferenceClosed, inferenceTimedOut, setPauseModal]);
 
   const handlePauseContinue = useCallback(() => {
-    setShowPauseModal(false);
+    setPauseModal(false);
     setInferenceTimedOut(false);
     // Restart inference by bumping the connection key.
     setConnectionKey((key) => key + 1);
     // The timer restarts in handleInferenceActive when the new connection goes active.
-  }, []);
+  }, [setPauseModal]);
 
   const handlePauseClose = useCallback(() => {
-    setShowPauseModal(false);
+    setPauseModal(false);
     setInferenceClosed(true);
-  }, []);
+  }, [setPauseModal]);
 
   useEffect(() => () => {
     audioEnabledRef.current = false;
@@ -288,9 +302,11 @@ export function RealtimeCamera() {
           : inferenceTimedOut ? "realtime-inference-status--paused"
           : `realtime-inference-status--${inferenceStatus}`
         }`}>
+          {/* A camera outage is not the keyboard's fault, so this line defers
+              to the real cause rather than blaming the instrument. */}
           {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE"
-           : inferenceClosed ? "INFERENCE PAUSED: RELOAD TO CONTINUE"
-           : inferenceTimedOut ? "INFERENCE PAUSED"
+           : inferenceClosed ? "KEYBOARD PAUSED: RELOAD TO CONTINUE"
+           : inferenceTimedOut ? "KEYBOARD PAUSED"
            : inferenceMessage ?? inferenceLabels[inferenceStatus]}
         </span>
       </div>
@@ -339,13 +355,14 @@ export function RealtimeCamera() {
             {audioEnabled ? "SOUND ON" : "SOUND OFF"}
           </button>
         </div>
+        <RealtimeIntroModal />
         {showPauseModal && (
           <>
             <div className="realtime-pause-scrim" />
-            <div className="realtime-pause-modal" role="dialog" aria-label="Inference paused">
-              <p className="realtime-pause-modal__title">INFERENCE PAUSED</p>
+            <div className="realtime-pause-modal" role="dialog" aria-label="Keyboard paused">
+              <p className="realtime-pause-modal__title">KEYBOARD PAUSED</p>
               <p className="realtime-pause-modal__subtitle">
-                To conserve resources, inference has been paused<br />after five minutes.
+                To conserve resources, the keyboard has been paused<br />after five minutes.
               </p>
               <div className="realtime-pause-modal__buttons">
                 <button type="button" className="realtime-pause-modal__btn" onClick={handlePauseClose}>CLOSE</button>
@@ -364,7 +381,7 @@ export function RealtimeCamera() {
           onForcePause={() => {
             if (inferenceTimerRef.current) { clearTimeout(inferenceTimerRef.current); inferenceTimerRef.current = null; }
             setInferenceTimedOut(true);
-            setShowPauseModal(true);
+            setPauseModal(true);
             void disableAudio();
           }}
           viewportRef={viewportRef}

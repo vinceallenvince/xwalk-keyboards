@@ -87,7 +87,18 @@ epics:
         ui:
           - { node: "57-155", shot: null } # inference ready, camera connecting
 
-      # Reaching "ROBOFLOW ACTIVE" needs a real Roboflow WebRTC GPU session,
+      - story: "As a first-time visitor, I am told how to play the crosswalk"
+        scenario: null
+        ui:
+          - { node: "300-2", shot: "realtime-intro-first-visit" }   # first-visit modal over connecting viewport
+
+      - story: "As a returning visitor, I can reopen the instructions from the header"
+        scenario: null
+        ui:
+          - { node: "300-36", shot: "realtime-intro-icon" }         # live study with info icon visible in header
+          - { node: "300-74", shot: "realtime-intro-reopened" }     # reopened modal over live viewport
+
+      # Reaching "KEYBOARD READY!" needs a real Roboflow WebRTC GPU session,
       # which cannot be stood up deterministically in Layer 1.
       - story: "As a visitor, I can experience the fully active Realtime study"
         scenario: "57-259"

@@ -106,6 +106,24 @@ And the destination page starts only the connections and work required for its o
 
 ## Realtime Study
 
+### Status vocabulary
+
+The Realtime study carries two independent status lines, and they speak from
+two different points of view. The feed line is the camera: `CONNECTING`,
+`FEED LIVE`, `FEED RECONNECTING`, `FEED DOWN`. The second line is the
+instrument: `KEYBOARD WARMING UP`, `KEYBOARD READY`, `KEYBOARD RECONNECTING`,
+`KEYBOARD UNAVAILABLE`, `KEYBOARD PAUSED`.
+
+A visitor does not need to know that the second line describes a remote GPU
+running pedestrian detection, and naming the vendor tells them nothing they can
+act on. Naming the instrument tells them exactly what they are waiting for. The
+scenarios below quote the instrument vocabulary; the underlying inference state
+machine in [`architecture.md`](architecture.md) is unchanged.
+
+The one exception is a camera outage. When the feed itself is down the
+instrument line defers to the real cause and reads `FEED UNAVAILABLE` rather
+than blaming the keyboard for a failure upstream of it.
+
 ### As a visitor, I can see that the Realtime study is connecting
 
 The Realtime study has its own sparse, black-ground interface. The camera
@@ -119,7 +137,7 @@ When the Realtime study opens
 Then the page header reads "XWALK KEYBOARDS | REALTIME"
 And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
 And the feed status reads "CONNECTING // WEST STREET @ W34 ST"
-And the inference status reads "STARTING ROBOFLOW GPU ..."
+And the inference status reads "STATUS: KEYBOARD WARMING UP..."
 And a large dark camera viewport is reserved in the center of the page
 And the "FULLSCREEN" and "SOUND ON" controls are visible but visually inactive
 And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
@@ -137,7 +155,7 @@ And the West Street at W. 34 St camera feed becomes active before Roboflow infer
 When the live camera frame is available
 Then the feed status reads "FEED LIVE // WEST STREET @ W34 ST"
 And the live camera video fills the reserved central viewport
-And the inference status continues to read "STARTING ROBOFLOW GPU ..."
+And the inference status continues to read "STATUS: KEYBOARD WARMING UP..."
 And sound and detection-dependent feedback remain unavailable until inference is active
 ```
 
@@ -150,9 +168,80 @@ without falsely presenting a camera image that has not yet arrived.
 Given I am on the Realtime study page
 And Roboflow inference becomes active before the West Street at W. 34 St camera feed
 When the Roboflow GPU has started
-Then the inference status reads "STATUS: ROBOFLOW ACTIVE"
+Then the inference status reads "STATUS: KEYBOARD READY!"
 And the feed status continues to read "CONNECTING // WEST STREET @ W34 ST"
 And the large camera viewport remains in its waiting state until a live camera frame is available
+```
+
+### As a first-time visitor, I am told how to play the crosswalk
+
+The Realtime study is silent and still until a pedestrian steps onto the
+crosswalk, and it takes several seconds to begin watching. A short modal on first visit sets the two expectations that make the wait legible, *the stripes are the keys*, and *nothing happens until someone crosses*. Because it appears immediately, while the camera and inference are still starting, reading it costs no extra time.
+
+The copy stays deliberately sparse. It names no vendor, no GPU, and no
+inference. A visitor needs to know that the instrument is warming up, not what
+is warming up. The startup wait is framed as the keyboard warming up, matching
+the inference status line behind the scrim.
+
+The modal does not control sound. Dismissing it is purely informational. It
+counts as a user gesture for the browser's audio-activation requirement, but the
+app already enables sound automatically when the keyboard becomes ready, so the
+modal does not need to do that work. A single "CLOSE" button keeps the footer
+clean.
+
+```gherkin
+Given I am a first-time visitor with no record of having seen the instructions
+When the Realtime study opens
+Then a centered modal appears over the camera viewport
+And the viewport behind it is dimmed by a scrim and cannot be interacted with
+And the modal title reads "HOW TO HEAR XWALK KEYBOARDS"
+And the modal explains that each white stripe is a key played by pedestrians crossing
+And the modal explains that the keyboard takes a few seconds to warm up
+And the modal explains that nothing plays until someone steps onto the stripes
+And the modal names no vendor, GPU, model, or inference technology
+And the modal offers a single "CLOSE" control
+And the camera connection and keyboard startup continue behind the modal
+And the feed and keyboard statuses remain visible and truthful behind the scrim
+
+When I select "CLOSE"
+Then the modal closes
+And the app records that the instructions have been seen
+And I return to the Realtime study in whatever state it has reached while I read
+
+When I press Escape or select the scrim outside the modal
+Then the modal closes in the same way as "CLOSE"
+```
+
+### As a returning visitor, I can reopen the instructions from the header
+
+Once seen, the instructions never reappear on their own. They stay reachable
+from a small info icon beside the study header, so a visitor who arrives at an
+empty crosswalk later can confirm that silence is the instrument waiting rather
+than the study failing.
+
+```gherkin
+Given I have previously seen and dismissed the Realtime instructions
+When the Realtime study opens
+Then no instructional modal is shown
+And the study begins its normal camera and inference startup
+And a small info icon sits to the right of the "XWALK KEYBOARDS | REALTIME" header
+And the info icon is present on first visit as well, once the modal is dismissed
+
+When I select the info icon
+Then the same instructional modal reopens over the current viewport
+And the live video, feed status, and inference status continue behind it
+And dismissing it returns me to the study unchanged
+And reopening the instructions does not restart the camera, inference, or the five-minute inference window
+```
+
+The instructional modal and the five-minute pause modal are never shown at the
+same time. The pause modal owns the viewport when it appears, and the info icon
+does not summon the instructions over it.
+
+```gherkin
+Given the five-minute inference pause modal is shown
+Then the instructional modal is not shown over it
+And the info icon is unavailable until the pause modal is dismissed
 ```
 
 ### As a visitor, I can experience the fully active Realtime study
@@ -168,7 +257,7 @@ And Roboflow inference is active
 When both active states are available at the same time
 Then the page header reads "XWALK KEYBOARDS | REALTIME"
 And the feed status reads "FEED LIVE // WEST STREET @ W34 ST"
-And the inference status reads "STATUS: ROBOFLOW ACTIVE"
+And the inference status reads "STATUS: KEYBOARD READY!"
 And the live camera video fills the reserved central viewport
 And the "FULLSCREEN" control is available at the lower-right of the viewport
 And the sound control is available beside it and indicates its current sound state
@@ -220,7 +309,7 @@ And crosswalk highlights and qualifying notes resume only from current detection
 Given I am viewing an active Realtime study
 When the Roboflow inference connection is lost
 Then the live camera video continues when its connection remains available
-And the inference status no longer presents Roboflow as active
+And the inference status no longer presents the keyboard as ready
 And no new crosswalk notes or stripe highlights are produced while inference is unavailable
 And no stale stripe highlight remains over the moving video
 And the camera connection is not restarted solely because inference was lost
@@ -302,7 +391,8 @@ Then the WebRTC inference connection is paused
 And crosswalk stripe highlights and audio stop
 And the live camera video continues playing behind the modal
 And a centered modal appears over the viewport
-And the modal explains that inference has been paused to conserve resources
+And the modal title reads "KEYBOARD PAUSED"
+And the modal explains that the keyboard has been paused to conserve resources
 And the modal offers a "CONTINUE" button and a "CLOSE" button
 And the SOUND ON / FULLSCREEN controls remain visible but inactive
 
@@ -316,7 +406,7 @@ When I select "CLOSE"
 Then the modal closes
 And the live camera video continues without inference
 And no stripe highlights or audio are produced
-And the inference status reads "INFERENCE PAUSED: RELOAD TO CONTINUE"
+And the inference status reads "KEYBOARD PAUSED: RELOAD TO CONTINUE"
 And the visitor may reload the page to start a new five-minute session
 ```
 
@@ -335,7 +425,7 @@ And the inference status shows the retry attempt number
 And the five-minute timer continues counting during reconnection
 And no modal is shown unless all retry attempts are exhausted
 When all retry attempts are exhausted
-Then the inference status reads "STATUS: ROBOFLOW UNAVAILABLE"
+Then the inference status reads "STATUS: KEYBOARD UNAVAILABLE"
 And no pause modal is shown because the failure is an infrastructure problem, not a usage limit
 ```
 
@@ -350,7 +440,7 @@ is nothing to continue.
 Given I am viewing the Realtime study
 When Roboflow returns a 402 Payment Required error
 Then the app does not retry
-And the inference status reads "STATUS: ROBOFLOW UNAVAILABLE"
+And the inference status reads "STATUS: KEYBOARD UNAVAILABLE"
 And the live camera video continues without inference
 And no pause modal or retry countdown is shown
 And the visitor understands this is a resource limit, not a broken feature
