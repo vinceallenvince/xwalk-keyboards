@@ -64,11 +64,24 @@ test.describe("Realtime", () => {
   test("camera live while inference is still starting", async ({ page }) => {
     await openRealtime(page);
     await driveCameraLive(page);
-    // Contains, not equals: a live feed also carries the RECALIBRATE control
-    // inside this status line.
-    await expect(page.locator(".realtime-feed-status")).toContainText("FEED LIVE // WEST STREET @ W34 ST");
+    await expect(page.locator(".realtime-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W34 ST");
     await expect(page.locator(".realtime-inference-status")).toHaveText("STATUS: KEYBOARD WARMING UP...");
     await page.screenshot({ path: join(SHOTS, "realtime-cam-ready.png") });
+  });
+});
+
+test.describe("Realtime operator tools", () => {
+  test("RECALIBRATE lives in the debug panel, not the status bar", async ({ page }) => {
+    await openRealtime(page);
+    await driveCameraLive(page);
+
+    // The status bar is visitor-facing copy only, even with the feed live.
+    await expect(page.locator(".realtime-statusbar")).not.toContainText("RECALIBRATE");
+
+    await page.keyboard.press("Control+Shift+D");
+    const panel = page.locator(".realtime-debug-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("button", { name: "RECALIBRATE" })).toBeVisible();
   });
 });
 
@@ -109,7 +122,7 @@ test.describe("Realtime instructions", () => {
     await introButton(page).click();
     await expect(modal(page)).toBeVisible();
     // Reopening leaves the study running behind it.
-    await expect(page.locator(".realtime-feed-status")).toContainText("FEED LIVE // WEST STREET @ W34 ST");
+    await expect(page.locator(".realtime-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W34 ST");
     await page.screenshot({ path: join(SHOTS, "realtime-intro-reopened.png") });
 
     await page.keyboard.press("Escape");

@@ -282,19 +282,6 @@ export function RealtimeCamera() {
         <span className={`realtime-feed-status realtime-feed-status--${effectiveCamera}`}>
           <i className={`status-dot status-dot--${effectiveCamera}`} />
           {cameraLabels[effectiveCamera]}
-          {isLive && (
-            <>
-              <span className="realtime-recalibrate-sep">{" // "}</span>
-              <button
-                type="button"
-                className={`realtime-recalibrate${recalibrating ? " realtime-recalibrate--running" : ""}`}
-                onClick={() => void handleRecalibrate()}
-                disabled={recalibrating}
-              >
-                {recalibrating ? "CALIBRATING..." : "RECALIBRATE"}
-              </button>
-            </>
-          )}
         </span>
         <span className={`realtime-inference-status ${
           effectiveCamera === "unavailable" ? "realtime-inference-status--unavailable"
@@ -384,6 +371,8 @@ export function RealtimeCamera() {
             setPauseModal(true);
             void disableAudio();
           }}
+          onRecalibrate={() => void handleRecalibrate()}
+          recalibrating={recalibrating}
           viewportRef={viewportRef}
         />
       </div>
