@@ -334,7 +334,7 @@ And a centered overlay reads "VIDEO FEED UNAVAILABLE" in bold 18px white
 And a subtitle reads "The camera feed for this intersection is currently offline."
 And the FULLSCREEN and SOUND controls remain visible but visually inactive at reduced opacity
 And no crosswalk stripe highlights or notes are produced
-And the RECALIBRATE button remains available so an operator can trigger a manual check
+And an operator can still trigger a manual calibration check from the debug panel
 When the camera feed recovers
 Then the study resumes its normal live state with current detections
 And the unavailable overlay is removed

@@ -12,4 +12,7 @@ XWALK KEYBOARDS turns NYC crosswalk cameras into playable pianos.
 - [x] Add a GPU usage throttle to protect Roboflow credits. After 5 minutes of active inference, pause the WebRTC connection and show a modal asking the user if they'd like to continue. If yes, restart inference and reset the 5-minute timer. If no (or no response), keep the video playing but stop inference and audio. This is the minimum viable approach to expose the app publicly without risking credit exhaustion from tabs left open. A more sophisticated strategy (per-session budgets, concurrent-user caps, time-of-day scheduling) can follow once usage patterns are visible in the Looker Studio dashboard.
 - [ ] Deploy the web app on Vercel at xwalkkeyboards.app
 - [ ] Create a README with a screenshot and a link to xwalkkeyboards.app
+- [ ] Add an About subpage and replace CAMERA REGISTRY link with ABOUT
+- [ ] Replace ORCHESTRATION link on homepage with SEQUENCE and subtext, "[ In progress ]" but preserve /orchestration 
+- [x] Move RECALIBRATE button to debug menu
 

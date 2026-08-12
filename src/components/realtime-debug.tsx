@@ -20,6 +20,10 @@ type RealtimeDebugProps = {
   forcedUnavailable: boolean;
   /** Force the 5-minute inference pause modal for testing. */
   onForcePause: () => void;
+  /** Capture the current frame and run the calibration agent against it. */
+  onRecalibrate: () => void;
+  /** Whether a recalibration request is in flight. */
+  recalibrating: boolean;
   /** The viewport element the debug canvas should cover. */
   viewportRef: React.RefObject<HTMLDivElement | null>;
 };
@@ -31,9 +35,12 @@ type RealtimeDebugProps = {
  * source (live vs reference).
  *
  * Also provides a RENDER POLYGONS button that draws all stripe outlines over
- * the feed so calibration accuracy can be confirmed visually.
+ * the feed so calibration accuracy can be confirmed visually, and RECALIBRATE
+ * to run the calibration agent against the current frame. Recalibration is an
+ * operator tool, not part of the study — it lives here rather than in the
+ * status bar, where it sat beside copy written for visitors.
  */
-export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, viewportRef }: RealtimeDebugProps) {
+export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onRecalibrate, recalibrating, viewportRef }: RealtimeDebugProps) {
   const [open, setOpen] = useState(false);
   const [showPolygons, setShowPolygons] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -210,6 +217,14 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
             onClick={onForcePause}
           >
             FORCE PAUSE MODAL
+          </button>
+          <button
+            type="button"
+            className={`realtime-debug-toggle${recalibrating ? " realtime-debug-toggle--active" : ""}`}
+            onClick={onRecalibrate}
+            disabled={recalibrating}
+          >
+            {recalibrating ? "CALIBRATING..." : "RECALIBRATE"}
           </button>
         </div>
       </div>
