@@ -5,7 +5,7 @@ export function SiteHeader({ accessory, section }: { accessory?: ReactNode; sect
   // The wordmark always links home. Its trailing "| SECTION" label is styled
   // as an underlined link-like affordance everywhere except on that section's
   // own page, where underlining it would read as a link back to itself.
-  const onOwnPage = section === "CAMERA REGISTRY";
+  const onOwnPage = section === "CAMERA REGISTRY" || section === "ABOUT";
   return (
     <header className="site-header">
       {/* `accessory` is a sibling of the link, never a child: a control nested
@@ -28,11 +28,11 @@ export function SiteHeader({ accessory, section }: { accessory?: ReactNode; sect
   );
 }
 
-export function SiteFooter({ onRegistryPage }: { onRegistryPage?: boolean }) {
+export function SiteFooter({ onAboutPage }: { onAboutPage?: boolean }) {
   return (
     <footer className="site-footer">
       <span>
-        SOURCE: 511NY // {onRegistryPage ? "CAMERA REGISTRY" : <Link href="/camera-registry">CAMERA REGISTRY</Link>}
+        SOURCE: 511NY // {onAboutPage ? "ABOUT" : <Link href="/about">ABOUT</Link>}
       </span>
       <span className="footer-pattern">PATTERN: MONUMENTAL_ISO <i aria-hidden="true" /> <b>STUDY NO. 042-B</b></span>
     </footer>
@@ -54,7 +54,7 @@ export function StudyShell({
     <main className={`app-shell${className ? ` ${className}` : ""}`}>
       <SiteHeader accessory={accessory} section={section} />
       {children}
-      <SiteFooter onRegistryPage={section === "CAMERA REGISTRY"} />
+      <SiteFooter onAboutPage={section === "ABOUT"} />
     </main>
   );
 }

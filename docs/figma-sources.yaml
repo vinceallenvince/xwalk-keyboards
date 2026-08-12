@@ -124,6 +124,16 @@ epics:
         ui:
           - { node: "57-127", shot: null } # edge-to-edge live feed
 
+  - epic: "About"
+    page: "322-10"
+    epic_dir: "about"
+    stories:
+      - story: "As a visitor, I can learn about XWALK KEYBOARDS"
+        scenario: "322-12"
+        ui:
+          - { node: "322-14", shot: null }    # about page while camera is connecting
+          - { node: "332-83", shot: null }    # about page with live camera feed background
+
   - epic: "Camera Registry"
     page: "72-382"
     epic_dir: "camera-registry"

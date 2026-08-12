@@ -42,7 +42,7 @@ export function HomeExperience() {
         </nav>
       </section>
       <footer className="home-footer">
-        <span>SOURCE: 511NY // <Link href="/camera-registry">CAMERA REGISTRY</Link></span>
+        <span>SOURCE: 511NY // <Link href="/about">ABOUT</Link></span>
         <span className="footer-pattern">PATTERN: MONUMENTAL_ISO <i aria-hidden="true" /> <b>STUDY NO. 042-B</b></span>
       </footer>
     </main>

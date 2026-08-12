@@ -75,17 +75,17 @@ Then I am returned to the XWALK KEYBOARDS homepage
 And the homepage opens in its initial hero state
 ```
 
-### As a visitor, I can open the Camera Registry from the footer
+### As a visitor, I can open the About page from the footer
 
-The footer provides a persistent link to the internal Camera Registry from the
-homepage and every study subpage.
+The footer provides a persistent link to the About page from the homepage and
+every study subpage. On the About page itself the link is rendered as plain
+text. Full About-page scenarios are in the [About](#about) section.
 
 ```gherkin
 Given I am viewing the XWALK KEYBOARDS homepage or a study subpage
-Then the footer includes a "CAMERA REGISTRY" link
-When I select the "CAMERA REGISTRY" link
-Then I am taken to the Camera Registry page
-And I can review the priority and fallback camera sets
+Then the footer includes an "ABOUT" link
+When I select the "ABOUT" link
+Then I am taken to the About page
 ```
 
 ### As a visitor, I leave a study without its media or audio continuing off-page
@@ -879,6 +879,68 @@ And later qualifying green-arrow intersections can trigger their mapped piano no
 When I disable sound through the sound control
 Then the phrase beat and any currently sounding pedestrian notes are silenced
 And the visual timeline continues without interruption
+```
+
+## About
+
+### As a visitor, I can learn about XWALK KEYBOARDS
+
+The About page is the project's public-facing description. The live West Street
+at W. 34 St camera feed fills the page background — the same feed the homepage
+uses — making the About page feel like part of the instrument rather than a
+static informational document. The project description sits inside a dark
+viewport panel that preserves legibility over the moving video.
+
+The copy is a single paragraph. It explains what the crosswalk piano does
+without naming vendors, models, or inference technology.
+
+```gherkin
+Given I open the XWALK KEYBOARDS About page
+When the page loads
+Then the header reads "XWALK KEYBOARDS | ABOUT"
+And the ABOUT label is rendered as plain text, not underlined, because I am already on the About page
+And a feed status reads "CONNECTING // WEST STREET @ W34 ST" with an inactive status dot
+And a dark viewport panel is visible below the feed status
+And the viewport contains a single paragraph explaining that XWalk Keyboards transforms crosswalks into piano keyboards
+And the paragraph mentions that pedestrians step on white stripes and the app plays the corresponding notes
+And the paragraph is set in 12px monospace
+And no section headings, study links, or eyebrow labels are shown
+And the footer reads "SOURCE: 511NY // ABOUT" with ABOUT as plain text, not a self-link
+And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
+
+When the camera feed becomes active
+Then the feed status reads "FEED LIVE // WEST STREET @ W34 ST" with a live mint dot
+And the live camera video fills the page background at reduced opacity
+And the viewport panel remains dark and legible over the moving video
+And the camera feed is visible around the viewport edges and behind the footer
+And no inference, stripe highlights, or audio are started — the feed is ambient only
+```
+
+### As a visitor, I can reach the About page from any footer
+
+The About link replaces the former Camera Registry link in the footer. It
+appears on every page except the About page itself, where it is rendered as
+plain text to avoid a self-referential link.
+
+```gherkin
+Given I am viewing the XWALK KEYBOARDS homepage
+Then the fixed footer includes an "ABOUT" link styled in mint
+When I select the "ABOUT" link
+Then I am taken to the About page
+
+Given I am viewing a study subpage (Realtime, Orchestration, or Sequence)
+Then the footer includes an "ABOUT" link
+When I select the "ABOUT" link
+Then I am taken to the About page
+
+Given I am viewing the Camera Registry
+Then the footer includes an "ABOUT" link
+When I select the "ABOUT" link
+Then I am taken to the About page
+
+Given I am viewing the About page
+Then the footer reads "SOURCE: 511NY // ABOUT"
+And "ABOUT" is plain text, not a link
 ```
 
 ## Camera Registry
