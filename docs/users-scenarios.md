@@ -40,9 +40,10 @@ Then the "XWALK KEYBOARDS" title scrolls upward and exits the top of the viewpor
 And the live traffic-camera background remains fixed in place behind the experience
 And the homepage status indicators and footer remain positioned over the fixed background
 And the study selector animates upward into the vertical center of the viewport
-And the selector presents "REALTIME" and "ORCHESTRATION" as the available study modes
+And the selector presents "REALTIME" and "SEQUENCE" as the available study modes
+And "SEQUENCE" displays the subtext "[ In progress ]" beneath the label
 And a mint vertical divider separates the two study modes
-And "REALTIME" and "ORCHESTRATION" are rendered in their inactive gray states
+And "REALTIME" and "SEQUENCE" are rendered in their inactive gray states
 ```
 
 ### As a visitor, I can preview a study mode before choosing it
@@ -53,12 +54,10 @@ selection clear before the visitor commits.
 
 ```gherkin
 Given the study selector is centered in the viewport
-When the visitor rolls over "ORCHESTRATION"
-Then "ORCHESTRATION" changes to the active highlight color
-And "REALTIME" changes to its inactive gray state
 When the visitor rolls over "REALTIME"
 Then "REALTIME" changes to the active highlight color
-And "ORCHESTRATION" changes to its inactive gray state
+And "SEQUENCE" remains in its inactive gray state
+And "SEQUENCE" is not a link and does not respond to hover or click
 ```
 
 ## Shared Navigation

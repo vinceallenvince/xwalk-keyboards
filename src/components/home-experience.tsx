@@ -38,7 +38,7 @@ export function HomeExperience() {
         <nav className="study-selector">
           <Link href="/realtime">REALTIME</Link>
           <i aria-hidden="true" />
-          <span aria-disabled="true">ORCHESTRATION</span>
+          <span aria-disabled="true">SEQUENCE<small className="study-selector__status">[ In progress ]</small></span>
         </nav>
       </section>
       <footer className="home-footer">
