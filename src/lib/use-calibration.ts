@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { expandPolygonY, processPolygon, simplifyPolygon } from "@/lib/polygon-utils";
 import { REALTIME_CALIBRATION, type Point, type Stripe } from "@/lib/realtime-calibration";
+import { noteForSlot } from "@/lib/realtime-scale";
 
 export type CalibrationStatus = "ok" | "degraded" | "no_crosswalk" | "feed_down" | "needs_review";
 
@@ -36,28 +37,10 @@ type CalibrationResponse = {
   }>;
 };
 
+// Re-exported so the scale has one import site across the app.
+export { noteForSlot };
+
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * The note each slot plays, in crosswalk order. Derived from the reference
- * calibration so the scale lives in exactly one place — this is the app's
- * musical contract, not the agent's.
- */
-const SCALE_BY_SEGMENT: Record<Stripe["segment"], readonly string[]> = {
-  left: REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left").map((s) => s.note),
-  right: REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right").map((s) => s.note),
-};
-
-/**
- * Map a stripe's position on the crosswalk to a pitch. Indexes past the end of
- * the scale hold on the top note rather than wrapping — a crosswalk that reads
- * one stripe longer than the reference should not restart the octave.
- */
-export function noteForSlot(segment: Stripe["segment"], stripeIndex: number): string {
-  const scale = SCALE_BY_SEGMENT[segment];
-  if (!scale?.length) return "C4";
-  return scale[Math.min(Math.max(stripeIndex, 0), scale.length - 1)];
-}
 
 function isRenderableSegment(segment: string): segment is Stripe["segment"] {
   return segment === "left" || segment === "right";
