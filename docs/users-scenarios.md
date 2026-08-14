@@ -111,7 +111,7 @@ The Realtime study carries two independent status lines, and they speak from
 two different points of view. The feed line is the camera: `CONNECTING`,
 `FEED LIVE`, `FEED RECONNECTING`, `FEED DOWN`. The second line is the
 instrument: `KEYBOARD WARMING UP`, `KEYBOARD READY`, `KEYBOARD RECONNECTING`,
-`KEYBOARD UNAVAILABLE`, `KEYBOARD PAUSED`.
+`KEYBOARD UNAVAILABLE`, `XWALK KEYBOARD PAUSED`.
 
 A visitor does not need to know that the second line describes a remote GPU
 running pedestrian detection, and naming the vendor tells them nothing they can
@@ -390,8 +390,8 @@ Then the WebRTC inference connection is paused
 And crosswalk stripe highlights and audio stop
 And the live camera video continues playing behind the modal
 And a centered modal appears over the viewport
-And the modal title reads "KEYBOARD PAUSED"
-And the modal explains that the keyboard has been paused to conserve resources
+And the modal title reads "XWALK KEYBOARD PAUSED"
+And the modal explains that the XWalk Keyboard has been paused to conserve resources
 And the modal offers a "CONTINUE" button and a "CLOSE" button
 And the SOUND ON / FULLSCREEN controls remain visible but inactive
 
@@ -405,7 +405,7 @@ When I select "CLOSE"
 Then the modal closes
 And the live camera video continues without inference
 And no stripe highlights or audio are produced
-And the inference status reads "KEYBOARD PAUSED: RELOAD TO CONTINUE"
+And the inference status reads "XWALK KEYBOARD PAUSED: RELOAD TO CONTINUE"
 And the visitor may reload the page to start a new five-minute session
 ```
 
