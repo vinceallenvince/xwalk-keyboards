@@ -50,7 +50,11 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
 /* Inference pause modal */
 .realtime-inference-status--paused { color: #e5b233; }
 .realtime-pause-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
-.realtime-pause-modal { position: absolute; z-index: 7; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 40px 48px; border: 1px solid #40404d; border-radius: 4px; background: rgba(15,15,20,.95); text-align: center; }
+/* `width: max-content` keeps the card as wide as its longest authored line, so
+   the subtitle breaks only where its `<br>` says to — shrink-to-fit alone
+   under-measures the hard-broken paragraph and strands a word on a third line.
+   The max-width clamp lets it wrap normally once the viewport is narrower. */
+.realtime-pause-modal { position: absolute; z-index: 7; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 20px; width: max-content; max-width: calc(100% - 32px); padding: 40px 48px; border: 1px solid #40404d; border-radius: 4px; background: rgba(15,15,20,.95); text-align: center; }
 .realtime-pause-modal__title { margin: 0; font: 700 1rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #d9d9d9; letter-spacing: .25em; text-transform: uppercase; }
 .realtime-pause-modal__subtitle { margin: 0; font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #8c8c99; }
 .realtime-pause-modal__buttons { display: flex; gap: 16px; }

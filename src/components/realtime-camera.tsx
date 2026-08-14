@@ -292,8 +292,8 @@ export function RealtimeCamera() {
           {/* A camera outage is not the keyboard's fault, so this line defers
               to the real cause rather than blaming the instrument. */}
           {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE"
-           : inferenceClosed ? "KEYBOARD PAUSED: RELOAD TO CONTINUE"
-           : inferenceTimedOut ? "KEYBOARD PAUSED"
+           : inferenceClosed ? "XWALK KEYBOARD PAUSED: RELOAD TO CONTINUE"
+           : inferenceTimedOut ? "XWALK KEYBOARD PAUSED"
            : inferenceMessage ?? inferenceLabels[inferenceStatus]}
         </span>
       </div>
@@ -346,10 +346,10 @@ export function RealtimeCamera() {
         {showPauseModal && (
           <>
             <div className="realtime-pause-scrim" />
-            <div className="realtime-pause-modal" role="dialog" aria-label="Keyboard paused">
-              <p className="realtime-pause-modal__title">KEYBOARD PAUSED</p>
+            <div className="realtime-pause-modal" role="dialog" aria-label="XWalk Keyboard paused">
+              <p className="realtime-pause-modal__title">XWALK KEYBOARD PAUSED</p>
               <p className="realtime-pause-modal__subtitle">
-                To conserve resources, the keyboard has been paused<br />after five minutes.
+                To conserve resources, the XWalk Keyboard has been paused<br />after five minutes.
               </p>
               <div className="realtime-pause-modal__buttons">
                 <button type="button" className="realtime-pause-modal__btn" onClick={handlePauseClose}>CLOSE</button>

@@ -144,7 +144,7 @@ test.describe("Realtime instructions", () => {
     await page.getByRole("button", { name: /force pause/i }).click();
 
     await expect(page.locator(".realtime-pause-modal")).toBeVisible();
-    await expect(page.locator(".realtime-pause-modal__title")).toHaveText("KEYBOARD PAUSED");
+    await expect(page.locator(".realtime-pause-modal__title")).toHaveText("XWALK KEYBOARD PAUSED");
     await expect(modal(page)).toHaveCount(0);
     await expect(introButton(page)).toHaveCount(0);
   });
