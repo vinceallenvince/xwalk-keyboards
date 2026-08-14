@@ -68,17 +68,20 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
   });
 
-  test("study selector, Orchestration is disabled", async ({ page }) => {
+  test("study selector, Sequence is disabled with in-progress label", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
-    // Orchestration is deliberately not yet a live study from the homepage: no
+    // Sequence is deliberately not yet a live study from the homepage: no
     // link role, no rollover highlight, and clicking it must not navigate.
-    await expect(page.getByRole("link", { name: "ORCHESTRATION" })).toHaveCount(0);
-    const orchestration = page.getByText("ORCHESTRATION", { exact: true });
-    await expect(orchestration).toHaveAttribute("aria-disabled", "true");
-    await orchestration.hover();
-    await expect(orchestration).toHaveCSS("color", "rgba(255, 255, 255, 0.31)");
-    await orchestration.click({ force: true });
+    await expect(page.getByRole("link", { name: "SEQUENCE" })).toHaveCount(0);
+    const sequence = page.getByText("SEQUENCE", { exact: true });
+    await expect(sequence).toBeVisible();
+    const sequenceContainer = page.locator("[aria-disabled='true']");
+    await expect(sequenceContainer).toHaveAttribute("aria-disabled", "true");
+    await expect(page.locator(".study-selector__status")).toContainText("In progress");
+    await sequenceContainer.hover();
+    await expect(sequenceContainer).toHaveCSS("color", "rgba(255, 255, 255, 0.31)");
+    await sequenceContainer.click({ force: true });
     await expect(page).toHaveURL(/\/#studies$|\/$/);
   });
 });
