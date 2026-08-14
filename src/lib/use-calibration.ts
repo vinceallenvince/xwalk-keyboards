@@ -25,24 +25,58 @@ type CalibrationResponse = {
   rightCrosswalk?: number[][];
   stripes?: Array<{
     stripeIndex: number;
-    segment: "left" | "right";
-    note: string;
-    visible: boolean;
+    segment: string;
+    // The calibration agent is camera-agnostic: it reports where a stripe sits
+    // on the crosswalk and leaves the musical reading to us. `note` is only
+    // present on calibrations published before that split, and `visible` only
+    // on those that padded the list with undetected stripes.
+    note?: string;
+    visible?: boolean;
     polygon: number[][];
   }>;
 };
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
+/**
+ * The note each slot plays, in crosswalk order. Derived from the reference
+ * calibration so the scale lives in exactly one place — this is the app's
+ * musical contract, not the agent's.
+ */
+const SCALE_BY_SEGMENT: Record<Stripe["segment"], readonly string[]> = {
+  left: REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left").map((s) => s.note),
+  right: REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right").map((s) => s.note),
+};
+
+/**
+ * Map a stripe's position on the crosswalk to a pitch. Indexes past the end of
+ * the scale hold on the top note rather than wrapping — a crosswalk that reads
+ * one stripe longer than the reference should not restart the octave.
+ */
+export function noteForSlot(segment: Stripe["segment"], stripeIndex: number): string {
+  const scale = SCALE_BY_SEGMENT[segment];
+  if (!scale?.length) return "C4";
+  return scale[Math.min(Math.max(stripeIndex, 0), scale.length - 1)];
+}
+
+function isRenderableSegment(segment: string): segment is Stripe["segment"] {
+  return segment === "left" || segment === "right";
+}
+
+export function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
   if (!raw?.length) return REALTIME_CALIBRATION.stripes;
 
   return raw
-    .filter((s) => s.visible && s.polygon?.length >= 3)
+    .filter((s) => {
+      // Newer calibrations only carry stripes that were actually detected, so
+      // an absent `visible` means visible — not filtered out.
+      if (s.visible === false) return false;
+      return isRenderableSegment(s.segment) && s.polygon?.length >= 3;
+    })
     .map((s) => ({
       stripeIndex: s.stripeIndex,
-      segment: s.segment,
-      note: s.note,
+      segment: s.segment as Stripe["segment"],
+      note: s.note ?? noteForSlot(s.segment as Stripe["segment"], s.stripeIndex),
       // Simplify the jagged instance-segmentation outlines into clean quads,
       // then expand ~15% so a fast-walking pedestrian stepping slightly off
       // the paint still triggers the note.

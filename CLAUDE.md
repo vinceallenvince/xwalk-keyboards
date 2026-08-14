@@ -50,6 +50,10 @@ All third-party API keys (Roboflow, Crosswalk Score Agent) stay server-side in N
 
 Both use a reference frame with explicit dimensions. Polygons scale to actual input frame size via `x * targetWidth / referenceWidth`.
 
+The Realtime hardcoded stripes are the **fallback and the scale**, not the live geometry. `src/lib/use-calibration.ts` fetches live polygons from the calibration agent via `/api/calibration/[cameraId]`, falling back to `public/calibration-fallback.json` and then to the hardcoded reference.
+
+**The app owns the musical contract; the agent owns geometry.** The agent is camera-agnostic — it publishes a `stripeIndex` (slot position along the crosswalk) and a polygon, with no note names. `SCALE_BY_SEGMENT` in `use-calibration.ts` maps index → note, deriving the scale from `realtime-calibration.ts` so it lives in one place. Calibrations published before that split still carry `note`, and `toStripes` prefers it when present.
+
 ### Orchestration data flow
 
 1. Browser polls 12 snapshot slots → detects changed bytes by SHA-256
