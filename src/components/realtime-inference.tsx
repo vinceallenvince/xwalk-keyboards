@@ -36,9 +36,6 @@ type RealtimeInferenceProps = {
 
 type OutputBindings = {
   all: string;
-  insideLeft: string;
-  insideRight: string;
-  outside: string;
 };
 
 type ConfigurationResponse =
@@ -266,7 +263,7 @@ export function RealtimeInference({
         connection = await webrtc.useStream({
           source: sourceStream,
           connector: connectors.withProxyUrl(
-            `/api/roboflow/webrtc?frameWidth=${inputFrame.width}&frameHeight=${inputFrame.height}`,
+            "/api/roboflow/webrtc",
             { turnConfigUrl: "/api/roboflow/turn" }
           ),
           wrtcParams: {},
