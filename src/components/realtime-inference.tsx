@@ -5,10 +5,12 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   countPredictionsForOutput,
   footPointsFromOutput,
-  occupiedNotesFromAllDetections,
+  occupiedStripesFromAllDetections,
   type ClientCalibration,
+  type OccupiedStripe,
 } from "@/lib/realtime-detections";
 import { REALTIME_CALIBRATION, scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
+import { stripeKey } from "@/lib/realtime-scale";
 
 export type InferenceStatus = "waiting" | "starting" | "active" | "reconnecting" | "unavailable";
 
@@ -154,7 +156,10 @@ export function RealtimeInference({
   stripes: liveStripes,
 }: RealtimeInferenceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const activeNotesRef = useRef(new Set<string>());
+  // Keyed by stripe, not by note: two stripes can play the same pitch once a
+  // crosswalk reads long enough to overlap the other's range, and they must
+  // still light and retrigger independently.
+  const activeStripesRef = useRef(new Set<string>());
   const lastTriggeredAtRef = useRef(new Map<string, number>());
   // Beat state: plays when people are detected but none are in the crosswalk.
   const beatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -165,14 +170,22 @@ export function RealtimeInference({
   const lastDataAtRef = useRef<number>(0);
   const stallTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const STALL_TIMEOUT_MS = 15_000;
-  const [activeNotes, setActiveNotes] = useState<string[]>([]);
+  // onData is created once per WebRTC connection and would otherwise capture
+  // whatever calibration existed at that moment — which is the baked-in
+  // reference, since the stream connects before the calibration fetch
+  // resolves. Reading through a ref lets a drifted camera's new geometry take
+  // effect without tearing down the connection every time it refreshes.
+  const calibrationRef = useRef(calibration);
+  useEffect(() => { calibrationRef.current = calibration; }, [calibration]);
+
+  const [activeStripes, setActiveStripes] = useState<OccupiedStripe[]>([]);
   const [frame, setFrame] = useState<FrameSize | null>(null);
   const [insideCount, setInsideCount] = useState<number | null>(null);
   const [message, setMessage] = useState("Waiting for live camera");
 
   const clearOccupancy = () => {
-    activeNotesRef.current.clear();
-    setActiveNotes([]);
+    activeStripesRef.current.clear();
+    setActiveStripes([]);
   };
 
   const startBeat = () => {
@@ -266,14 +279,13 @@ export function RealtimeInference({
             // This replaces the server-side polygon filtering that Roboflow
             // used to do, so the boundaries are always from the latest
             // calibration agent run rather than what was set at session init.
-            const notes = occupiedNotesFromAllDetections(
-              output, configuration.outputBindings.all, inputFrame, calibration,
+            const occupied = occupiedStripesFromAllDetections(
+              output, configuration.outputBindings.all, inputFrame, calibrationRef.current,
             );
-            const occupied = new Set(notes);
-            setActiveNotes(notes);
+            setActiveStripes(occupied);
 
             const totalPeople = countPredictionsForOutput(output, configuration.outputBindings.all);
-            const insideNow = notes.length;
+            const insideNow = occupied.length;
             setInsideCount(insideNow);
 
             // Report all foot-points for the debug overlay.
@@ -281,7 +293,7 @@ export function RealtimeInference({
             onDetectionPoints(allPoints);
 
             if (!audioEnabledRef.current || !audioContextRef.current) {
-              activeNotesRef.current.clear();
+              activeStripesRef.current.clear();
               stopBeat();
               return;
             }
@@ -317,14 +329,14 @@ export function RealtimeInference({
             }
 
             // --- Note triggers ------------------------------------------------
-            for (const note of occupied) {
-              const lastTriggeredAt = lastTriggeredAtRef.current.get(note) ?? 0;
-              if (!activeNotesRef.current.has(note) && now - lastTriggeredAt >= 600) {
-                playPianoNote(audioContextRef.current, note);
-                lastTriggeredAtRef.current.set(note, now);
+            for (const stripe of occupied) {
+              const lastTriggeredAt = lastTriggeredAtRef.current.get(stripe.key) ?? 0;
+              if (!activeStripesRef.current.has(stripe.key) && now - lastTriggeredAt >= 600) {
+                playPianoNote(audioContextRef.current, stripe.note);
+                lastTriggeredAtRef.current.set(stripe.key, now);
               }
             }
-            activeNotesRef.current = occupied;
+            activeStripesRef.current = new Set(occupied.map((stripe) => stripe.key));
           },
         });
         if (abortController.signal.aborted) {
@@ -422,7 +434,7 @@ export function RealtimeInference({
       const offsetY = (bounds.height - contentHeight) / 2;
       const scaleX = contentWidth / frame.width;
       const scaleY = contentHeight / frame.height;
-      const notes = new Set(activeNotes);
+      const occupiedKeys = new Set(activeStripes.map((stripe) => stripe.key));
 
       const tracePath = (ctx: CanvasRenderingContext2D, points: [number, number][]) => {
         const [first, ...rest] = points;
@@ -444,7 +456,7 @@ export function RealtimeInference({
       ];
 
       for (const stripe of liveStripes) {
-        if (!notes.has(stripe.note)) continue;
+        if (!occupiedKeys.has(stripeKey(stripe.segment, stripe.stripeIndex))) continue;
         const points = scalePolygon(stripe.polygon, frame);
         if (points.length < 3) continue;
 
@@ -462,7 +474,7 @@ export function RealtimeInference({
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [activeNotes, frame, liveStripes]);
+  }, [activeStripes, frame, liveStripes]);
 
   return (
     <>
@@ -471,7 +483,7 @@ export function RealtimeInference({
         {message}
         {frame && ` Input ${frame.width} by ${frame.height}.`}
         {insideCount !== null && ` ${insideCount} people inside the crosswalk.`}
-        {activeNotes.length > 0 && ` Active notes: ${activeNotes.join(", ")}.`}
+        {activeStripes.length > 0 && ` Active notes: ${activeStripes.map((s) => s.note).join(", ")}.`}
       </p>
     </>
   );

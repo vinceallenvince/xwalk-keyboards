@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   countPredictionsForOutput,
   lowerBodyPoint,
-  occupiedNotesFromAllDetections,
+  occupiedStripesFromAllDetections,
 } from "./realtime-detections";
 import { REALTIME_CALIBRATION } from "./realtime-calibration";
 
@@ -22,11 +22,13 @@ describe("Realtime prediction mapping", () => {
         { x: 250, y: 180, width: 12, height: 12 },   // outside both crosswalks
       ]},
     };
-    const notes = occupiedNotesFromAllDetections(
+    const occupied = occupiedStripesFromAllDetections(
       output, "all", { width: 352, height: 240 }, calibration,
     );
     // Foot-point (72, 120) falls on F#4 with direct polygon hit testing.
-    expect(notes).toEqual(["F#4", "Bb5"]);
+    expect(occupied.map((s) => s.note)).toEqual(["F#4", "Bb5"]);
+    // Each occupied stripe is identified independently of what it plays.
+    expect(occupied.map((s) => s.key)).toEqual(["left:7", "right:23"]);
     expect(countPredictionsForOutput(output, "all")).toBe(3);
   });
 

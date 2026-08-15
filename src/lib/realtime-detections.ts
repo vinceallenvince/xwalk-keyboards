@@ -5,6 +5,7 @@ import {
   type Point,
   type Stripe,
 } from "./realtime-calibration";
+import { stripeKey } from "./realtime-scale";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -117,17 +118,25 @@ export type ClientCalibration = {
   rightCrosswalk: readonly Point[] | null;
 };
 
+export type OccupiedStripe = { key: string; note: string };
+
 /**
  * Client-side classification: read all detections from the `all` output and
  * test each foot-point against the live calibration stripes and boundaries.
+ *
+ * Returns the stripes themselves rather than the set of notes they play. Those
+ * are not interchangeable: two stripes can share a pitch — the crosswalks'
+ * ranges can overlap once one reads long enough — and keying off the note made
+ * every stripe sharing it light up when one person stood on any of them.
+ * Identity drives the overlay; the note rides along for the audio.
  */
-export function occupiedNotesFromAllDetections(
+export function occupiedStripesFromAllDetections(
   workflowOutput: unknown,
   allOutputName: string,
   frame: FrameSize,
   calibration: ClientCalibration,
-) {
-  const notes = new Set<string>();
+): OccupiedStripe[] {
+  const occupied = new Map<string, OccupiedStripe>();
   const output = namedOutput(workflowOutput, allOutputName);
   for (const prediction of predictionRecords(output)) {
     const point = lowerBodyPoint(prediction);
@@ -138,9 +147,11 @@ export function occupiedNotesFromAllDetections(
       calibration.leftCrosswalk,
       calibration.rightCrosswalk,
     );
-    if (stripe) notes.add(stripe.note);
+    if (!stripe) continue;
+    const key = stripeKey(stripe.segment, stripe.stripeIndex);
+    if (!occupied.has(key)) occupied.set(key, { key, note: stripe.note });
   }
-  return [...notes];
+  return [...occupied.values()];
 }
 
 export function countPredictionsForOutput(workflowOutput: unknown, outputName: string) {

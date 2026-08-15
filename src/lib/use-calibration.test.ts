@@ -1,31 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { REALTIME_CALIBRATION } from "./realtime-calibration";
-import { noteForSlot, toStripes } from "./use-calibration";
-
-const LEFT_SCALE = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left");
-const RIGHT_SCALE = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right");
+import { noteForSlot } from "./realtime-scale";
+import { toStripes } from "./use-calibration";
 
 const QUAD = [[10, 120], [20, 120], [20, 130], [10, 130]];
 
-describe("noteForSlot", () => {
-  it("reads the scale in crosswalk order", () => {
-    expect(noteForSlot("left", 0)).toBe(LEFT_SCALE[0].note);
-    expect(noteForSlot("left", 5)).toBe(LEFT_SCALE[5].note);
-    expect(noteForSlot("right", 0)).toBe(RIGHT_SCALE[0].note);
-  });
-
-  it("holds the top note past the end of the scale", () => {
-    const last = LEFT_SCALE[LEFT_SCALE.length - 1].note;
-    expect(noteForSlot("left", LEFT_SCALE.length)).toBe(last);
-    expect(noteForSlot("left", 999)).toBe(last);
-  });
-
-  it("clamps negative indexes to the bottom note", () => {
-    expect(noteForSlot("left", -3)).toBe(LEFT_SCALE[0].note);
-  });
-});
-
+// The scale itself is covered in realtime-scale.test.ts; these cover how a
+// calibration payload is turned into stripes.
 describe("toStripes", () => {
   it("derives notes from position when the agent omits them", () => {
     const stripes = toStripes([
@@ -33,7 +15,7 @@ describe("toStripes", () => {
       { stripeIndex: 3, segment: "left", polygon: QUAD },
     ]);
 
-    expect(stripes.map((s) => s.note)).toEqual([LEFT_SCALE[0].note, LEFT_SCALE[3].note]);
+    expect(stripes.map((s) => s.note)).toEqual([noteForSlot("left", 0), noteForSlot("left", 3)]);
   });
 
   it("keeps notes from calibrations published before the split", () => {
