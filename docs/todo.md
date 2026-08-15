@@ -13,6 +13,6 @@ XWALK KEYBOARDS turns NYC crosswalk cameras into playable pianos.
 - [ ] Deploy the web app on Vercel at xwalkkeyboards.app
 - [ ] Create a README with a screenshot and a link to xwalkkeyboards.app
 - [x] Add an About subpage and replace CAMERA REGISTRY link with ABOUT
-- [ ] Replace ORCHESTRATION link on homepage with SEQUENCE and subtext, "[ In progress ]" but preserve /orchestration 
+- [x] Replace ORCHESTRATION link on homepage with SEQUENCE and subtext, "[ In progress ]" (the /orchestration route was later removed — VIN-20) 
 - [x] Move RECALIBRATE button to debug menu
 
