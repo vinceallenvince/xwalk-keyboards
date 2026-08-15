@@ -9,7 +9,7 @@ import {
   type ClientCalibration,
   type OccupiedStripe,
 } from "@/lib/realtime-detections";
-import { REALTIME_CALIBRATION, scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
+import { scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
 import { stripeKey } from "@/lib/realtime-scale";
 
 export type InferenceStatus = "waiting" | "starting" | "active" | "reconnecting" | "unavailable";
@@ -454,7 +454,7 @@ export function RealtimeInference({
 
       for (const stripe of liveStripes) {
         if (!occupiedKeys.has(stripeKey(stripe.segment, stripe.stripeIndex))) continue;
-        const points = scalePolygon(stripe.polygon, frame);
+        const points = scalePolygon(stripe.polygon, calibration.referenceFrame, frame);
         if (points.length < 3) continue;
 
         for (const layer of glowLayers) {
@@ -471,7 +471,7 @@ export function RealtimeInference({
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [activeStripes, frame, liveStripes]);
+  }, [activeStripes, calibration.referenceFrame, frame, liveStripes]);
 
   return (
     <>

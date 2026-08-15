@@ -11,6 +11,7 @@ describe("Realtime prediction mapping", () => {
   const calibration = {
     stripes: REALTIME_CALIBRATION.stripes,
     boundaries: REALTIME_CALIBRATION.boundaries,
+    referenceFrame: REALTIME_CALIBRATION.referenceFrame,
   };
 
   it("classifies detections client-side using live calibration", () => {

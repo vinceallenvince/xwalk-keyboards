@@ -1,4 +1,4 @@
-import { REALTIME_CAMERA } from "@/data/cameras";
+import { liveCameraById } from "@/data/cameras";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,7 +11,8 @@ export async function GET(request: Request, context: RouteContext) {
   const { cameraId: rawCameraId, path } = await context.params;
   const cameraId = Number(rawCameraId);
 
-  if (cameraId !== REALTIME_CAMERA.cameraId || !REALTIME_CAMERA.hlsUrl) {
+  const camera = Number.isSafeInteger(cameraId) ? liveCameraById(cameraId) : undefined;
+  if (!camera) {
     return new Response("Unknown camera", { status: 404 });
   }
 
@@ -19,7 +20,7 @@ export async function GET(request: Request, context: RouteContext) {
     return new Response("Invalid HLS path", { status: 400 });
   }
 
-  const upstreamUrl = new URL(REALTIME_CAMERA.hlsUrl);
+  const upstreamUrl = new URL(camera.hlsUrl);
   const upstreamDirectory = upstreamUrl.pathname.slice(0, upstreamUrl.pathname.lastIndexOf("/") + 1);
   upstreamUrl.pathname = `${upstreamDirectory}${path.join("/")}`;
   upstreamUrl.search = new URL(request.url).search;

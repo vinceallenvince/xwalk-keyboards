@@ -1,6 +1,7 @@
 import { StudyShell } from "@/components/site-chrome";
 import { RealtimeCamera } from "@/components/realtime-camera";
 import { RealtimeIntroButton, RealtimeIntroProvider } from "@/components/realtime-intro";
+import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 
 export default function RealtimePage() {
   // The provider wraps the shell, not just the page body: the instructions are
@@ -10,7 +11,7 @@ export default function RealtimePage() {
     <RealtimeIntroProvider>
       <StudyShell accessory={<RealtimeIntroButton />} className="realtime-shell" section="REALTIME">
         <section className="realtime-page">
-          <RealtimeCamera />
+          <RealtimeCamera camera={DEFAULT_LIVE_CAMERA} />
         </section>
       </StudyShell>
     </RealtimeIntroProvider>
