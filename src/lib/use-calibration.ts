@@ -27,15 +27,14 @@ type CalibrationResponse = {
   crosswalks?: Record<string, number[][]>;
   leftCrosswalk?: number[][];
   rightCrosswalk?: number[][];
+  // The calibration agent is camera-agnostic: it reports where a stripe sits
+  // on the crosswalk (stripeIndex, 0-based per segment) and leaves the musical
+  // reading entirely to us. Earlier schemas also carried `note` and `visible`;
+  // both are retired — every published calibration is now note-free and only
+  // lists stripes that were actually detected.
   stripes?: Array<{
     stripeIndex: number;
     segment: string;
-    // The calibration agent is camera-agnostic: it reports where a stripe sits
-    // on the crosswalk and leaves the musical reading to us. `note` is only
-    // present on calibrations published before that split, and `visible` only
-    // on those that padded the list with undetected stripes.
-    note?: string;
-    visible?: boolean;
     polygon: number[][];
   }>;
 };
@@ -49,16 +48,11 @@ export function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[
   if (!raw?.length) return REALTIME_CALIBRATION.stripes;
 
   return raw
-    .filter((s) => {
-      // Newer calibrations only carry stripes that were actually detected, so
-      // an absent `visible` means visible — not filtered out.
-      if (s.visible === false) return false;
-      return isRenderableSegment(s.segment) && s.polygon?.length >= 3;
-    })
+    .filter((s) => isRenderableSegment(s.segment) && s.polygon?.length >= 3)
     .map((s) => ({
       stripeIndex: s.stripeIndex,
       segment: s.segment,
-      note: s.note ?? noteForSlot(s.segment, s.stripeIndex),
+      note: noteForSlot(s.segment, s.stripeIndex),
       // Simplify the jagged instance-segmentation outlines into clean quads,
       // then expand ~15% so a fast-walking pedestrian stepping slightly off
       // the paint still triggers the note.

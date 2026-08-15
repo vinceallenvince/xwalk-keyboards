@@ -11,11 +11,11 @@ const REFERENCE_RIGHT = REALTIME_CALIBRATION.stripes.filter((s) => s.segment ===
 describe("noteForSlot", () => {
   it("reproduces the original hand-authored scale exactly", () => {
     // The whole point of the anchors: nothing that already made a sound
-    // should start making a different one.
-    expect(REFERENCE_LEFT.map((_, i) => noteForSlot("left", i)))
-      .toEqual(REFERENCE_LEFT.map((s) => s.note));
-    expect(REFERENCE_RIGHT.map((_, i) => noteForSlot("right", i)))
-      .toEqual(REFERENCE_RIGHT.map((s) => s.note));
+    // should start making a different one. The reference now shares the
+    // agent's 0-based per-segment indexes, so this is a direct identity.
+    for (const stripe of [...REFERENCE_LEFT, ...REFERENCE_RIGHT]) {
+      expect(noteForSlot(stripe.segment, stripe.stripeIndex)).toBe(stripe.note);
+    }
   });
 
   it("keeps climbing past the end of the old fixed scale", () => {

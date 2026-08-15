@@ -5,17 +5,30 @@ import {
   scalePoint,
   stripeForPoint,
 } from "./realtime-calibration";
+import { noteForSlot } from "./realtime-scale";
 
 describe("View 5056 Realtime calibration", () => {
   it("is keyed to View 5056 and has an ordered, unique stripe keyboard", () => {
     expect(REALTIME_CALIBRATION.cameraId).toBe(5056);
     expect(REALTIME_CALIBRATION.referenceFrame).toEqual({ width: 352, height: 240 });
-    expect(REALTIME_CALIBRATION.stripes.map((stripe) => stripe.stripeIndex)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-    ]);
+    // Indexes follow the agent convention: 0-based, per segment.
+    const left = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left");
+    const right = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right");
+    expect(left.map((s) => s.stripeIndex)).toEqual([...Array(18).keys()]);
+    expect(right.map((s) => s.stripeIndex)).toEqual([...Array(7).keys()]);
     expect(new Set(REALTIME_CALIBRATION.stripes.map((stripe) => stripe.note)).size).toBe(
       REALTIME_CALIBRATION.stripes.length
     );
+  });
+
+  it("agrees with the generated scale on every stripe", () => {
+    // The reference's explicit notes and the anchor-derived scale must never
+    // diverge — live calibrations carry no notes, so noteForSlot is the only
+    // source of truth for them, and a stripe must sound the same whichever
+    // calibration source is active.
+    for (const stripe of REALTIME_CALIBRATION.stripes) {
+      expect(noteForSlot(stripe.segment, stripe.stripeIndex)).toBe(stripe.note);
+    }
   });
 
   it("scales points and identifies a stripe at native-frame dimensions", () => {
