@@ -39,6 +39,12 @@ export async function POST(request: NextRequest) {
 
   const agentForm = new FormData();
   agentForm.set("frame", frame, "frame.png");
+  // Forward the camera identity so the agent calibrates (and publishes for)
+  // the camera the browser is actually looking at, not its default.
+  const cameraId = formData.get("cameraId");
+  if (typeof cameraId === "string" && Number.isSafeInteger(Number(cameraId))) {
+    agentForm.set("cameraId", cameraId);
+  }
 
   const headers: Record<string, string> = {};
   if (idToken) headers["Authorization"] = `Bearer ${idToken}`;

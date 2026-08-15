@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
+import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
+
 export type HomeFeedStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
-const streamUrl = "/api/hls/5056/playlist.m3u8";
+const streamUrl = `/api/hls/${DEFAULT_LIVE_CAMERA.cameraId}/playlist.m3u8`;
 
 export function HomeVideoBackground({ onStatusChange }: { onStatusChange: (status: HomeFeedStatus) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
