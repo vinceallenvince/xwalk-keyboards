@@ -88,7 +88,7 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
     const boundaryColor = "rgba(255, 190, 90, 0.8)";
     for (const boundary of Object.values(calibration.boundaries)) {
       if (boundary.length < 3) continue;
-      const scaled = scalePolygon(boundary, frame);
+      const scaled = scalePolygon(boundary, calibration.referenceFrame, frame);
       const [first, ...rest] = scaled;
       if (!first) continue;
       ctx.beginPath();
@@ -108,7 +108,7 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
     };
 
     for (const stripe of calibration.stripes) {
-      const polygon = scalePolygon(stripe.polygon, frame);
+      const polygon = scalePolygon(stripe.polygon, calibration.referenceFrame, frame);
       const [first, ...rest] = polygon;
       if (!first) continue;
 
@@ -143,7 +143,7 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
       ctx.lineWidth = 1;
       ctx.stroke();
     }
-  }, [calibration.boundaries, calibration.stripes, detectionPoints, frame, showPolygons, viewportRef]);
+  }, [calibration.boundaries, calibration.referenceFrame, calibration.stripes, detectionPoints, frame, showPolygons, viewportRef]);
 
   useEffect(() => {
     if (!showPolygons) {

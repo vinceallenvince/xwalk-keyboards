@@ -73,12 +73,12 @@ export function lowerBodyPoint(prediction: UnknownRecord): [number, number] | nu
 function stripeForPointLive(
   point: Point,
   frame: FrameSize,
-  stripes: readonly Stripe[],
-  boundaries: Boundaries,
+  calibration: ClientCalibration,
 ): Stripe | null {
-  const scaledStripes = stripes.map((stripe) => ({
+  const sourceFrame = calibration.referenceFrame;
+  const scaledStripes = calibration.stripes.map((stripe) => ({
     ...stripe,
-    polygon: scalePolygon(stripe.polygon, frame),
+    polygon: scalePolygon(stripe.polygon, sourceFrame, frame),
   }));
 
   // Direct hit — foot-point is inside a stripe polygon.
@@ -87,8 +87,9 @@ function stripeForPointLive(
 
   // Fallback — foot-point is inside a crosswalk boundary, assign to nearest
   // stripe in that boundary's segment.
-  const segment = Object.entries(boundaries).find(
-    ([, boundary]) => boundary.length >= 3 && isPointInPolygon(point, scalePolygon(boundary, frame)),
+  const segment = Object.entries(calibration.boundaries).find(
+    ([, boundary]) => boundary.length >= 3 &&
+      isPointInPolygon(point, scalePolygon(boundary, sourceFrame, frame)),
   )?.[0] ?? null;
   if (!segment) return null;
 
@@ -112,6 +113,8 @@ function stripeForPointLive(
 export type ClientCalibration = {
   stripes: readonly Stripe[];
   boundaries: Boundaries;
+  /** The frame the stripes and boundaries were measured in. */
+  referenceFrame: FrameSize;
 };
 
 export type OccupiedStripe = { key: string; note: string };
@@ -137,11 +140,7 @@ export function occupiedStripesFromAllDetections(
   for (const prediction of predictionRecords(output)) {
     const point = lowerBodyPoint(prediction);
     if (!point) continue;
-    const stripe = stripeForPointLive(
-      point, frame,
-      calibration.stripes,
-      calibration.boundaries,
-    );
+    const stripe = stripeForPointLive(point, frame, calibration);
     if (!stripe) continue;
     const key = stripeKey(stripe.segment, stripe.stripeIndex);
     if (!occupied.has(key)) occupied.set(key, { key, note: stripe.note });

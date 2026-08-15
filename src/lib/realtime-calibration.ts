@@ -13,6 +13,17 @@ export type Stripe = {
 
 export type Boundaries = Readonly<Record<string, readonly Point[]>>;
 
+/**
+ * A camera's baked-in calibration: the fallback geometry when the agent has
+ * never published for it, and the frame those polygons were measured in. A
+ * camera without one simply has no keys until its first live calibration.
+ */
+export type ReferenceCalibration = {
+  boundaries: Boundaries;
+  referenceFrame: FrameSize;
+  stripes: readonly Stripe[];
+};
+
 // Calibrated with Roboflow's polygon tool against a View 5056 native HLS frame
 // (352 × 240) on 2026-08-07. The source dimensions come from
 // HTMLVideoElement.videoWidth and videoHeight, not from a browser screenshot.
@@ -56,15 +67,21 @@ export const REALTIME_CALIBRATION = {
   ] satisfies readonly Stripe[],
 } as const;
 
-export function scalePoint(point: Point, targetFrame: FrameSize): [number, number] {
+/**
+ * Scale a point from the frame it was measured in to the frame it is being
+ * used in. The source frame always travels with the calibration that produced
+ * the point — the agent stamps every published calibration with one — so a
+ * camera or snapshot resolution change cannot silently misscale geometry.
+ */
+export function scalePoint(point: Point, sourceFrame: FrameSize, targetFrame: FrameSize): [number, number] {
   return [
-    point[0] * targetFrame.width / REALTIME_CALIBRATION.referenceFrame.width,
-    point[1] * targetFrame.height / REALTIME_CALIBRATION.referenceFrame.height,
+    point[0] * targetFrame.width / sourceFrame.width,
+    point[1] * targetFrame.height / sourceFrame.height,
   ];
 }
 
-export function scalePolygon(polygon: readonly Point[], targetFrame: FrameSize) {
-  return polygon.map((point) => scalePoint(point, targetFrame));
+export function scalePolygon(polygon: readonly Point[], sourceFrame: FrameSize, targetFrame: FrameSize) {
+  return polygon.map((point) => scalePoint(point, sourceFrame, targetFrame));
 }
 
 export function isPointInPolygon(point: Point, polygon: readonly Point[]) {
@@ -101,15 +118,16 @@ function squaredDistanceToPolygon(point: Point, polygon: readonly Point[]) {
 }
 
 export function stripeForPoint(point: Point, frame: FrameSize) {
+  const sourceFrame = REALTIME_CALIBRATION.referenceFrame;
   const scaledStripes = REALTIME_CALIBRATION.stripes.map((stripe) => ({
     ...stripe,
-    polygon: scalePolygon(stripe.polygon, frame),
+    polygon: scalePolygon(stripe.polygon, sourceFrame, frame),
   }));
   const occupiedStripe = scaledStripes.find((stripe) => isPointInPolygon(point, stripe.polygon));
   if (occupiedStripe) return occupiedStripe;
 
   const segment = Object.entries(REALTIME_CALIBRATION.boundaries).find(
-    ([, boundary]) => isPointInPolygon(point, scalePolygon(boundary, frame)),
+    ([, boundary]) => isPointInPolygon(point, scalePolygon(boundary, sourceFrame, frame)),
   )?.[0] ?? null;
   if (!segment) return null;
 

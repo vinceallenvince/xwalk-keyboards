@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import type { LiveCameraRecord } from "@/data/cameras";
 import { expandPolygonY, processPolygon, simplifyPolygon } from "@/lib/polygon-utils";
-import { REALTIME_CALIBRATION, type Boundaries, type Point, type Stripe } from "@/lib/realtime-calibration";
+import type { Boundaries, FrameSize, Point, Stripe } from "@/lib/realtime-calibration";
 import { isRenderableSegment, noteForSlot } from "@/lib/realtime-scale";
 
 export type CalibrationStatus = "ok" | "degraded" | "no_crosswalk" | "feed_down" | "needs_review";
@@ -12,6 +13,8 @@ export type LiveCalibration = {
   status: CalibrationStatus;
   reasoning: string | null;
   boundaries: Boundaries;
+  /** The frame the polygons were measured in — geometry scales from here. */
+  referenceFrame: FrameSize;
   stripes: readonly Stripe[];
   updatedAt: string | null;
   source: "live" | "reference";
@@ -21,6 +24,8 @@ type CalibrationResponse = {
   status: CalibrationStatus;
   reasoning?: string;
   updatedAt?: string;
+  /** The frame the agent measured this calibration's polygons in. */
+  referenceFrame?: { width: number; height: number };
   // The agent's newer schema publishes boundaries keyed by segment name; the
   // flattened left/right fields are the published aliases it still writes.
   // Prefer the map when present so extra crosswalks survive the trip.
@@ -44,15 +49,18 @@ export { noteForSlot };
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-export function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
-  if (!raw?.length) return REALTIME_CALIBRATION.stripes;
+export function toStripes(
+  camera: LiveCameraRecord,
+  raw: CalibrationResponse["stripes"],
+): readonly Stripe[] {
+  if (!raw?.length) return camera.calibration.stripes;
 
   return raw
-    .filter((s) => isRenderableSegment(s.segment) && s.polygon?.length >= 3)
+    .filter((s) => isRenderableSegment(camera.segmentAnchors, s.segment) && s.polygon?.length >= 3)
     .map((s) => ({
       stripeIndex: s.stripeIndex,
       segment: s.segment,
-      note: noteForSlot(s.segment, s.stripeIndex),
+      note: noteForSlot(camera.segmentAnchors, s.segment, s.stripeIndex),
       // Simplify the jagged instance-segmentation outlines into clean quads,
       // then expand ~15% so a fast-walking pedestrian stepping slightly off
       // the paint still triggers the note.
@@ -101,65 +109,93 @@ function rawBoundaries(data: CalibrationResponse): Record<string, number[][]> {
 
 /**
  * One boundary per renderable segment that has any geometry this calibration —
- * hulled with its stripes via toBoundary, falling back to the reference
- * boundary for segments the payload left out.
+ * hulled with its stripes via toBoundary, falling back to the camera's
+ * reference boundary for segments the payload left out.
+ *
+ * Only valid when the payload's polygons share the reference calibration's
+ * frame — when the payload declares its own referenceFrame, the caller must
+ * not mix reference boundaries in, so the fallback only applies to stripes
+ * that were themselves parsed from the same payload.
  */
-export function toBoundaries(data: CalibrationResponse, stripes: readonly Stripe[]): Boundaries {
+export function toBoundaries(
+  camera: LiveCameraRecord,
+  data: CalibrationResponse,
+  stripes: readonly Stripe[],
+): Boundaries {
   const raw = rawBoundaries(data);
   const segments = new Set([...Object.keys(raw), ...stripes.map((s) => s.segment)]);
 
   const boundaries: Record<string, readonly Point[]> = {};
   for (const segment of segments) {
-    if (!isRenderableSegment(segment)) continue;
-    const boundary = toBoundary(raw[segment], stripes.filter((s) => s.segment === segment))
-      ?? REFERENCE.boundaries[segment];
+    if (!isRenderableSegment(camera.segmentAnchors, segment)) continue;
+    const boundary = toBoundary(raw[segment], stripes.filter((s) => s.segment === segment));
     if (boundary) boundaries[segment] = boundary;
   }
   return boundaries;
 }
 
-const REFERENCE: LiveCalibration = {
-  status: "ok",
-  reasoning: null,
-  boundaries: REALTIME_CALIBRATION.boundaries,
-  stripes: REALTIME_CALIBRATION.stripes,
-  updatedAt: null,
-  source: "reference",
-};
+/** The calibration shown before (or instead of) any live publish. */
+export function referenceCalibrationFor(camera: LiveCameraRecord): LiveCalibration {
+  return {
+    status: "ok",
+    reasoning: null,
+    boundaries: camera.calibration.boundaries,
+    referenceFrame: camera.calibration.referenceFrame,
+    stripes: camera.calibration.stripes,
+    updatedAt: null,
+    source: "reference",
+  };
+}
 
 /**
  * Fetch the current calibration from the agent (via the same-origin proxy),
  * falling back to the baked-in reference if the route 404s or errors. Re-fetch
  * every 5 minutes so long-lived sessions pick up drift corrections.
  */
-export function useCalibration(cameraId: number): LiveCalibration {
-  const [calibration, setCalibration] = useState<LiveCalibration>(REFERENCE);
+export function useCalibration(camera: LiveCameraRecord): LiveCalibration {
+  const [calibration, setCalibration] = useState<LiveCalibration>(() => referenceCalibrationFor(camera));
+  const [calibratedCamera, setCalibratedCamera] = useState(camera);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Derived-state reset: if the same hook instance is ever pointed at a new
+  // camera, drop the previous camera's geometry immediately rather than
+  // playing it until the new fetch lands.
+  if (calibratedCamera !== camera) {
+    setCalibratedCamera(camera);
+    setCalibration(referenceCalibrationFor(camera));
+  }
 
   useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
       try {
-        let response = await fetch(`/api/calibration/${cameraId}`, { cache: "no-store" });
+        let response = await fetch(`/api/calibration/${camera.cameraId}`, { cache: "no-store" });
 
         // In local dev the GCS proxy returns 502 (no metadata server for auth).
         // Fall back to a cached snapshot so the live polygons are still usable.
         if (!response.ok) {
-          response = await fetch("/calibration-fallback.json", { cache: "no-store" });
+          response = await fetch(`/calibration-fallback-${camera.cameraId}.json`, { cache: "no-store" });
         }
         if (!response.ok) return; // keep current (reference or last-known-good)
 
         const data: CalibrationResponse = await response.json();
         if (cancelled) return;
 
-        const stripes = toStripes(data.stripes);
+        const stripes = toStripes(camera, data.stripes);
         if (stripes.length === 0) return; // empty calibration is worse than stale
+
+        const boundaries = toBoundaries(camera, data, stripes);
+        if (Object.keys(boundaries).length === 0) return;
 
         setCalibration({
           status: data.status ?? "ok",
           reasoning: data.reasoning ?? null,
-          boundaries: toBoundaries(data, stripes),
+          boundaries,
+          // The agent stamps every calibration with the frame it measured in;
+          // older publishes without one predate any resolution change, so the
+          // camera's reference frame is the correct reading for them.
+          referenceFrame: data.referenceFrame ?? camera.calibration.referenceFrame,
           stripes,
           updatedAt: data.updatedAt ?? null,
           source: "live",
@@ -183,7 +219,7 @@ export function useCalibration(cameraId: number): LiveCalibration {
       if (timerRef.current) clearInterval(timerRef.current);
       window.removeEventListener("calibration-updated", onUpdated);
     };
-  }, [cameraId]);
+  }, [camera]);
 
   return calibration;
 }

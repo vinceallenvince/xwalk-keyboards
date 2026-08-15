@@ -5,6 +5,7 @@ import {
   scalePoint,
   stripeForPoint,
 } from "./realtime-calibration";
+import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 import { noteForSlot } from "./realtime-scale";
 
 describe("View 5056 Realtime calibration", () => {
@@ -27,12 +28,12 @@ describe("View 5056 Realtime calibration", () => {
     // source of truth for them, and a stripe must sound the same whichever
     // calibration source is active.
     for (const stripe of REALTIME_CALIBRATION.stripes) {
-      expect(noteForSlot(stripe.segment, stripe.stripeIndex)).toBe(stripe.note);
+      expect(noteForSlot(DEFAULT_LIVE_CAMERA.segmentAnchors, stripe.segment, stripe.stripeIndex)).toBe(stripe.note);
     }
   });
 
   it("scales points and identifies a stripe at native-frame dimensions", () => {
-    expect(scalePoint([176, 120], { width: 704, height: 480 })).toEqual([352, 240]);
+    expect(scalePoint([176, 120], REALTIME_CALIBRATION.referenceFrame, { width: 704, height: 480 })).toEqual([352, 240]);
     expect(stripeForPoint([7, 121], { width: 352, height: 240 })?.note).toBe("C4");
     expect(stripeForPoint([321, 150], { width: 352, height: 240 })?.note).toBe("A5");
     expect(stripeForPoint([250, 180], { width: 352, height: 240 })).toBeNull();

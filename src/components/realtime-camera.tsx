@@ -5,20 +5,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RealtimeDebug } from "@/components/realtime-debug";
 import { RealtimeInference, type InferenceStatus } from "@/components/realtime-inference";
 import { RealtimeIntroModal, useSetIntroBlocked } from "@/components/realtime-intro";
+import type { LiveCameraRecord } from "@/data/cameras";
 import { useCalibration } from "@/lib/use-calibration";
 import type { FrameSize } from "@/lib/realtime-calibration";
 
 type CameraStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
-const streamUrl = "/api/hls/5056/playlist.m3u8";
 const INFERENCE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-const cameraLabels: Record<CameraStatus, string> = {
-  connecting: "CONNECTING // WEST STREET @ W34 ST",
-  live: "FEED LIVE // WEST STREET @ W34 ST",
-  reconnecting: "FEED RECONNECTING // WEST STREET @ W34 ST",
-  unavailable: "FEED DOWN // WEST STREET @ W34 ST",
-};
+const cameraLabels = (statusLabel: string): Record<CameraStatus, string> => ({
+  connecting: `CONNECTING // ${statusLabel}`,
+  live: `FEED LIVE // ${statusLabel}`,
+  reconnecting: `FEED RECONNECTING // ${statusLabel}`,
+  unavailable: `FEED DOWN // ${statusLabel}`,
+});
 
 // The two status lines speak from two points of view: the feed line is the
 // camera, this one is the instrument. A visitor cannot act on the name of the
@@ -32,7 +32,8 @@ const inferenceLabels: Record<InferenceStatus, string> = {
   unavailable: "STATUS: KEYBOARD UNAVAILABLE",
 };
 
-export function RealtimeCamera() {
+export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
+  const streamUrl = `/api/hls/${camera.cameraId}/playlist.m3u8`;
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,7 +55,7 @@ export function RealtimeCamera() {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [inferenceClosed, setInferenceClosed] = useState(false);
   const inferenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const calibration = useCalibration(5056);
+  const calibration = useCalibration(camera);
   const setIntroBlocked = useSetIntroBlocked();
 
   // The pause modal owns the viewport for as long as it is up: the instructions
@@ -214,7 +215,7 @@ export function RealtimeCamera() {
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("error", scheduleRetry);
     };
-  }, [connectionKey, restart]);
+  }, [connectionKey, restart, streamUrl]);
 
   useEffect(() => {
     const updateFullscreenState = () => setIsFullscreen(document.fullscreenElement === viewportRef.current);
@@ -255,6 +256,7 @@ export function RealtimeCamera() {
 
       const form = new FormData();
       form.set("frame", blob, "frame.png");
+      form.set("cameraId", String(camera.cameraId));
 
       const response = await fetch("/api/calibration/recalibrate", {
         method: "POST",
@@ -274,14 +276,14 @@ export function RealtimeCamera() {
     } finally {
       setRecalibrating(false);
     }
-  }, [recalibrating]);
+  }, [camera.cameraId, recalibrating]);
 
   return (
     <section className="realtime-camera" aria-label="Realtime camera">
       <div className="realtime-statusbar">
         <span className={`realtime-feed-status realtime-feed-status--${effectiveCamera}`}>
           <i className={`status-dot status-dot--${effectiveCamera}`} />
-          {cameraLabels[effectiveCamera]}
+          {cameraLabels(camera.statusLabel)[effectiveCamera]}
         </span>
         <span className={`realtime-inference-status ${
           effectiveCamera === "unavailable" ? "realtime-inference-status--unavailable"
@@ -312,6 +314,7 @@ export function RealtimeCamera() {
             calibration={{
               stripes: calibration.stripes,
               boundaries: calibration.boundaries,
+              referenceFrame: calibration.referenceFrame,
             }}
             connectionKey={connectionKey}
             onActive={handleInferenceActive}

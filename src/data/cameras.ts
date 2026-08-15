@@ -1,3 +1,6 @@
+import { REALTIME_CALIBRATION, type ReferenceCalibration } from "@/lib/realtime-calibration";
+import type { SegmentAnchor } from "@/lib/realtime-scale";
+
 export type CameraRole = "priority" | "fallback" | "live";
 
 export type CameraRecord = {
@@ -64,16 +67,50 @@ function createStaticCameras(
 export const PRIORITY_CAMERAS = createStaticCameras(priorityCameraSeeds, "priority");
 export const FALLBACK_CAMERAS = createStaticCameras(fallbackCameraSeeds, "fallback", PRIORITY_CAMERAS.length);
 
-export const REALTIME_CAMERA: CameraRecord = {
-  cameraId: 5056,
-  cameraKey: "camera_5056",
-  displayLabel: "Live Feed · View 5056",
-  hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_272/playlist.m3u8",
-  location: "West Street at W. 34 St",
-  role: "live",
-  sourceId: "16090",
-  viewUrl: snapshotUrl(5056),
+/**
+ * A camera the Realtime study can play. On top of the registry record it
+ * carries everything the study needs to be camera-agnostic: the upstream
+ * stream URL, the status-bar label, the per-segment pitch anchors (which
+ * double as the registry of renderable segments), and the baked-in reference
+ * calibration used when the agent has never published for this camera.
+ */
+export type LiveCameraRecord = CameraRecord & {
+  hlsUrl: string;
+  statusLabel: string;
+  segmentAnchors: readonly SegmentAnchor[];
+  calibration: ReferenceCalibration;
 };
+
+export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
+  {
+    cameraId: 5056,
+    cameraKey: "camera_5056",
+    displayLabel: "Live Feed · View 5056",
+    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_272/playlist.m3u8",
+    location: "West Street at W. 34 St",
+    role: "live",
+    sourceId: "16090",
+    statusLabel: "WEST STREET @ W34 ST",
+    viewUrl: snapshotUrl(5056),
+    // The right crosswalk begins a semitone above the left's original top note,
+    // so a pedestrian crossing both in sequence walks up one continuous
+    // chromatic run. Anchors are fixed rather than derived from a crosswalk's
+    // detected length on purpose: if the right anchor followed the left's
+    // stripe count, a van parked over the left crosswalk would transpose the
+    // right one between frames.
+    segmentAnchors: [
+      { segment: "left", anchor: "C4" },
+      { segment: "right", anchor: "F#5" },
+    ],
+    calibration: REALTIME_CALIBRATION,
+  },
+];
+
+export const DEFAULT_LIVE_CAMERA = LIVE_CAMERAS[0];
+
+export function liveCameraById(cameraId: number) {
+  return LIVE_CAMERAS.find((camera) => camera.cameraId === cameraId);
+}
 
 export const STATIC_CAMERAS = [...PRIORITY_CAMERAS, ...FALLBACK_CAMERAS] as const;
 

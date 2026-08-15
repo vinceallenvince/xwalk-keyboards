@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { FALLBACK_CAMERAS, PRIORITY_CAMERAS, REALTIME_CAMERA } from "./cameras";
+import { DEFAULT_LIVE_CAMERA, FALLBACK_CAMERAS, LIVE_CAMERAS, liveCameraById, PRIORITY_CAMERAS } from "./cameras";
 
 describe("camera registry", () => {
   it("keeps the canonical twelve priority cameras in stable order", () => {
@@ -11,8 +11,23 @@ describe("camera registry", () => {
     expect(PRIORITY_CAMERAS[11].displayLabel).toBe("Camera 12 · View 3395");
   });
 
-  it("keeps fallbacks ordered and uses View 5056 for the future live source", () => {
+  it("keeps fallbacks ordered and View 5056 as the default live camera", () => {
     expect(FALLBACK_CAMERAS.map((camera) => camera.cameraId)).toEqual([3107, 3231, 3257, 3245]);
-    expect(REALTIME_CAMERA).toMatchObject({ cameraId: 5056, location: "West Street at W. 34 St" });
+    expect(DEFAULT_LIVE_CAMERA).toMatchObject({ cameraId: 5056, location: "West Street at W. 34 St" });
+    expect(liveCameraById(5056)).toBe(DEFAULT_LIVE_CAMERA);
+    expect(liveCameraById(9999)).toBeUndefined();
+  });
+
+  it("equips every live camera to drive the realtime study on its own", () => {
+    for (const camera of LIVE_CAMERAS) {
+      expect(camera.hlsUrl).toMatch(/^https:/);
+      expect(camera.statusLabel.length).toBeGreaterThan(0);
+      expect(camera.segmentAnchors.length).toBeGreaterThan(0);
+      expect(camera.calibration.referenceFrame.width).toBeGreaterThan(0);
+      // Every anchor'd segment name is unique — duplicate names would make
+      // anchor lookup ambiguous.
+      const names = camera.segmentAnchors.map((entry) => entry.segment);
+      expect(new Set(names).size).toBe(names.length);
+    }
   });
 });
