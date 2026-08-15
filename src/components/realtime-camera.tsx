@@ -311,8 +311,7 @@ export function RealtimeCamera() {
             audioEnabledRef={audioEnabledRef}
             calibration={{
               stripes: calibration.stripes,
-              leftCrosswalk: calibration.leftCrosswalk,
-              rightCrosswalk: calibration.rightCrosswalk,
+              boundaries: calibration.boundaries,
             }}
             connectionKey={connectionKey}
             onActive={handleInferenceActive}

@@ -4,22 +4,29 @@ export type Point = readonly [number, number];
 export type Stripe = {
   note: string;
   polygon: readonly Point[];
-  segment: "left" | "right";
+  // Which crosswalk the stripe belongs to. Open-ended: segment names come from
+  // the calibration agent, and which of them the app can voice is decided by
+  // the anchor registry in realtime-scale.ts, not by this type.
+  segment: string;
   stripeIndex: number;
 };
+
+export type Boundaries = Readonly<Record<string, readonly Point[]>>;
 
 // Calibrated with Roboflow's polygon tool against a View 5056 native HLS frame
 // (352 × 240) on 2026-08-07. The source dimensions come from
 // HTMLVideoElement.videoWidth and videoHeight, not from a browser screenshot.
 export const REALTIME_CALIBRATION = {
   cameraId: 5056,
-  leftCrosswalk: [
-    [27, 108], [193, 120], [188, 139], [1, 125],
-  ],
+  boundaries: {
+    left: [
+      [27, 108], [193, 120], [188, 139], [1, 125],
+    ],
+    right: [
+      [291, 132], [349, 137], [350, 155], [301, 150],
+    ],
+  } as Boundaries,
   referenceFrame: { height: 240, width: 352 },
-  rightCrosswalk: [
-    [291, 132], [349, 137], [350, 155], [301, 150],
-  ],
   stripes: [
     { note: "C4", polygon: [[6.5, 118], [15.5, 119], [1, 128], [0, 124]], segment: "left", stripeIndex: 1 },
     { note: "C#4", polygon: [[15.5, 119], [25, 119.5], [4.5, 132.5], [1, 128]], segment: "left", stripeIndex: 2 },
@@ -101,9 +108,9 @@ export function stripeForPoint(point: Point, frame: FrameSize) {
   const occupiedStripe = scaledStripes.find((stripe) => isPointInPolygon(point, stripe.polygon));
   if (occupiedStripe) return occupiedStripe;
 
-  const left = scalePolygon(REALTIME_CALIBRATION.leftCrosswalk, frame);
-  const right = scalePolygon(REALTIME_CALIBRATION.rightCrosswalk, frame);
-  const segment = isPointInPolygon(point, left) ? "left" : isPointInPolygon(point, right) ? "right" : null;
+  const segment = Object.entries(REALTIME_CALIBRATION.boundaries).find(
+    ([, boundary]) => isPointInPolygon(point, scalePolygon(boundary, frame)),
+  )?.[0] ?? null;
   if (!segment) return null;
 
   return scaledStripes

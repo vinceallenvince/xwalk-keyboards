@@ -3,16 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 
 import { expandPolygonY, processPolygon, simplifyPolygon } from "@/lib/polygon-utils";
-import { REALTIME_CALIBRATION, type Point, type Stripe } from "@/lib/realtime-calibration";
-import { noteForSlot } from "@/lib/realtime-scale";
+import { REALTIME_CALIBRATION, type Boundaries, type Point, type Stripe } from "@/lib/realtime-calibration";
+import { isRenderableSegment, noteForSlot } from "@/lib/realtime-scale";
 
 export type CalibrationStatus = "ok" | "degraded" | "no_crosswalk" | "feed_down" | "needs_review";
 
 export type LiveCalibration = {
   status: CalibrationStatus;
   reasoning: string | null;
-  leftCrosswalk: readonly Point[] | null;
-  rightCrosswalk: readonly Point[] | null;
+  boundaries: Boundaries;
   stripes: readonly Stripe[];
   updatedAt: string | null;
   source: "live" | "reference";
@@ -22,6 +21,10 @@ type CalibrationResponse = {
   status: CalibrationStatus;
   reasoning?: string;
   updatedAt?: string;
+  // The agent's newer schema publishes boundaries keyed by segment name; the
+  // flattened left/right fields are the published aliases it still writes.
+  // Prefer the map when present so extra crosswalks survive the trip.
+  crosswalks?: Record<string, number[][]>;
   leftCrosswalk?: number[][];
   rightCrosswalk?: number[][];
   stripes?: Array<{
@@ -42,10 +45,6 @@ export { noteForSlot };
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-function isRenderableSegment(segment: string): segment is Stripe["segment"] {
-  return segment === "left" || segment === "right";
-}
-
 export function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[] {
   if (!raw?.length) return REALTIME_CALIBRATION.stripes;
 
@@ -58,8 +57,8 @@ export function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[
     })
     .map((s) => ({
       stripeIndex: s.stripeIndex,
-      segment: s.segment as Stripe["segment"],
-      note: s.note ?? noteForSlot(s.segment as Stripe["segment"], s.stripeIndex),
+      segment: s.segment,
+      note: s.note ?? noteForSlot(s.segment, s.stripeIndex),
       // Simplify the jagged instance-segmentation outlines into clean quads,
       // then expand ~15% so a fast-walking pedestrian stepping slightly off
       // the paint still triggers the note.
@@ -69,7 +68,7 @@ export function toStripes(raw: CalibrationResponse["stripes"]): readonly Stripe[
 
 /**
  * Build a crosswalk boundary that is guaranteed to enclose all the stripes in
- * that segment, then expand vertically. The Roboflow boundary detection can
+ * that segment, then expand vertically. The agent's boundary detection can
  * return a polygon tighter than the actual crosswalk when edge stripes are
  * faded or partially occluded — in that case the stripeForPoint fallback
  * ("foot-point is inside the boundary → assign to nearest stripe") misses
@@ -96,11 +95,39 @@ function toBoundary(
   return expandPolygonY(simplifyPolygon(allPoints), 1.2);
 }
 
+/** The agent's boundary polygons keyed by segment, from either schema shape. */
+function rawBoundaries(data: CalibrationResponse): Record<string, number[][]> {
+  if (data.crosswalks) return data.crosswalks;
+
+  const record: Record<string, number[][]> = {};
+  if (data.leftCrosswalk?.length) record.left = data.leftCrosswalk;
+  if (data.rightCrosswalk?.length) record.right = data.rightCrosswalk;
+  return record;
+}
+
+/**
+ * One boundary per renderable segment that has any geometry this calibration —
+ * hulled with its stripes via toBoundary, falling back to the reference
+ * boundary for segments the payload left out.
+ */
+export function toBoundaries(data: CalibrationResponse, stripes: readonly Stripe[]): Boundaries {
+  const raw = rawBoundaries(data);
+  const segments = new Set([...Object.keys(raw), ...stripes.map((s) => s.segment)]);
+
+  const boundaries: Record<string, readonly Point[]> = {};
+  for (const segment of segments) {
+    if (!isRenderableSegment(segment)) continue;
+    const boundary = toBoundary(raw[segment], stripes.filter((s) => s.segment === segment))
+      ?? REFERENCE.boundaries[segment];
+    if (boundary) boundaries[segment] = boundary;
+  }
+  return boundaries;
+}
+
 const REFERENCE: LiveCalibration = {
   status: "ok",
   reasoning: null,
-  leftCrosswalk: REALTIME_CALIBRATION.leftCrosswalk.map(([x, y]) => [x, y] as const),
-  rightCrosswalk: REALTIME_CALIBRATION.rightCrosswalk.map(([x, y]) => [x, y] as const),
+  boundaries: REALTIME_CALIBRATION.boundaries,
   stripes: REALTIME_CALIBRATION.stripes,
   updatedAt: null,
   source: "reference",
@@ -135,14 +162,10 @@ export function useCalibration(cameraId: number): LiveCalibration {
         const stripes = toStripes(data.stripes);
         if (stripes.length === 0) return; // empty calibration is worse than stale
 
-        const leftStripes = stripes.filter((s) => s.segment === "left");
-        const rightStripes = stripes.filter((s) => s.segment === "right");
-
         setCalibration({
           status: data.status ?? "ok",
           reasoning: data.reasoning ?? null,
-          leftCrosswalk: toBoundary(data.leftCrosswalk, leftStripes) ?? REFERENCE.leftCrosswalk,
-          rightCrosswalk: toBoundary(data.rightCrosswalk, rightStripes) ?? REFERENCE.rightCrosswalk,
+          boundaries: toBoundaries(data, stripes),
           stripes,
           updatedAt: data.updatedAt ?? null,
           source: "live",

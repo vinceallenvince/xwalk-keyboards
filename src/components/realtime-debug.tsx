@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import type { LiveCalibration } from "@/lib/use-calibration";
 import type { FrameSize, Stripe } from "@/lib/realtime-calibration";
@@ -86,8 +86,8 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
 
     // Crosswalk boundary quads — dashed amber outlines.
     const boundaryColor = "rgba(255, 190, 90, 0.8)";
-    for (const boundary of [calibration.leftCrosswalk, calibration.rightCrosswalk]) {
-      if (!boundary || boundary.length < 3) continue;
+    for (const boundary of Object.values(calibration.boundaries)) {
+      if (boundary.length < 3) continue;
       const scaled = scalePolygon(boundary, frame);
       const [first, ...rest] = scaled;
       if (!first) continue;
@@ -143,7 +143,7 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
       ctx.lineWidth = 1;
       ctx.stroke();
     }
-  }, [calibration.leftCrosswalk, calibration.rightCrosswalk, calibration.stripes, detectionPoints, frame, showPolygons, viewportRef]);
+  }, [calibration.boundaries, calibration.stripes, detectionPoints, frame, showPolygons, viewportRef]);
 
   useEffect(() => {
     if (!showPolygons) {
@@ -189,10 +189,12 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
           <dd>{calibration.updatedAt ? new Date(calibration.updatedAt).toLocaleString() : "—"}</dd>
           <dt>stripes</dt>
           <dd>{visible.length} / {stripes.length}</dd>
-          <dt>left boundary</dt>
-          <dd>{calibration.leftCrosswalk ? `${calibration.leftCrosswalk.length} pts` : "reference"}</dd>
-          <dt>right boundary</dt>
-          <dd>{calibration.rightCrosswalk ? `${calibration.rightCrosswalk.length} pts` : "reference"}</dd>
+          {Object.entries(calibration.boundaries).map(([segment, boundary]) => (
+            <Fragment key={segment}>
+              <dt>{segment} boundary</dt>
+              <dd>{boundary.length} pts</dd>
+            </Fragment>
+          ))}
           <dt>frame</dt>
           <dd>{frame ? `${frame.width}×${frame.height}` : "—"}</dd>
         </dl>

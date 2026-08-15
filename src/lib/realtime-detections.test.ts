@@ -10,8 +10,7 @@ import { REALTIME_CALIBRATION } from "./realtime-calibration";
 describe("Realtime prediction mapping", () => {
   const calibration = {
     stripes: REALTIME_CALIBRATION.stripes,
-    leftCrosswalk: REALTIME_CALIBRATION.leftCrosswalk.map(([x, y]) => [x, y] as const),
-    rightCrosswalk: REALTIME_CALIBRATION.rightCrosswalk.map(([x, y]) => [x, y] as const),
+    boundaries: REALTIME_CALIBRATION.boundaries,
   };
 
   it("classifies detections client-side using live calibration", () => {

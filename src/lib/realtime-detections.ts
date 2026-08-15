@@ -1,6 +1,7 @@
 import {
   isPointInPolygon,
   scalePolygon,
+  type Boundaries,
   type FrameSize,
   type Point,
   type Stripe,
@@ -73,8 +74,7 @@ function stripeForPointLive(
   point: Point,
   frame: FrameSize,
   stripes: readonly Stripe[],
-  leftBoundary: readonly Point[] | null,
-  rightBoundary: readonly Point[] | null,
+  boundaries: Boundaries,
 ): Stripe | null {
   const scaledStripes = stripes.map((stripe) => ({
     ...stripe,
@@ -85,14 +85,11 @@ function stripeForPointLive(
   const directHit = scaledStripes.find((s) => isPointInPolygon(point, s.polygon));
   if (directHit) return directHit;
 
-  // Fallback — foot-point is inside a crosswalk boundary, assign to nearest stripe.
-  const left = leftBoundary ? scalePolygon(leftBoundary, frame) : null;
-  const right = rightBoundary ? scalePolygon(rightBoundary, frame) : null;
-  const segment = (left && isPointInPolygon(point, left))
-    ? "left"
-    : (right && isPointInPolygon(point, right))
-      ? "right"
-      : null;
+  // Fallback — foot-point is inside a crosswalk boundary, assign to nearest
+  // stripe in that boundary's segment.
+  const segment = Object.entries(boundaries).find(
+    ([, boundary]) => boundary.length >= 3 && isPointInPolygon(point, scalePolygon(boundary, frame)),
+  )?.[0] ?? null;
   if (!segment) return null;
 
   const segmentStripes = scaledStripes.filter((s) => s.segment === segment);
@@ -114,8 +111,7 @@ function stripeForPointLive(
 
 export type ClientCalibration = {
   stripes: readonly Stripe[];
-  leftCrosswalk: readonly Point[] | null;
-  rightCrosswalk: readonly Point[] | null;
+  boundaries: Boundaries;
 };
 
 export type OccupiedStripe = { key: string; note: string };
@@ -144,8 +140,7 @@ export function occupiedStripesFromAllDetections(
     const stripe = stripeForPointLive(
       point, frame,
       calibration.stripes,
-      calibration.leftCrosswalk,
-      calibration.rightCrosswalk,
+      calibration.boundaries,
     );
     if (!stripe) continue;
     const key = stripeKey(stripe.segment, stripe.stripeIndex);
