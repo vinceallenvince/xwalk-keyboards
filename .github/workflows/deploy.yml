@@ -80,7 +80,7 @@ jobs:
       - name: Smoke test
         run: |
           URL="https://xwalk-keyboards-21826886868.us-central1.run.app"
-          for ROUTE in "" "/realtime" "/orchestration" "/about" "/camera-registry"; do
+          for ROUTE in "" "/realtime" "/realtime/5056" "/about" "/camera-registry"; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${URL}${ROUTE}")
             echo "${ROUTE:-/}: $STATUS"
             if [ "$STATUS" -ge 400 ]; then
