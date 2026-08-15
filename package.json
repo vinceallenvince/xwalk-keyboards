@@ -17,8 +17,7 @@
     "hls.js": "^1.6.15",
     "next": "^16.2.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "tone": "15.1.22"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
