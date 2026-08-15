@@ -170,6 +170,14 @@ export function RealtimeInference({
   const lastDataAtRef = useRef<number>(0);
   const stallTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const STALL_TIMEOUT_MS = 15_000;
+  // onData is created once per WebRTC connection and would otherwise capture
+  // whatever calibration existed at that moment — which is the baked-in
+  // reference, since the stream connects before the calibration fetch
+  // resolves. Reading through a ref lets a drifted camera's new geometry take
+  // effect without tearing down the connection every time it refreshes.
+  const calibrationRef = useRef(calibration);
+  useEffect(() => { calibrationRef.current = calibration; }, [calibration]);
+
   const [activeStripes, setActiveStripes] = useState<OccupiedStripe[]>([]);
   const [frame, setFrame] = useState<FrameSize | null>(null);
   const [insideCount, setInsideCount] = useState<number | null>(null);
@@ -272,7 +280,7 @@ export function RealtimeInference({
             // used to do, so the boundaries are always from the latest
             // calibration agent run rather than what was set at session init.
             const occupied = occupiedStripesFromAllDetections(
-              output, configuration.outputBindings.all, inputFrame, calibration,
+              output, configuration.outputBindings.all, inputFrame, calibrationRef.current,
             );
             setActiveStripes(occupied);
 
