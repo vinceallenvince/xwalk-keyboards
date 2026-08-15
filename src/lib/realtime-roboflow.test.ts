@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   missingRealtimeRoboflowConfiguration,
   readRealtimeRoboflowConfiguration,
-  scaledRealtimeCrosswalkPolygons,
 } from "./realtime-roboflow";
 
 const configuredEnvironment = {
@@ -12,26 +11,29 @@ const configuredEnvironment = {
   ROBOFLOW_REALTIME_WORKFLOW_ID: "workflow",
   ROBOFLOW_IMAGE_INPUT: "image",
   ROBOFLOW_DATA_OUTPUT: "all",
-  ROBOFLOW_WEBRTC_INSIDE_LEFT_OUTPUT: "insideLeft",
-  ROBOFLOW_WEBRTC_INSIDE_RIGHT_OUTPUT: "insideRight",
-  ROBOFLOW_WEBRTC_OUTSIDE_OUTPUT: "outside",
-  ROBOFLOW_WEBRTC_LEFT_POLYGON_INPUT: "leftPolygon",
-  ROBOFLOW_WEBRTC_RIGHT_POLYGON_INPUT: "rightPolygon",
 };
 
 describe("Realtime Roboflow configuration", () => {
   it("keeps credentials server-side while returning named bindings", () => {
     const configuration = readRealtimeRoboflowConfiguration(configuredEnvironment);
-    expect(configuration.outputBindings).toEqual({
-      all: "all", insideLeft: "insideLeft", insideRight: "insideRight", outside: "outside",
-    });
+    expect(configuration.outputBindings).toEqual({ all: "all" });
     expect(missingRealtimeRoboflowConfiguration(configuredEnvironment)).toEqual([]);
   });
 
-  it("scales the View 5056 crosswalks to the WebRTC input", async () => {
-    // Falls back to baked-in reference when GCS is unreachable (test env).
-    const polygons = await scaledRealtimeCrosswalkPolygons({ width: 704, height: 480 });
-    expect(polygons.left[0]).toEqual([54, 216]);
-    expect(polygons.right.at(-1)).toEqual([602, 300]);
+  it("reports every missing required variable", () => {
+    expect(missingRealtimeRoboflowConfiguration({})).toEqual([
+      "ROBOFLOW_API_KEY",
+      "ROBOFLOW_WORKSPACE",
+      "ROBOFLOW_REALTIME_WORKFLOW_ID",
+      "ROBOFLOW_IMAGE_INPUT",
+      "ROBOFLOW_DATA_OUTPUT",
+    ]);
+  });
+
+  it("applies defaults for the optional variables", () => {
+    const configuration = readRealtimeRoboflowConfiguration(configuredEnvironment);
+    expect(configuration.classes).toBe("person");
+    expect(configuration.region).toBe("us");
+    expect(configuration.requestedPlan).toBe("webrtc-gpu-medium");
   });
 });

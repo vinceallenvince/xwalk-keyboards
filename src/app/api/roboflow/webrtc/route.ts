@@ -5,28 +5,14 @@ import {
 } from "@roboflow/inference-sdk";
 import { NextResponse } from "next/server";
 
-import {
-  readRealtimeRoboflowConfiguration,
-  scaledRealtimeCrosswalkPolygons,
-} from "@/lib/realtime-roboflow";
+import { readRealtimeRoboflowConfiguration } from "@/lib/realtime-roboflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type WebRTCProxyRequest = { offer?: WebRTCOffer };
 
-function validFrameDimension(value: number) {
-  return Number.isInteger(value) && value > 0 && value <= 4096;
-}
-
 export async function POST(request: Request) {
-  const requestUrl = new URL(request.url);
-  const frameWidth = Number(requestUrl.searchParams.get("frameWidth"));
-  const frameHeight = Number(requestUrl.searchParams.get("frameHeight"));
-  if (!validFrameDimension(frameWidth) || !validFrameDimension(frameHeight)) {
-    return NextResponse.json({ message: "Valid WebRTC frame dimensions are required" }, { status: 400 });
-  }
-
   const contentLength = Number(request.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > 250_000) {
     return NextResponse.json({ message: "WebRTC offer is too large" }, { status: 413 });
@@ -46,10 +32,6 @@ export async function POST(request: Request) {
     }
 
     const configuration = readRealtimeRoboflowConfiguration();
-    const crosswalkPolygons = await scaledRealtimeCrosswalkPolygons({
-      width: frameWidth,
-      height: frameHeight,
-    });
     const client = InferenceHTTPClient.init({ apiKey: configuration.apiKey });
     const answer = await client.initializeWebrtcWorker({
       offer,
@@ -57,15 +39,13 @@ export async function POST(request: Request) {
       workflowId: configuration.workflowId,
       config: {
         imageInputName: configuration.imageInput,
+        // The workflow's polygon zone inputs are no longer sent: client-side
+        // classification handles inside/outside using the live calibration
+        // boundaries, so only the class filter parameter remains.
         workflowsParameters: {
           classes: configuration.classes,
-          [configuration.polygonInputs.left]: crosswalkPolygons.left,
-          [configuration.polygonInputs.right]: crosswalkPolygons.right,
         },
         streamOutputNames: [],
-        // Only request the 'all' output — client-side classification handles
-        // inside/outside using the live calibration boundaries, so the
-        // workflow's per-polygon outputs are no longer needed.
         dataOutputNames: [configuration.outputBindings.all],
         realtimeProcessing: true,
         requestedPlan: configuration.requestedPlan,
