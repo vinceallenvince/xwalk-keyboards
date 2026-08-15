@@ -10,8 +10,7 @@ import { REALTIME_CALIBRATION } from "./realtime-calibration";
 describe("Realtime prediction mapping", () => {
   const calibration = {
     stripes: REALTIME_CALIBRATION.stripes,
-    leftCrosswalk: REALTIME_CALIBRATION.leftCrosswalk.map(([x, y]) => [x, y] as const),
-    rightCrosswalk: REALTIME_CALIBRATION.rightCrosswalk.map(([x, y]) => [x, y] as const),
+    boundaries: REALTIME_CALIBRATION.boundaries,
   };
 
   it("classifies detections client-side using live calibration", () => {
@@ -27,8 +26,9 @@ describe("Realtime prediction mapping", () => {
     );
     // Foot-point (72, 120) falls on F#4 with direct polygon hit testing.
     expect(occupied.map((s) => s.note)).toEqual(["F#4", "Bb5"]);
-    // Each occupied stripe is identified independently of what it plays.
-    expect(occupied.map((s) => s.key)).toEqual(["left:7", "right:23"]);
+    // Each occupied stripe is identified independently of what it plays,
+    // keyed with the agent's 0-based per-segment indexes.
+    expect(occupied.map((s) => s.key)).toEqual(["left:6", "right:4"]);
     expect(countPredictionsForOutput(output, "all")).toBe(3);
   });
 
