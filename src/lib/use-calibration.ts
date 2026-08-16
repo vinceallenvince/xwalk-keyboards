@@ -170,8 +170,13 @@ export function useCalibration(camera: LiveCameraRecord): {
   const [calibratedCamera, setCalibratedCamera] = useState(camera);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Stable ref to the current camera so applyCalibration never goes stale.
+  // Written from an effect rather than during render (react-hooks/refs):
+  // applyCalibration only runs from event handlers and async continuations,
+  // all of which fire after effects, so no caller can see a stale camera.
   const cameraRef = useRef(camera);
-  cameraRef.current = camera;
+  useEffect(() => {
+    cameraRef.current = camera;
+  }, [camera]);
 
   // Derived-state reset: if the same hook instance is ever pointed at a new
   // camera, drop the previous camera's geometry immediately rather than
