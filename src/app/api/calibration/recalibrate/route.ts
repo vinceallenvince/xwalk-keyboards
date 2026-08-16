@@ -6,6 +6,10 @@ export const runtime = "nodejs";
 const AGENT_URL = process.env.CALIBRATION_AGENT_URL
   ?? "https://xwalk-camera-calibration-agent-21826886868.us-central1.run.app";
 
+// API key for the calibration agent — used in local dev where the GCE
+// metadata server isn't available for identity tokens.
+const AGENT_API_KEY = process.env.CALIBRATION_AGENT_API_KEY;
+
 /**
  * POST /api/calibration/recalibrate
  *
@@ -47,7 +51,13 @@ export async function POST(request: NextRequest) {
   }
 
   const headers: Record<string, string> = {};
-  if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
+  if (idToken) {
+    headers["Authorization"] = `Bearer ${idToken}`;
+  } else if (AGENT_API_KEY) {
+    // Local dev fallback: the GCE metadata server is unavailable, so use
+    // the agent's own API key instead of a Cloud Run identity token.
+    headers["x-api-key"] = AGENT_API_KEY;
+  }
 
   try {
     const agentResp = await fetch(`${AGENT_URL}/api/calibrate`, {
