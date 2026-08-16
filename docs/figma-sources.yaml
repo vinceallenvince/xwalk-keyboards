@@ -69,34 +69,33 @@ epics:
     page: "57-23"
     epic_dir: "realtime-study"
     stories:
-      - story: "As a visitor, I can see that the Realtime study is connecting"
-        scenario: "57-24"
+      # The Figma section is titled "As a first-time visitor, I am told how to
+      # hear the crosswalk and recieve an update on the crosswalk's current
+      # environmental conditions" — it retains the older "first-time visitor"
+      # phrasing (the sequence now runs on every visit) and a "recieve"
+      # spelling. Rename the section on the next Figma pass to restore the
+      # exact-title convention.
+      # Conditions-variant shots: only the unknown variant is deterministic in
+      # Layer 1 (no live calibration agent in the e2e environment). good/fair/
+      # bad need a live or mocked calibration status; keyboard-ready needs a
+      # real Roboflow WebRTC GPU session.
+      - story: "As a visitor, I am told how to hear the crosswalk and receive an update on the crosswalk's current environmental conditions"
+        scenario: "352-3"
         ui:
-          - { node: "57-104", shot: "realtime-both-loading" } # camera and inference both starting
+          - { node: "352-5", shot: "realtime-onboarding-how-to-hear" }        # step 1: how to hear, NEXT control
+          - { node: "353-49", shot: null }                                    # step 2: conditions GOOD (mint, no caveat)
+          - { node: "353-86", shot: null }                                    # step 2: conditions FAIR (amber, caveat)
+          - { node: "353-123", shot: null }                                   # step 2: conditions BAD (red, caveat)
+          - { node: "357-41", shot: "realtime-onboarding-conditions-unknown" } # step 2: conditions unavailable (no readout line)
+          - { node: "354-160", shot: "realtime-onboarding-warming-up" }       # step 3: warming up, no dismissal control
+          - { node: "355-197", shot: null }                                   # overlay removed on first predictions
 
-      - story: "As a visitor, I can see a live camera while inference is still starting"
-        scenario: "57-181"
-        ui:
-          - { node: "57-131", shot: "realtime-cam-ready" } # camera ready, inference starting
-
-      # Inference is a child of the live camera (it captures the <video>
-      # stream), so "inference active while camera still connecting" is not a
-      # state the current architecture can reach. See the alignment report.
-      - story: "As a visitor, I can see that inference is ready while the camera is still connecting"
-        scenario: "57-233"
-        ui:
-          - { node: "57-155", shot: null } # inference ready, camera connecting
-
-      - story: "As a first-time visitor, I am told how to play the crosswalk"
+      # The info icon appears only after first predictions, which need a real
+      # GPU session — no deterministic Layer 1 shot.
+      - story: "As a visitor, I can reopen the how-to-hear instructions from the header"
         scenario: null
         ui:
-          - { node: "300-2", shot: "realtime-intro-first-visit" }   # first-visit modal over connecting viewport
-
-      - story: "As a returning visitor, I can reopen the instructions from the header"
-        scenario: null
-        ui:
-          - { node: "300-36", shot: "realtime-intro-icon" }         # live study with info icon visible in header
-          - { node: "300-74", shot: "realtime-intro-reopened" }     # reopened modal over live viewport
+          - { node: "361-2", shot: null } # step 1 reopened alone with CLOSE control
 
       # Reaching "KEYBOARD READY!" needs a real Roboflow WebRTC GPU session,
       # which cannot be stood up deterministically in Layer 1.

@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const SHOTS = join(__dirname, "__screens__", "realtime-study");
 const CAMERA_STILL = join(__dirname, "..", "docs", "images", "videoframe_104668.png");
+const CALIBRATION_FALLBACK = join(__dirname, "..", "public", "calibration-fallback-5056.json");
 
 /**
  * Realtime depends on two live services that are neither available nor stable
@@ -17,28 +18,38 @@ const CAMERA_STILL = join(__dirname, "..", "docs", "images", "videoframe_104668.
  * from View 5056 stands in as the video poster and the `playing` event the
  * component already listens for is dispatched, so the real status-to-label
  * mapping produces "FEED LIVE // ...".
+ *
+ * The onboarding sequence runs on every visit, so tests that are not about it
+ * open the study with the `?onboarding=off` override instead of clicking
+ * through three steps first.
  */
-/**
- * A fresh context has no seen-flag, so the first-visit instructions would cover
- * every other state. Tests that are not about the modal seed the flag before
- * the page script runs; the modal's own tests pass `firstVisit`.
- */
-async function openRealtime(page: Page, { firstVisit = false } = {}) {
+async function openRealtime(page: Page, { onboarding = false } = {}) {
   await page.route("**/api/hls/**", () => new Promise(() => {}));
   await page.route("**/api/roboflow/**", () => new Promise(() => {}));
   await page.route("**/__fixture/camera-still.png", (route) =>
     route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/png" }),
   );
-  if (!firstVisit) {
-    await page.addInitScript(() =>
-      window.localStorage.setItem("xwalkKeyboards.realtimeIntroSeen", "true"),
-    );
-  }
 
-  await page.goto("/realtime");
+  await page.goto(onboarding ? "/realtime" : "/realtime?onboarding=off");
   await page.addStyleTag({
     content: "*, *::before, *::after { animation: none !important; transition: none !important; }",
   });
+}
+
+/**
+ * Serve a real calibration payload with a chosen status, so the conditions
+ * readout is deterministic. The public fallback snapshot is a genuine agent
+ * publish — reusing it keeps the stripes/boundaries valid enough for
+ * `applyCalibration` to accept the payload.
+ */
+async function stubCalibration(page: Page, status: string) {
+  const payload = { ...JSON.parse(readFileSync(CALIBRATION_FALLBACK, "utf8")), status };
+  await page.route("**/api/calibration/**", (route) => route.fulfill({ json: payload }));
+}
+
+/** Leave the calibration fetch hanging so no live payload ever arrives. */
+async function blockCalibration(page: Page) {
+  await page.route("**/api/calibration/**", () => new Promise(() => {}));
 }
 
 async function driveCameraLive(page: Page) {
@@ -49,26 +60,6 @@ async function driveCameraLive(page: Page) {
     element.dispatchEvent(new Event("playing"));
   });
 }
-
-test.describe("Realtime", () => {
-  test("camera connecting and inference starting", async ({ page }) => {
-    await openRealtime(page);
-    await expect(page.locator(".realtime-feed-status")).toHaveText("CONNECTING // WEST STREET @ W34 ST");
-    await expect(page.locator(".realtime-inference-status")).toHaveText("STATUS: KEYBOARD WARMING UP...");
-    // Both controls are present but visually inactive before the feed is live.
-    await expect(page.locator(".realtime-controls--idle")).toBeVisible();
-    await expect(page.locator(".realtime-sound-button")).toBeDisabled();
-    await page.screenshot({ path: join(SHOTS, "realtime-both-loading.png") });
-  });
-
-  test("camera live while inference is still starting", async ({ page }) => {
-    await openRealtime(page);
-    await driveCameraLive(page);
-    await expect(page.locator(".realtime-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W34 ST");
-    await expect(page.locator(".realtime-inference-status")).toHaveText("STATUS: KEYBOARD WARMING UP...");
-    await page.screenshot({ path: join(SHOTS, "realtime-cam-ready.png") });
-  });
-});
 
 test.describe("Realtime operator tools", () => {
   test("RECALIBRATE lives in the debug panel, not the status bar", async ({ page }) => {
@@ -85,59 +76,129 @@ test.describe("Realtime operator tools", () => {
   });
 });
 
-test.describe("Realtime instructions", () => {
-  const modal = (page: Page) => page.locator(".realtime-intro-modal");
-  const introButton = (page: Page) => page.locator(".realtime-intro-button");
+test.describe("Realtime onboarding", () => {
+  const panel = (page: Page) => page.locator(".realtime-onboarding-panel");
+  const title = (page: Page) => page.locator(".realtime-onboarding__title");
+  const nextButton = (page: Page) => page.locator(".realtime-onboarding__btn");
+  const infoButton = (page: Page) => page.locator(".realtime-onboarding-button");
 
-  test("first visit is met by the instructions", async ({ page }) => {
-    await openRealtime(page, { firstVisit: true });
+  test("opens on the how-to-hear step over the connecting study", async ({ page }) => {
+    await blockCalibration(page);
+    await openRealtime(page, { onboarding: true });
 
-    await expect(modal(page)).toBeVisible();
-    await expect(page.locator(".realtime-intro-modal__title")).toHaveText("HOW TO HEAR XWALK KEYBOARDS");
-    await expect(modal(page)).toContainText("Each white stripe is a key.");
-    await expect(modal(page)).toContainText("It takes a few seconds for the keyboard to warm up.");
-    await expect(page.locator(".realtime-intro-modal__btn")).toHaveText("CLOSE");
-    // The study keeps starting up behind the scrim rather than waiting on the
-    // visitor to finish reading.
+    await expect(panel(page)).toBeVisible();
+    await expect(title(page)).toHaveText("HOW TO HEAR XWALK KEYBOARDS");
+    await expect(panel(page)).toContainText("Each white stripe is a key.");
+    await expect(panel(page)).toContainText("It takes a few seconds for the keyboard to warm up.");
+    await expect(nextButton(page)).toHaveText("NEXT");
+
+    // The study keeps starting up behind the overlay rather than waiting on
+    // the visitor: both statuses stay truthful, neither implies it waits on
+    // the other, and the controls sit visibly inactive. No spinner exists.
+    await expect(page.locator(".realtime-feed-status")).toHaveText("CONNECTING // WEST STREET @ W34 ST");
     await expect(page.locator(".realtime-inference-status")).toHaveText("STATUS: KEYBOARD WARMING UP...");
-    await page.screenshot({ path: join(SHOTS, "realtime-intro-first-visit.png") });
+    await expect(page.locator(".realtime-controls--idle")).toBeVisible();
+    await expect(page.locator(".realtime-sound-button")).toBeDisabled();
+
+    // The camera going live changes the feed line behind the overlay without
+    // touching the sequence.
+    await driveCameraLive(page);
+    await expect(page.locator(".realtime-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W34 ST");
+    await expect(title(page)).toHaveText("HOW TO HEAR XWALK KEYBOARDS");
+    await page.screenshot({ path: join(SHOTS, "realtime-onboarding-how-to-hear.png") });
   });
 
-  test("closing records the visit so it does not reappear", async ({ page }) => {
-    await openRealtime(page, { firstVisit: true });
-    await page.locator(".realtime-intro-modal__btn").click();
-    await expect(modal(page)).toHaveCount(0);
+  test("NEXT advances to a conditions readout derived from the calibration payload", async ({ page }) => {
+    await stubCalibration(page, "degraded");
+    await openRealtime(page, { onboarding: true });
+
+    await nextButton(page).click();
+    await expect(title(page)).toHaveText("XWALK KEYBOARDS BEST CONDITIONS");
+    await expect(panel(page)).toContainText("Keyboard detection works best when the camera has");
+    await expect(panel(page)).toContainText("Your keyboard conditions: FAIR");
+    await expect(page.locator(".realtime-onboarding__value--fair")).toBeVisible();
+    await expect(panel(page)).toContainText("Bad weather, shadows or obstructions may affect");
+    await expect(nextButton(page)).toHaveText("NEXT");
+  });
+
+  test("the conditions readout is omitted when no calibration has arrived", async ({ page }) => {
+    await blockCalibration(page);
+    await openRealtime(page, { onboarding: true });
+    await driveCameraLive(page);
+
+    await nextButton(page).click();
+    await expect(title(page)).toHaveText("XWALK KEYBOARDS BEST CONDITIONS");
+    // No reading is claimed rather than a made-up one; the caveat stays.
+    await expect(panel(page)).not.toContainText("Your keyboard conditions:");
+    await expect(panel(page)).toContainText("Bad weather, shadows or obstructions may affect");
+    await page.screenshot({ path: join(SHOTS, "realtime-onboarding-conditions-unknown.png") });
+  });
+
+  test("?conditions= forces a readout variant for review", async ({ page }) => {
+    await blockCalibration(page);
+    await page.route("**/api/hls/**", () => new Promise(() => {}));
+    await page.route("**/api/roboflow/**", () => new Promise(() => {}));
+
+    await page.goto("/realtime?conditions=bad");
+    await nextButton(page).click();
+    await expect(panel(page)).toContainText("Your keyboard conditions: BAD");
+    await expect(page.locator(".realtime-onboarding__value--bad")).toBeVisible();
+    await expect(panel(page)).toContainText("Bad weather, shadows or obstructions may affect");
+
+    // GOOD is the one level that carries no caveat.
+    await page.goto("/realtime?conditions=good");
+    await nextButton(page).click();
+    await expect(panel(page)).toContainText("Your keyboard conditions: GOOD");
+    await expect(page.locator(".realtime-onboarding__value--good")).toBeVisible();
+    await expect(panel(page)).not.toContainText("Bad weather, shadows or obstructions may affect");
+  });
+
+  test("the warming-up step has no dismissal control and waits on predictions", async ({ page }) => {
+    await blockCalibration(page);
+    await openRealtime(page, { onboarding: true });
+    await driveCameraLive(page);
+
+    await nextButton(page).click();
+    await nextButton(page).click();
+    await expect(title(page)).toHaveText("WARMING UP ...");
+    await expect(panel(page)).toContainText("XWalk Keyboards take a few seconds to a minute");
+    await expect(panel(page)).toContainText("Meanwhile, check that your speakers are on!");
+    // No button, no scrim dismissal: only real predictions clear this step,
+    // and none can arrive in this environment.
+    await expect(nextButton(page)).toHaveCount(0);
+    await page.locator(".realtime-onboarding-scrim").click({ position: { x: 10, y: 10 } });
+    await expect(panel(page)).toBeVisible();
+    await page.screenshot({ path: join(SHOTS, "realtime-onboarding-warming-up.png") });
+  });
+
+  test("the sequence runs again on every visit", async ({ page }) => {
+    await blockCalibration(page);
+    await openRealtime(page, { onboarding: true });
+    await nextButton(page).click();
+    await expect(title(page)).toHaveText("XWALK KEYBOARDS BEST CONDITIONS");
 
     await page.reload();
-    await expect(page.locator(".realtime-statusbar")).toBeVisible();
-    await expect(modal(page)).toHaveCount(0);
+    await expect(title(page)).toHaveText("HOW TO HEAR XWALK KEYBOARDS");
   });
 
-  test("the header icon reopens the instructions", async ({ page }) => {
+  test("the info icon is absent until predictions arrive", async ({ page }) => {
+    // Predictions never arrive in this environment, so the icon never renders —
+    // neither during the sequence nor after skipping it.
+    await openRealtime(page, { onboarding: true });
+    await expect(page.locator(".site-header")).toBeVisible();
+    await expect(infoButton(page)).toHaveCount(0);
+
     await openRealtime(page);
     await driveCameraLive(page);
-    await expect(modal(page)).toHaveCount(0);
-    await page.screenshot({ path: join(SHOTS, "realtime-intro-icon.png") });
-
-    await introButton(page).click();
-    await expect(modal(page)).toBeVisible();
-    // Reopening leaves the study running behind it.
-    await expect(page.locator(".realtime-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W34 ST");
-    await page.screenshot({ path: join(SHOTS, "realtime-intro-reopened.png") });
-
-    await page.keyboard.press("Escape");
-    await expect(modal(page)).toHaveCount(0);
-  });
-
-  test("a scrim click dismisses the instructions", async ({ page }) => {
-    await openRealtime(page, { firstVisit: true });
-    await page.locator(".realtime-intro-scrim").click({ position: { x: 10, y: 10 } });
-    await expect(modal(page)).toHaveCount(0);
+    await expect(infoButton(page)).toHaveCount(0);
   });
 
   test("the pause modal owns the viewport alone", async ({ page }) => {
-    await openRealtime(page);
+    await blockCalibration(page);
+    await openRealtime(page, { onboarding: true });
     await driveCameraLive(page);
+    await expect(panel(page)).toBeVisible();
+
     // The debug menu's force-pause is the only deterministic way to reach the
     // five-minute state without waiting five minutes.
     await page.keyboard.press("Control+Shift+D");
@@ -145,7 +206,7 @@ test.describe("Realtime instructions", () => {
 
     await expect(page.locator(".realtime-pause-modal")).toBeVisible();
     await expect(page.locator(".realtime-pause-modal__title")).toHaveText("XWALK KEYBOARD PAUSED");
-    await expect(modal(page)).toHaveCount(0);
-    await expect(introButton(page)).toHaveCount(0);
+    await expect(panel(page)).toHaveCount(0);
+    await expect(infoButton(page)).toHaveCount(0);
   });
 });

@@ -123,123 +123,113 @@ The one exception is a camera outage. When the feed itself is down the
 instrument line defers to the real cause and reads `FEED UNAVAILABLE` rather
 than blaming the keyboard for a failure upstream of it.
 
-### As a visitor, I can see that the Realtime study is connecting
-
-The Realtime study has its own sparse, black-ground interface. The camera
-connection and Roboflow GPU startup are independent asynchronous cycles, each
-with its own visible status. Neither is required to finish first, and the
-interface does not imply that one is waiting on the other.
-
-```gherkin
-Given I have chosen the "REALTIME" study from XWALK KEYBOARDS
-When the Realtime study opens
-Then the page header reads "XWALK KEYBOARDS | REALTIME"
-And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
-And the feed status reads "CONNECTING // WEST STREET @ W34 ST"
-And the inference status reads "STATUS: KEYBOARD WARMING UP..."
-And a large dark camera viewport is reserved in the center of the page
-And the "FULLSCREEN" and "SOUND ON" controls are visible but visually inactive
-And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
-And no spinner or unrelated loading indicator is shown
-```
-
-### As a visitor, I can see a live camera while inference is still starting
-
-The camera commonly becomes ready before the GPU. In that case, the live video
-should appear immediately; it must not be held behind the inference startup.
-
-```gherkin
-Given I am on the Realtime study page
-And the West Street at W. 34 St camera feed becomes active before Roboflow inference
-When the live camera frame is available
-Then the feed status reads "FEED LIVE // WEST STREET @ W34 ST"
-And the live camera video fills the reserved central viewport
-And the inference status continues to read "STATUS: KEYBOARD WARMING UP..."
-And sound and detection-dependent feedback remain unavailable until inference is active
-```
-
-### As a visitor, I can see that inference is ready while the camera is still connecting
-
-Roboflow can also finish first. The inference status should become active
-without falsely presenting a camera image that has not yet arrived.
-
-```gherkin
-Given I am on the Realtime study page
-And Roboflow inference becomes active before the West Street at W. 34 St camera feed
-When the Roboflow GPU has started
-Then the inference status reads "STATUS: KEYBOARD READY!"
-And the feed status continues to read "CONNECTING // WEST STREET @ W34 ST"
-And the large camera viewport remains in its waiting state until a live camera frame is available
-```
-
-### As a first-time visitor, I am told how to play the crosswalk
+### As a visitor, I am told how to hear the crosswalk and receive an update on the crosswalk's current environmental conditions
 
 The Realtime study is silent and still until a pedestrian steps onto the
-crosswalk, and it takes several seconds to begin watching. A short modal on first visit sets the two expectations that make the wait legible, *the stripes are the keys*, and *nothing happens until someone crosses*. Because it appears immediately, while the camera and inference are still starting, reading it costs no extra time.
+crosswalk, and its camera connection and keyboard startup are independent
+asynchronous cycles that take several seconds. Neither is required to finish
+first, and the interface does not imply that one is waiting on the other. A
+three-step onboarding sequence runs on every visit, covering that startup
+wait: how the instrument is played, what condition the crosswalk is in right
+now, and that the keyboard is warming up. Because the sequence appears
+immediately, while the camera and inference are still starting, reading it
+costs no extra time.
 
-The copy stays deliberately sparse. It names no vendor, no GPU, and no
-inference. A visitor needs to know that the instrument is warming up, not what
-is warming up. The startup wait is framed as the keyboard warming up, matching
-the inference status line behind the scrim.
-
-The modal does not control sound. Dismissing it is purely informational. It
-counts as a user gesture for the browser's audio-activation requirement, but the
-app already enables sound automatically when the keyboard becomes ready, so the
-modal does not need to do that work. A single "CLOSE" button keeps the footer
-clean.
+Each step is left-aligned text over the dimmed camera viewport, not a
+centered modal card. The copy stays deliberately sparse and names no vendor,
+GPU, model, or inference technology. The conditions step derives its readout
+from the calibration agent's current status, so the sequence tells the truth
+about the instrument before asking the visitor to wait on it. Advancing the
+sequence counts as a user gesture for the browser's audio-activation
+requirement; the app still enables sound automatically when the keyboard
+becomes ready.
 
 ```gherkin
-Given I am a first-time visitor with no record of having seen the instructions
-When the Realtime study opens
-Then a centered modal appears over the camera viewport
-And the viewport behind it is dimmed by a scrim and cannot be interacted with
-And the modal title reads "HOW TO HEAR XWALK KEYBOARDS"
-And the modal explains that each white stripe is a key played by pedestrians crossing
-And the modal explains that the keyboard takes a few seconds to warm up
-And the modal explains that nothing plays until someone steps onto the stripes
-And the modal names no vendor, GPU, model, or inference technology
-And the modal offers a single "CLOSE" control
-And the camera connection and keyboard startup continue behind the modal
-And the feed and keyboard statuses remain visible and truthful behind the scrim
+Given a visitor opens the Realtime study
+When the page loads
+Then the page header reads "XWALK KEYBOARDS | REALTIME"
+And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
+And the feed status begins at "CONNECTING // WEST STREET @ W34 ST"
+And the inference status begins at "STATUS: KEYBOARD WARMING UP..."
+And the camera connection and keyboard startup continue independently behind the overlay
+And the onboarding overlay appears over the dimmed camera viewport
+And the first step is titled "HOW TO HEAR XWALK KEYBOARDS"
+And it explains that each white stripe is a key played by pedestrians crossing
+And it explains that the keyboard takes a few seconds to warm up
+And it offers a single "NEXT" control
+And the "FULLSCREEN" and sound controls are visible but visually inactive
+And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
+And no spinner or unrelated loading indicator is shown
+And the feed and keyboard statuses remain visible and truthful behind the overlay
+And the live camera video appears dimmed behind the overlay as soon as the feed is live
 
-When I select "CLOSE"
-Then the modal closes
-And the app records that the instructions have been seen
-And I return to the Realtime study in whatever state it has reached while I read
+When I select "NEXT" on the how-to-hear step
+Then the second step is titled "XWALK KEYBOARDS BEST CONDITIONS"
+And it explains that keyboard detection works best when the camera has a clear view of the crosswalk
+And the conditions readout derives from the calibration agent's current status
+And status "ok" renders "Your keyboard conditions: GOOD" with GOOD in mint and no caveat line
+And status "degraded" or "needs_review" renders "Your keyboard conditions: FAIR" with FAIR in amber
+And status "no_crosswalk" or "feed_down" renders "Your keyboard conditions: BAD" with BAD in red
+And FAIR and BAD include the caveat "Bad weather, shadows or obstructions may affect your keyboard's performance."
+And when no calibration status is available the readout line is omitted and the caveat line is retained
+And the step offers a single "NEXT" control
 
-When I press Escape or select the scrim outside the modal
-Then the modal closes in the same way as "CLOSE"
+When I select "NEXT" on the best-conditions step
+Then the third step is titled "WARMING UP ..."
+And it explains that XWalk Keyboards take a few seconds to a minute to warm up and get started
+And it reminds me to check that my speakers are on
+And it offers no dismissal control
+When the app receives its first prediction data from the keyboard
+Then the onboarding overlay is removed
+And the study presents its fully active state
+
+Given prediction data is already arriving when I select "NEXT" on the best-conditions step
+Then the warming-up step is skipped
+And the onboarding overlay is removed immediately
 ```
 
-### As a returning visitor, I can reopen the instructions from the header
-
-Once seen, the instructions never reappear on their own. They stay reachable
-from a small info icon beside the study header, so a visitor who arrives at an
-empty crosswalk later can confirm that silence is the instrument waiting rather
-than the study failing.
+The sequence runs on every visit and never competes with the five-minute
+pause modal for the viewport.
 
 ```gherkin
-Given I have previously seen and dismissed the Realtime instructions
+Given I have visited the Realtime study before
 When the Realtime study opens
-Then no instructional modal is shown
-And the study begins its normal camera and inference startup
-And a small info icon sits to the right of the "XWALK KEYBOARDS | REALTIME" header
-And the info icon is present on first visit as well, once the modal is dismissed
+Then the onboarding sequence runs again from its first step
+
+Given the five-minute inference pause modal is shown
+Then no onboarding step is shown over it
+```
+
+### As a visitor, I can reopen the how-to-hear instructions from the header
+
+Once the keyboard is live, the how-to-hear copy stays reachable from a small
+info icon beside the study header, so a visitor who arrives at an empty
+crosswalk later can confirm that silence is the instrument waiting rather
+than the study failing. The icon replays only the first onboarding step —
+the conditions and warming-up steps describe a startup that has already
+passed.
+
+```gherkin
+Given the Realtime study has begun receiving prediction data
+Then a small info icon sits to the right of the "XWALK KEYBOARDS | REALTIME" header
+And the info icon is not present before the first prediction data arrives
 
 When I select the info icon
-Then the same instructional modal reopens over the current viewport
+Then the "HOW TO HEAR XWALK KEYBOARDS" step reopens alone over the current viewport
+And it offers a single "CLOSE" control instead of "NEXT"
+And the best-conditions and warming-up steps are not replayed
 And the live video, feed status, and inference status continue behind it
-And dismissing it returns me to the study unchanged
+And dismissing it with "CLOSE" or Escape returns me to the study unchanged
 And reopening the instructions does not restart the camera, inference, or the five-minute inference window
 ```
 
-The instructional modal and the five-minute pause modal are never shown at the
-same time. The pause modal owns the viewport when it appears, and the info icon
-does not summon the instructions over it.
+The reopened instructions and the five-minute pause modal are never shown at
+the same time. The pause modal owns the viewport when it appears, and the
+info icon does not summon the instructions over it.
 
 ```gherkin
 Given the five-minute inference pause modal is shown
-Then the instructional modal is not shown over it
+Then the instructions are not shown over it
 And the info icon is unavailable until the pause modal is dismissed
 ```
 
