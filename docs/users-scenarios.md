@@ -179,6 +179,11 @@ Then the third step is titled "WARMING UP ..."
 And it explains that XWalk Keyboards take a few seconds to a minute to warm up and get started
 And it reminds me to check that my speakers are on
 And it offers no dismissal control
+When the inference status becomes "STATUS: KEYBOARD READY!" while the overlay is still shown
+Then the step is titled "KEYBOARD WARMED AND READY!"
+And it explains that fine tuning takes just a few seconds
+And it still offers no dismissal control
+And the overlay copy never contradicts the status bar behind it
 When the app receives its first prediction data from the keyboard
 Then the onboarding overlay is removed
 And the study presents its fully active state

@@ -5,6 +5,7 @@ import {
   forcedConditionsLevel,
   isOnboardingDisabled,
   nextStep,
+  warmingUpCopy,
 } from "./realtime-onboarding";
 
 describe("conditionsLevel", () => {
@@ -39,6 +40,25 @@ describe("nextStep", () => {
   it("has no advance out of warming-up — predictions clear it", () => {
     expect(nextStep("warming-up", false)).toBeNull();
     expect(nextStep("warming-up", true)).toBeNull();
+  });
+});
+
+describe("warmingUpCopy", () => {
+  it("reads as warming up while the GPU session is still starting", () => {
+    const copy = warmingUpCopy(false);
+    expect(copy.title).toBe("WARMING UP ...");
+    expect(copy.paragraphs.flat().join(" ")).toContain("take a few seconds to a minute");
+    expect(copy.paragraphs.flat().join(" ")).toContain("speakers are on!");
+  });
+
+  // Once the session is active the status bar says "KEYBOARD READY!" — the
+  // overlay must stop claiming it is warming up and reframe the wait for the
+  // first predictions as fine tuning.
+  it("reads as warmed and ready once the GPU session is active", () => {
+    const copy = warmingUpCopy(true);
+    expect(copy.title).toBe("KEYBOARD WARMED AND READY!");
+    expect(copy.paragraphs.flat().join(" ")).toContain("fine tuning");
+    expect(copy.paragraphs.flat().join(" ")).not.toContain("warm up");
   });
 });
 
