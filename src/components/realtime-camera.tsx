@@ -55,7 +55,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [inferenceClosed, setInferenceClosed] = useState(false);
   const inferenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const calibration = useCalibration(camera);
+  const { calibration, applyCalibration } = useCalibration(camera);
   const setIntroBlocked = useSetIntroBlocked();
 
   // The pause modal owns the viewport for as long as it is up: the instructions
@@ -265,18 +265,20 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
       });
 
       if (response.ok) {
-        // Give GCS a moment to propagate the new object, then re-fetch.
-        // The agent writes to GCS before returning, but eventual consistency
-        // means an immediate read can still return the old version.
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        window.dispatchEvent(new Event("calibration-updated"));
+        // Apply the agent's response directly to state — no GCS round-trip.
+        // This gives instant feedback in the debug panel and also works in
+        // local dev where the GCS proxy can't authenticate.
+        const result = await response.json();
+        if (result.stripes?.length) {
+          applyCalibration(result);
+        }
       }
     } catch {
       // Recalibration is best-effort; the next scheduled run will catch it.
     } finally {
       setRecalibrating(false);
     }
-  }, [camera.cameraId, recalibrating]);
+  }, [applyCalibration, camera.cameraId, recalibrating]);
 
   return (
     <section className="realtime-camera" aria-label="Realtime camera">

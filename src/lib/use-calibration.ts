@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { LiveCameraRecord } from "@/data/cameras";
 import { expandPolygonY, processPolygon, simplifyPolygon } from "@/lib/polygon-utils";
@@ -19,6 +19,14 @@ export type LiveCalibration = {
   updatedAt: string | null;
   source: "live" | "reference";
 };
+
+/**
+ * Apply a calibration response directly, bypassing the GCS fetch. Used by the
+ * RECALIBRATE button to update the debug panel immediately after the agent
+ * publishes, rather than waiting for a GCS round-trip (which may not work
+ * locally and adds latency even in production).
+ */
+export type CalibrationUpdater = (data: CalibrationResponse) => void;
 
 type CalibrationResponse = {
   status: CalibrationStatus;
@@ -152,10 +160,16 @@ export function referenceCalibrationFor(camera: LiveCameraRecord): LiveCalibrati
  * falling back to the baked-in reference if the route 404s or errors. Re-fetch
  * every 5 minutes so long-lived sessions pick up drift corrections.
  */
-export function useCalibration(camera: LiveCameraRecord): LiveCalibration {
+export function useCalibration(camera: LiveCameraRecord): {
+  calibration: LiveCalibration;
+  applyCalibration: CalibrationUpdater;
+} {
   const [calibration, setCalibration] = useState<LiveCalibration>(() => referenceCalibrationFor(camera));
   const [calibratedCamera, setCalibratedCamera] = useState(camera);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Stable ref to the current camera so applyCalibration never goes stale.
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
 
   // Derived-state reset: if the same hook instance is ever pointed at a new
   // camera, drop the previous camera's geometry immediately rather than
@@ -164,6 +178,31 @@ export function useCalibration(camera: LiveCameraRecord): LiveCalibration {
     setCalibratedCamera(camera);
     setCalibration(referenceCalibrationFor(camera));
   }
+
+  /**
+   * Apply a CalibrationResponse directly to state, skipping GCS. The
+   * RECALIBRATE button calls this with the agent's response so the debug
+   * panel updates instantly — no round-trip through GCS, which also fails
+   * in local dev (no metadata server for auth).
+   */
+  const applyCalibration: CalibrationUpdater = useCallback((data: CalibrationResponse) => {
+    const cam = cameraRef.current;
+    const stripes = toStripes(cam, data.stripes);
+    if (stripes.length === 0) return;
+
+    const boundaries = toBoundaries(cam, data, stripes);
+    if (Object.keys(boundaries).length === 0) return;
+
+    setCalibration({
+      status: data.status ?? "ok",
+      reasoning: data.reasoning ?? null,
+      boundaries,
+      referenceFrame: data.referenceFrame ?? cam.calibration.referenceFrame,
+      stripes,
+      updatedAt: data.updatedAt ?? null,
+      source: "live",
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,24 +221,7 @@ export function useCalibration(camera: LiveCameraRecord): LiveCalibration {
         const data: CalibrationResponse = await response.json();
         if (cancelled) return;
 
-        const stripes = toStripes(camera, data.stripes);
-        if (stripes.length === 0) return; // empty calibration is worse than stale
-
-        const boundaries = toBoundaries(camera, data, stripes);
-        if (Object.keys(boundaries).length === 0) return;
-
-        setCalibration({
-          status: data.status ?? "ok",
-          reasoning: data.reasoning ?? null,
-          boundaries,
-          // The agent stamps every calibration with the frame it measured in;
-          // older publishes without one predate any resolution change, so the
-          // camera's reference frame is the correct reading for them.
-          referenceFrame: data.referenceFrame ?? camera.calibration.referenceFrame,
-          stripes,
-          updatedAt: data.updatedAt ?? null,
-          source: "live",
-        });
+        applyCalibration(data);
       } catch {
         // Network error — keep current calibration, try again next interval.
       }
@@ -208,18 +230,11 @@ export function useCalibration(camera: LiveCameraRecord): LiveCalibration {
     void load();
     timerRef.current = setInterval(() => void load(), REFETCH_INTERVAL_MS);
 
-    // The RECALIBRATE button dispatches this event after a successful run so
-    // the hook picks up the new calibration immediately rather than waiting
-    // for the next 5-minute interval.
-    const onUpdated = () => void load();
-    window.addEventListener("calibration-updated", onUpdated);
-
     return () => {
       cancelled = true;
       if (timerRef.current) clearInterval(timerRef.current);
-      window.removeEventListener("calibration-updated", onUpdated);
     };
-  }, [camera]);
+  }, [applyCalibration, camera]);
 
-  return calibration;
+  return { calibration, applyCalibration };
 }
