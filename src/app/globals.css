@@ -62,27 +62,32 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
 .realtime-pause-modal__btn:hover { border-color: var(--ink); color: var(--ink); }
 .realtime-pause-modal__btn--continue { border-color: var(--mint); background: rgba(148,214,181,.15); color: var(--mint); }
 .realtime-pause-modal__btn--continue:hover { background: rgba(148,214,181,.25); }
-/* First-visit instructions. The header lead groups the wordmark with its info
+/* Onboarding sequence. The header lead groups the wordmark with its info
    icon so the icon rides beside the section label instead of being pushed to
    the far edge by the header's space-between. */
 .site-header__lead { display: inline-flex; align-items: center; }
 /* Matches `.wordmark b` so this pipe reads as the same separator as the one
    before the section label, rather than the header's smaller base type. */
-.realtime-intro-sep { color: var(--muted); font-size: 1rem; font-weight: 400; margin-inline: .35em; }
-.realtime-intro-button { display: inline-flex; align-items: center; justify-content: center; padding: 2px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.realtime-intro-button:hover, .realtime-intro-button:focus-visible { color: var(--mint); }
-.realtime-intro-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
-/* Sized by its own copy — the widest body line plus the 48px side padding is
-   the 464px card in the design. Focus lands on the card, not the button, so
-   arriving at the modal does not light up a focus ring; hence `outline: none`
-   here and a real ring on the button for anyone who tabs to it. */
-.realtime-intro-modal { position: absolute; z-index: 7; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; width: max-content; max-width: calc(100% - 48px); flex-direction: column; align-items: flex-start; gap: 20px; padding: 40px 48px; border-radius: 4px; outline: none; background: rgba(15,15,20,.95); text-align: left; }
-.realtime-intro-modal__title { margin: 0; font: 700 1rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #e8e8ea; letter-spacing: .25em; text-transform: uppercase; }
-.realtime-intro-modal__body { margin: 0; font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #9a9aa6; }
-.realtime-intro-modal__btn { margin-top: 4px; padding: 9px 18px; border: 1px solid #5a5a66; border-radius: 2px; background: transparent; color: #9a9aa6; font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
-.realtime-intro-modal__btn:hover { border-color: var(--ink); color: var(--ink); }
-.realtime-intro-modal__btn:focus-visible { outline: 1px solid var(--mint); outline-offset: 2px; border-color: var(--mint); color: var(--mint); }
-@media (max-width: 740px) { .realtime-intro-modal { gap: 14px; padding: 28px; }.realtime-intro-modal__title { font-size: .8125rem; letter-spacing: .18em; }.realtime-intro-modal__body { font-size: .6875rem; } }
+.realtime-onboarding-sep { color: var(--muted); font-size: 1rem; font-weight: 400; margin-inline: .35em; }
+.realtime-onboarding-button { display: inline-flex; align-items: center; justify-content: center; padding: 2px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.realtime-onboarding-button:hover, .realtime-onboarding-button:focus-visible { color: var(--mint); }
+.realtime-onboarding-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
+/* Left-aligned copy over the dimmed viewport — not a centered card. The
+   design places the block a fixed inset from the viewport's left edge,
+   vertically centered. Focus lands on the panel, not the button, so arriving
+   at a step does not light up a focus ring; hence `outline: none` here and a
+   real ring on the button for anyone who tabs to it. */
+.realtime-onboarding-panel { position: absolute; z-index: 7; top: 50%; left: clamp(24px, 5.1%, 48px); transform: translateY(-50%); display: flex; max-width: min(100% - 48px, 540px); flex-direction: column; align-items: flex-start; gap: 20px; outline: none; text-align: left; }
+.realtime-onboarding__title { margin: 0; font: 700 1rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #e8e8ea; letter-spacing: .25em; text-transform: uppercase; }
+.realtime-onboarding__body { margin: 0; font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #9a9aa6; }
+.realtime-onboarding__value { font-weight: 700; }
+.realtime-onboarding__value--good { color: var(--mint); }
+.realtime-onboarding__value--fair { color: #e5b233; }
+.realtime-onboarding__value--bad { color: #cc4d4d; }
+.realtime-onboarding__btn { margin-top: 4px; padding: 9px 18px; border: 1px solid #5a5a66; border-radius: 2px; background: transparent; color: #9a9aa6; font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
+.realtime-onboarding__btn:hover { border-color: var(--ink); color: var(--ink); }
+.realtime-onboarding__btn:focus-visible { outline: 1px solid var(--mint); outline-offset: 2px; border-color: var(--mint); color: var(--mint); }
+@media (max-width: 740px) { .realtime-onboarding-panel { gap: 14px; }.realtime-onboarding__title { font-size: .8125rem; letter-spacing: .18em; }.realtime-onboarding__body { font-size: .6875rem; } }
 
 /* Feed-unavailable overlay */
 .realtime-unavailable-overlay { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border-radius: 4px; overflow: hidden; pointer-events: none; }

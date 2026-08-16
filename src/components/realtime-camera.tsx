@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RealtimeDebug } from "@/components/realtime-debug";
 import { RealtimeInference, type InferenceStatus } from "@/components/realtime-inference";
-import { RealtimeIntroModal, useSetIntroBlocked } from "@/components/realtime-intro";
+import {
+  RealtimeOnboardingOverlay,
+  useReportPredictions,
+  useSetOnboardingBlocked,
+} from "@/components/realtime-onboarding";
 import type { LiveCameraRecord } from "@/data/cameras";
 import { useCalibration } from "@/lib/use-calibration";
 import type { FrameSize } from "@/lib/realtime-calibration";
@@ -56,18 +60,24 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const [inferenceClosed, setInferenceClosed] = useState(false);
   const inferenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { calibration, applyCalibration } = useCalibration(camera);
-  const setIntroBlocked = useSetIntroBlocked();
+  const setOnboardingBlocked = useSetOnboardingBlocked();
+  const reportPredictions = useReportPredictions();
 
-  // The pause modal owns the viewport for as long as it is up: the instructions
-  // are neither shown over it nor summonable from the header icon. Every path
+  // The pause modal owns the viewport for as long as it is up: the onboarding
+  // is neither shown over it nor summonable from the header icon. Every path
   // that shows or hides it goes through here so the two cannot drift apart.
   const setPauseModal = useCallback((next: boolean) => {
     setShowPauseModal(next);
-    setIntroBlocked(next);
-  }, [setIntroBlocked]);
+    setOnboardingBlocked(next);
+  }, [setOnboardingBlocked]);
 
   const reportFrameSize = useCallback((size: FrameSize) => setFrameSize(size), []);
-  const reportDetectionPoints = useCallback((points: [number, number][]) => setDetectionPoints(points), []);
+  // Every prediction frame lands here, so this doubles as the "the app is
+  // receiving predictions" signal that dismisses the onboarding overlay.
+  const reportDetectionPoints = useCallback((points: [number, number][]) => {
+    reportPredictions();
+    setDetectionPoints(points);
+  }, [reportPredictions]);
 
   const restart = useCallback(() => {
     setCameraStatus("reconnecting");
@@ -346,7 +356,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             {audioEnabled ? "SOUND ON" : "SOUND OFF"}
           </button>
         </div>
-        <RealtimeIntroModal />
+        <RealtimeOnboardingOverlay calibration={calibration} />
         {showPauseModal && (
           <>
             <div className="realtime-pause-scrim" />
