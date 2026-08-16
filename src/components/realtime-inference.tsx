@@ -11,6 +11,14 @@ import {
 } from "@/lib/realtime-detections";
 import { scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
 import { stripeKey } from "@/lib/realtime-scale";
+import {
+  createStartupTimingRecorder,
+  emitPerformanceMeasures,
+  logStartupSummary,
+  type SessionType,
+  type StartupSummary,
+  type StartupTimingRecorder,
+} from "@/lib/startup-timing";
 
 export type InferenceStatus = "waiting" | "starting" | "active" | "reconnecting" | "unavailable";
 
@@ -27,6 +35,12 @@ type RealtimeInferenceProps = {
   onDetectionPoints: (points: [number, number][]) => void;
   onFrameSize: (size: FrameSize) => void;
   onStatusChange: (status: InferenceStatus, statusMessage?: string) => void;
+  /** Called once per attempt with the final startup summary. */
+  onStartupSummary: (summary: StartupSummary) => void;
+  /** The session type for this connection attempt (initial, retry, etc.). */
+  sessionType: SessionType;
+  /** Timestamp from performance.now() when the page component mounted. */
+  pageMountedAt: number;
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
   /** Live calibration for client-side inside/outside classification. */
   calibration: ClientCalibration;
@@ -149,6 +163,9 @@ export function RealtimeInference({
   onDetectionPoints,
   onFrameSize,
   onStatusChange,
+  onStartupSummary,
+  pageMountedAt,
+  sessionType,
   sourceVideoRef,
   stripes: liveStripes,
 }: RealtimeInferenceProps) {
@@ -167,6 +184,7 @@ export function RealtimeInference({
   const lastDataAtRef = useRef<number>(0);
   const stallTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const STALL_TIMEOUT_MS = 15_000;
+  const firstPredictionMarkedRef = useRef(false);
   // onData is created once per WebRTC connection and would otherwise capture
   // whatever calibration existed at that moment — which is the baked-in
   // reference, since the stream connects before the calibration fetch
@@ -221,6 +239,15 @@ export function RealtimeInference({
       const sourceVideo = sourceVideoRef.current as CapturableVideo | null;
       if (!sourceVideo || abortController.signal.aborted) return;
       clearOccupancy();
+      firstPredictionMarkedRef.current = false;
+
+      const timing = createStartupTimingRecorder({
+        sessionType: retryCount > 0 ? "retry" : sessionType,
+        connectionKey,
+        retryCount,
+        pageMountedAt,
+      });
+      timing.mark("attempt_start");
 
       if (retryCount === 0) {
         setFrame(null);
@@ -238,13 +265,19 @@ export function RealtimeInference({
           signal: abortController.signal,
         });
         const configuration = await configResponse.json() as ConfigurationResponse;
+        timing.mark("config_loaded");
         if (!configuration.available) {
+          timing.fail();
+          const s = timing.summary();
+          logStartupSummary(s);
+          onStartupSummary(s);
           onStatusChange("unavailable");
           setMessage(configuration.message);
           return;
         }
 
         await waitForPlayableVideo(sourceVideo, abortController.signal);
+        timing.mark("video_playable");
         const captureStream = sourceVideo.captureStream ?? sourceVideo.mozCaptureStream;
         if (!captureStream) throw new Error("This browser cannot capture the HLS video stream");
         sourceStream = captureStream.call(sourceVideo);
@@ -269,6 +302,14 @@ export function RealtimeInference({
           wrtcParams: {},
           onData: (data) => {
             lastDataAtRef.current = performance.now();
+            if (!firstPredictionMarkedRef.current) {
+              firstPredictionMarkedRef.current = true;
+              timing.mark("first_predictions");
+              const s = { ...timing.summary(), outcome: "success" as const };
+              emitPerformanceMeasures(s);
+              logStartupSummary(s);
+              onStartupSummary(s);
+            }
             const output = data.serialized_output_data;
 
             // Client-side classification: read ALL detections and test each
@@ -336,6 +377,7 @@ export function RealtimeInference({
             activeStripesRef.current = new Set(occupied.map((stripe) => stripe.key));
           },
         });
+        timing.mark("gpu_ready");
         if (abortController.signal.aborted) {
           await connection.cleanup();
           return;
@@ -378,6 +420,9 @@ export function RealtimeInference({
         const isNonRetryable = /402|payment|quota|billing/i.test(errorMessage);
 
         if (isNonRetryable) {
+          timing.fail();
+          logStartupSummary(timing.summary());
+          onStartupSummary(timing.summary());
           onStatusChange("unavailable");
           setMessage("Roboflow GPU quota exceeded");
         } else if (retryCount < MAX_RETRIES) {
@@ -390,6 +435,9 @@ export function RealtimeInference({
             void attempt(retryCount + 1);
           }, delay);
         } else {
+          timing.fail();
+          logStartupSummary(timing.summary());
+          onStartupSummary(timing.summary());
           onStatusChange("unavailable");
           setMessage(errorMessage || "Realtime inference unavailable");
         }
@@ -407,7 +455,7 @@ export function RealtimeInference({
       else sourceStream?.getTracks().forEach((track) => track.stop());
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- startBeat/stopBeat only use stable refs
-  }, [audioContextRef, audioEnabledRef, connectionKey, onActive, onDetectionPoints, onFrameSize, onStatusChange, sourceVideoRef]);
+  }, [audioContextRef, audioEnabledRef, connectionKey, onActive, onDetectionPoints, onFrameSize, onStartupSummary, onStatusChange, pageMountedAt, sessionType, sourceVideoRef]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
