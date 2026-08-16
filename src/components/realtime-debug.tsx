@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { LiveCalibration } from "@/lib/use-calibration";
 import type { FrameSize, Stripe } from "@/lib/realtime-calibration";
 import { scalePolygon } from "@/lib/realtime-calibration";
+import type { StartupSummary } from "@/lib/startup-timing";
 
 type RealtimeDebugProps = {
   calibration: LiveCalibration;
@@ -24,6 +25,8 @@ type RealtimeDebugProps = {
   onRecalibrate: () => void;
   /** Whether a recalibration request is in flight. */
   recalibrating: boolean;
+  /** The latest startup timing summary, or null before the first attempt completes. */
+  startupSummary: StartupSummary | null;
   /** The viewport element the debug canvas should cover. */
   viewportRef: React.RefObject<HTMLDivElement | null>;
 };
@@ -40,7 +43,13 @@ type RealtimeDebugProps = {
  * operator tool, not part of the study — it lives here rather than in the
  * status bar, where it sat beside copy written for visitors.
  */
-export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onRecalibrate, recalibrating, viewportRef }: RealtimeDebugProps) {
+function formatMs(ms: number | null): string {
+  if (ms == null) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onRecalibrate, recalibrating, startupSummary, viewportRef }: RealtimeDebugProps) {
   const [open, setOpen] = useState(false);
   const [showPolygons, setShowPolygons] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -198,6 +207,31 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
           <dt>frame</dt>
           <dd>{frame ? `${frame.width}×${frame.height}` : "—"}</dd>
         </dl>
+        {startupSummary && (
+          <>
+            <div className="realtime-debug-header">
+              <span>STARTUP TIMING</span>
+            </div>
+            <dl className="realtime-debug-data">
+              <dt>outcome</dt>
+              <dd className={startupSummary.outcome === "success" ? "realtime-debug-live" : ""}>{startupSummary.outcome}</dd>
+              <dt>type</dt>
+              <dd>{startupSummary.sessionType}</dd>
+              <dt>key / retry</dt>
+              <dd>{startupSummary.connectionKey} / {startupSummary.retryCount}</dd>
+              <dt>reached</dt>
+              <dd>{startupSummary.reachedStage}</dd>
+              <dt>→ GPU ready</dt>
+              <dd>{formatMs(startupSummary.timeToGpuReady)}</dd>
+              <dt>→ predictions</dt>
+              <dd>{formatMs(startupSummary.timeToPredictions)}</dd>
+              <dt>prediction lag</dt>
+              <dd>{formatMs(startupSummary.predictionLag)}</dd>
+              <dt>perceived</dt>
+              <dd>{formatMs(startupSummary.perceivedLatency)}</dd>
+            </dl>
+          </>
+        )}
         <div className="realtime-debug-actions">
           <button
             type="button"

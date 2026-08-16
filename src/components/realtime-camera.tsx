@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { RealtimeDebug } from "@/components/realtime-debug";
 import { RealtimeInference, type InferenceStatus } from "@/components/realtime-inference";
+import type { SessionType, StartupSummary } from "@/lib/startup-timing";
 import {
   RealtimeOnboardingOverlay,
   useReportPredictions,
@@ -59,9 +60,13 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [inferenceClosed, setInferenceClosed] = useState(false);
   const inferenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pageMountedAt] = useState(() => performance.now());
+  const [startupSummary, setStartupSummary] = useState<StartupSummary | null>(null);
+  const [sessionType, setSessionType] = useState<SessionType>("initial");
   const { calibration, applyCalibration } = useCalibration(camera);
   const setOnboardingBlocked = useSetOnboardingBlocked();
   const reportPredictions = useReportPredictions();
+  const reportStartupSummary = useCallback((summary: StartupSummary) => setStartupSummary(summary), []);
 
   // The pause modal owns the viewport for as long as it is up: the onboarding
   // is neither shown over it nor summonable from the header icon. Every path
@@ -132,6 +137,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const handlePauseContinue = useCallback(() => {
     setPauseModal(false);
     setInferenceTimedOut(false);
+    setSessionType("pause-continue");
     // Restart inference by bumping the connection key.
     setConnectionKey((key) => key + 1);
     // The timer restarts in handleInferenceActive when the new connection goes active.
@@ -332,7 +338,10 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             onActive={handleInferenceActive}
             onDetectionPoints={reportDetectionPoints}
             onFrameSize={reportFrameSize}
+            onStartupSummary={reportStartupSummary}
             onStatusChange={reportInferenceStatus}
+            pageMountedAt={pageMountedAt}
+            sessionType={sessionType}
             sourceVideoRef={videoRef}
             stripes={calibration.stripes}
           />
@@ -380,6 +389,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
           onClearUnavailable={() => setForcedUnavailable(false)}
           onForceUnavailable={() => setForcedUnavailable(true)}
           onForcePause={() => {
+            setSessionType("pause-continue");
             if (inferenceTimerRef.current) { clearTimeout(inferenceTimerRef.current); inferenceTimerRef.current = null; }
             setInferenceTimedOut(true);
             setPauseModal(true);
@@ -387,6 +397,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
           }}
           onRecalibrate={() => void handleRecalibrate()}
           recalibrating={recalibrating}
+          startupSummary={startupSummary}
           viewportRef={viewportRef}
         />
       </div>
