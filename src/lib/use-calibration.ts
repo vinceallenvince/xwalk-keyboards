@@ -32,6 +32,8 @@ type CalibrationResponse = {
   status: CalibrationStatus;
   reasoning?: string;
   updatedAt?: string;
+  /** The raw agent response uses createdAt; the GCS publish rewrites it as updatedAt. */
+  createdAt?: string;
   /** The frame the agent measured this calibration's polygons in. */
   referenceFrame?: { width: number; height: number };
   // The agent's newer schema publishes boundaries keyed by segment name; the
@@ -199,7 +201,7 @@ export function useCalibration(camera: LiveCameraRecord): {
       boundaries,
       referenceFrame: data.referenceFrame ?? cam.calibration.referenceFrame,
       stripes,
-      updatedAt: data.updatedAt ?? null,
+      updatedAt: data.updatedAt ?? data.createdAt ?? null,
       source: "live",
     });
   }, []);
