@@ -88,6 +88,7 @@ epics:
           - { node: "353-123", shot: null }                                   # step 2: conditions BAD (red, caveat)
           - { node: "357-41", shot: "realtime-onboarding-conditions-unknown" } # step 2: conditions unavailable (no readout line)
           - { node: "354-160", shot: "realtime-onboarding-warming-up" }       # step 3: warming up, no dismissal control
+          - { node: "367-41", shot: null }                                    # step 3 variant: GPU active, awaiting first predictions — needs a real session
           - { node: "355-197", shot: null }                                   # overlay removed on first predictions
 
       # The info icon appears only after first predictions, which need a real

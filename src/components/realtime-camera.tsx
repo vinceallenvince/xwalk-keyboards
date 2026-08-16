@@ -356,7 +356,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             {audioEnabled ? "SOUND ON" : "SOUND OFF"}
           </button>
         </div>
-        <RealtimeOnboardingOverlay calibration={calibration} />
+        <RealtimeOnboardingOverlay calibration={calibration} keyboardReady={inferenceStatus === "active"} />
         {showPauseModal && (
           <>
             <div className="realtime-pause-scrim" />

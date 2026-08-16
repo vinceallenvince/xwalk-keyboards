@@ -59,6 +59,34 @@ export function nextStep(
   return null;
 }
 
+export type WarmingUpCopy = {
+  title: string;
+  /** Paragraphs, each an array of lines rendered with breaks between them. */
+  paragraphs: string[][];
+};
+
+/**
+ * Copy for the warming-up step. Once the GPU session is active the status bar
+ * reads "KEYBOARD READY!", and the base "warming up" copy would contradict it
+ * — the app is only waiting on the first predictions. The variant reframes
+ * that remaining wait as fine tuning so the overlay and status bar agree.
+ */
+export function warmingUpCopy(keyboardReady: boolean): WarmingUpCopy {
+  if (keyboardReady) {
+    return {
+      title: "KEYBOARD WARMED AND READY!",
+      paragraphs: [["Just a few seconds for fine tuning..."]],
+    };
+  }
+  return {
+    title: "WARMING UP ...",
+    paragraphs: [
+      ["XWalk Keyboards take a few seconds to a minute", "to warm up and get started."],
+      ["Meanwhile, check that your speakers are on!"],
+    ],
+  };
+}
+
 /** Whether `?onboarding=off` in the given query string skips the sequence. */
 export function isOnboardingDisabled(search: string): boolean {
   try {

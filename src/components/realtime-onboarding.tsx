@@ -16,6 +16,7 @@ import {
   forcedConditionsLevel,
   isOnboardingDisabled,
   nextStep,
+  warmingUpCopy,
   type OnboardingStep,
 } from "@/lib/realtime-onboarding";
 import type { LiveCalibration } from "@/lib/use-calibration";
@@ -233,25 +234,36 @@ function ConditionsContent({ calibration }: { calibration: LiveCalibration }) {
   );
 }
 
-function WarmingUpContent() {
+function WarmingUpContent({ keyboardReady }: { keyboardReady: boolean }) {
+  const copy = warmingUpCopy(keyboardReady);
   return (
     <>
       <p id={TITLE_ID} className="realtime-onboarding__title">
-        WARMING UP ...
+        {copy.title}
       </p>
-      <p className="realtime-onboarding__body">
-        XWalk Keyboards take a few seconds to a minute
-        <br />
-        to warm up and get started.
-      </p>
-      <p className="realtime-onboarding__body">
-        Meanwhile, check that your speakers are on!
-      </p>
+      {copy.paragraphs.map((lines) => (
+        <p key={lines[0]} className="realtime-onboarding__body">
+          {lines.map((line, index) => (
+            <span key={line}>
+              {index > 0 && <br />}
+              {line}
+            </span>
+          ))}
+        </p>
+      ))}
     </>
   );
 }
 
-export function RealtimeOnboardingOverlay({ calibration }: { calibration: LiveCalibration }) {
+export function RealtimeOnboardingOverlay({
+  calibration,
+  keyboardReady,
+}: {
+  calibration: LiveCalibration;
+  /** True once the GPU session is active — the status bar reads "KEYBOARD
+   * READY!", so the warming-up step must stop claiming it is warming up. */
+  keyboardReady: boolean;
+}) {
   const { step, infoOpen, blocked, advance, closeInfo } = useOnboarding();
   const panelRef = useRef<HTMLDivElement | null>(null);
   const openerRef = useRef<Element | null>(null);
@@ -332,7 +344,7 @@ export function RealtimeOnboardingOverlay({ calibration }: { calibration: LiveCa
       >
         {(mode === "info" || mode === "how-to-hear") && <HowToHearContent />}
         {mode === "conditions" && <ConditionsContent calibration={calibration} />}
-        {mode === "warming-up" && <WarmingUpContent />}
+        {mode === "warming-up" && <WarmingUpContent keyboardReady={keyboardReady} />}
         {mode === "info" ? (
           <button type="button" className="realtime-onboarding__btn" onClick={closeInfo}>
             CLOSE
