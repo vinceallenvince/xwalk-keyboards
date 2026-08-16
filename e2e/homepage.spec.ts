@@ -74,10 +74,12 @@ test.describe("Homepage", () => {
     // Sequence is deliberately not yet a live study from the homepage: no
     // link role, no rollover highlight, and clicking it must not navigate.
     await expect(page.getByRole("link", { name: "SEQUENCE" })).toHaveCount(0);
-    const sequence = page.getByText("SEQUENCE", { exact: true });
-    await expect(sequence).toBeVisible();
-    const sequenceContainer = page.locator("[aria-disabled='true']");
-    await expect(sequenceContainer).toHaveAttribute("aria-disabled", "true");
+    // The label nests its "[ In progress ]" status inside the same span, so
+    // the span's exact text is "SEQUENCE[ In progress ]" — locate the disabled
+    // span and assert the label and status within it.
+    const sequenceContainer = page.locator(".study-selector [aria-disabled='true']");
+    await expect(sequenceContainer).toBeVisible();
+    await expect(sequenceContainer).toContainText("SEQUENCE");
     await expect(page.locator(".study-selector__status")).toContainText("In progress");
     await sequenceContainer.hover();
     await expect(sequenceContainer).toHaveCSS("color", "rgba(255, 255, 255, 0.31)");
