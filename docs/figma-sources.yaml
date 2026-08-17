@@ -99,28 +99,39 @@ epics:
           - { node: "361-2", shot: null } # step 1 reopened alone with CLOSE control
 
       # Reaching "KEYBOARD READY!" needs a real Roboflow WebRTC GPU session,
-      # which cannot be stood up deterministically in Layer 1.
+      # which cannot be stood up deterministically in Layer 1. Both frames
+      # still carry the pre-rename "STATUS: ROBOFLOW ACTIVE" and "W23 ST"
+      # status copy — the runtime says "STATUS: KEYBOARD READY!" / "W34 ST".
       - story: "As a visitor, I can experience the fully active Realtime study"
-        scenario: "57-259"
+        scenario: "106-7"
         ui:
-          - { node: "57-80", shot: null }  # camera and inference active
+          - { node: "57-80", shot: null }   # camera and inference active
+          - { node: "140-2", shot: null }   # performing: occupied stripes highlighted
 
-      # The Figma section currently repeats the preceding story name, but its
-      # scenario copy and UI frame describe the fullscreen interaction. The
-      # frame itself is an empty placeholder with no authored content.
+      # Connection-loss states need a live session to fail mid-run — no
+      # deterministic Layer 1 shots. Frames still carry the pre-rename
+      # "ROBOFLOW ACTIVE" / "ROBOFLOW RECONNECTING" status copy.
+      - story: "As a visitor, I can understand and recover from a Realtime connection loss"
+        scenario: "138-1258"
+        ui:
+          - { node: "149-2", shot: null }   # camera lost, keyboard still active
+          - { node: "149-34", shot: null }  # camera live, keyboard reconnecting
+
       - story: "As a visitor, if the video feed is unavailable, I see a confirmation message"
-        scenario: "283-2"
+        scenario: "283-3"
         ui:
           - { node: "285-2", shot: null }  # feed down overlay
 
       - story: "As a visitor, after five minutes I am asked whether to continue"
-        scenario: "293-37"
+        scenario: "293-38"
         ui:
           - { node: "295-41", shot: null }  # five-minute pause modal
           - { node: "295-88", shot: null }  # inference closed / reload to continue
 
+      # The fullscreen UI frame is an empty placeholder with no authored
+      # content.
       - story: "As a visitor, I can view the live Realtime study full screen"
-        scenario: "57-302"
+        scenario: "106-8"
         ui:
           - { node: "57-127", shot: null } # edge-to-edge live feed
 
