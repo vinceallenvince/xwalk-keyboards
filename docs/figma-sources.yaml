@@ -16,6 +16,14 @@
 # The current Homepage Figma story combines the initial hero and selector
 # interactions in one section. Its UI frames retain the initial state, neutral
 # selector state, and the two hover-preview states in reading order.
+#
+# Mobile: a story whose mobile (@mobile) behaviour diverges from desktop carries a
+# parallel `ui_mobile:` list of the same { node, shot } shape, captured at the
+# mobile viewport. Mobile screenshots live under a `mobile/` subdir —
+# runtime/e2e/__screens__/<epic_dir>/mobile/<shot>.png — so a mobile entry may
+# reuse a desktop shot stem. Desktop-only stories simply omit `ui_mobile`. Mobile
+# Figma frames are authored after the desktop ones, so `node: null` marks a mobile
+# entry whose frame does not exist yet (its `shot` stem is still reserved).
 
 file_key: VgqJ1zX1eByz9c8Ui8otpY
 project_name: XWALK KEYBOARDS
@@ -32,38 +40,12 @@ epics:
           - { node: "3-6", shot: "homepage-initial" }                     # homepage initial hero
           - { node: "69-354", shot: "homepage-scrolled-inactive" }        # scrolled selector: both options inactive
           - { node: "10-5", shot: "homepage-scrolled-realtime" }          # scrolled selector: Realtime hover preview
-          # Orchestration is deliberately disabled on the homepage (no link,
-          # no rollover) — this frame's hover-preview state has no live
-          # equivalent to capture; shot stays null until that changes.
-          - { node: "69-327", shot: null }                                # scrolled selector: Orchestration hover preview
-
-  - epic: "Orchestration Study"
-    page: "73-976"
-    epic_dir: "orchestration-study"
-    stories:
-      - story: "As a visitor, I can see the complete orchestration grid while it prepares to perform"
-        scenario: "106-2"
-        ui:
-          - { node: "89-5", shot: null }   # initial image queues loading
-          - { node: "89-251", shot: null } # queues ready to perform
-
-      - story: "As a visitor, I can experience one camera as the active performer"
-        scenario: "104-1006"
-        ui:
-          - { node: "110-2", shot: null } # Camera 01 active
-          - { node: "112-2", shot: null } # Camera 02 active
-
-      # The hero-event UI is presently authored within the preparation section
-      # in Figma, without a dedicated `scenario` frame for this story.
-      - story: "As a visitor, I can experience conductor-selected visual emphasis"
-        scenario: null
-        ui:
-          - { node: "204-2", shot: null } # hero presentation over the grid
-
-      - story: "As a visitor, I can view the Orchestration performance full screen"
-        scenario: "116-1123"
-        ui:
-          - { node: "117-2", shot: null } # fullscreen 3 × 4 grid
+          - { node: "69-327", shot: null }                                # scrolled selector: Sequence hover preview
+        ui_mobile:
+          - { node: "372-29", shot: null }                                # homepage initial hero
+          - { node: "384-2", shot: null }                                 # scrolled selector: both options inactive
+          - { node: "384-30", shot: null }                                # scrolled selector: Realtime hover preview
+          - { node: "384-58", shot: null }                                # scrolled selector: Sequence hover preview
 
   - epic: "Realtime Study"
     page: "57-23"
@@ -90,6 +72,15 @@ epics:
           - { node: "354-160", shot: "realtime-onboarding-warming-up" }       # step 3: warming up, no dismissal control
           - { node: "367-41", shot: null }                                    # step 3 variant: GPU active, awaiting first predictions — needs a real session
           - { node: "355-197", shot: null }                                   # overlay removed on first predictions
+        ui_mobile:
+          - { node: "386-84", shot: null }                                    # step 1: how to hear
+          - { node: "399-2", shot: null }                                     # step 2: conditions GOOD
+          - { node: "399-36", shot: null }                                    # step 2: conditions FAIR
+          - { node: "399-70", shot: null }                                    # step 2: conditions BAD
+          - { node: "399-104", shot: null }                                   # step 2: conditions unavailable
+          - { node: "399-138", shot: null }                                   # step 3: warming up
+          - { node: "399-172", shot: null }                                   # step 3 variant: GPU active, awaiting first predictions
+          - { node: "399-206", shot: null }                                   # overlay removed on first predictions
 
       # The info icon appears only after first predictions, which need a real
       # GPU session — no deterministic Layer 1 shot.
@@ -97,6 +88,8 @@ epics:
         scenario: null
         ui:
           - { node: "361-2", shot: null } # step 1 reopened alone with CLOSE control
+        ui_mobile:
+          - { node: "399-240", shot: null } # step 1 reopened alone with CLOSE control
 
       # Reaching "KEYBOARD READY!" needs a real Roboflow WebRTC GPU session,
       # which cannot be stood up deterministically in Layer 1. Both frames
@@ -107,6 +100,8 @@ epics:
         ui:
           - { node: "57-80", shot: null }   # camera and inference active
           - { node: "140-2", shot: null }   # performing: occupied stripes highlighted
+        ui_mobile:
+          - { node: "386-159", shot: null }  # performing: occupied stripes highlighted
 
       # Connection-loss states need a live session to fail mid-run — no
       # deterministic Layer 1 shots. Frames still carry the pre-rename
@@ -116,17 +111,25 @@ epics:
         ui:
           - { node: "149-2", shot: null }   # camera lost, keyboard still active
           - { node: "149-34", shot: null }  # camera live, keyboard reconnecting
+        ui_mobile:
+          - { node: "386-194", shot: null }  # camera lost, keyboard still active
+          - { node: "386-297", shot: null }  # camera live, keyboard reconnecting
 
       - story: "As a visitor, if the video feed is unavailable, I see a confirmation message"
         scenario: "283-3"
         ui:
           - { node: "285-2", shot: null }  # feed down overlay
+        ui_mobile:
+          - { node: "386-124", shot: null }  # feed down overlay
 
       - story: "As a visitor, after five minutes I am asked whether to continue"
         scenario: "293-38"
         ui:
           - { node: "295-41", shot: null }  # five-minute pause modal
           - { node: "295-88", shot: null }  # inference closed / reload to continue
+        ui_mobile:
+          - { node: "386-331", shot: null }  # five-minute pause modal
+          - { node: "386-401", shot: null }  # inference closed / reload to continue
 
       # The fullscreen UI frame is an empty placeholder with no authored
       # content.
@@ -134,6 +137,8 @@ epics:
         scenario: "106-8"
         ui:
           - { node: "57-127", shot: null } # edge-to-edge live feed
+        ui_mobile:
+          - { node: "386-366", shot: null } # edge-to-edge live feed
 
   - epic: "About"
     page: "322-10"
@@ -144,6 +149,9 @@ epics:
         ui:
           - { node: "322-14", shot: null }    # about page while camera is connecting
           - { node: "332-83", shot: null }    # about page with live camera feed background
+        ui_mobile:
+          - { node: "386-36", shot: null }    # about page while camera is connecting
+          - { node: "388-13", shot: null }    # about page with live camera feed background
 
   - epic: "Camera Registry"
     page: "72-382"
@@ -153,3 +161,5 @@ epics:
         scenario: "73-696"
         ui:
           - { node: "73-723", shot: "camera-registry" } # priority/fallback grids and live-feed column
+        ui_mobile:
+          - { node: "386-64", shot: null }              # priority/fallback grids and live-feed column
