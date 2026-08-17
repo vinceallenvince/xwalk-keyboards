@@ -141,7 +141,7 @@ GPU, model, or inference technology. The conditions step derives its readout
 from the calibration agent's current status, so the sequence tells the truth
 about the instrument before asking the visitor to wait on it. Advancing the
 sequence counts as a user gesture for the browser's audio-activation
-requirement; the app still enables sound automatically when the keyboard
+requirement; the app enables sound automatically when the keyboard
 becomes ready.
 
 ```gherkin
@@ -528,4 +528,96 @@ And an unavailable camera uses its returned unavailable-image state rather than 
 And the page does not invoke Roboflow inference for these registry snapshots
 And the page shows a vertical list of live video feeds in a right column
 And each live-feed entry remains independently visible so the team can compare its current stream state
+```
+
+## Developer tools
+
+### As an operator, I can inspect calibration and inference state from the debug panel
+
+The Realtime study includes a debug panel toggled by Ctrl+Shift+D. It is
+invisible in normal use and does not affect the visitor experience. The
+panel shows live calibration data and provides operator actions for
+diagnosing drift, testing failure states, and triggering manual
+recalibration.
+
+```gherkin
+Given I am viewing the Realtime study
+When I press Ctrl+Shift+D
+Then a debug panel appears over the viewport
+And the panel header reads "CALIBRATION DEBUG"
+And the panel displays the calibration source (live or reference)
+And the panel displays the calibration status, reasoning, updatedAt, and stripe count
+And the panel displays the crosswalk boundary point counts per segment
+And the panel displays the current video frame dimensions
+And a RENDER POLYGONS button toggles an overlay of all stripe outlines and boundary quads over the feed
+And a FORCE UNAVAILABLE button puts the camera into the unavailable state for testing
+And a FORCE PAUSE MODAL button triggers the five-minute inference pause modal
+And a RECALIBRATE button captures the current frame and runs the calibration agent against it
+And the RECALIBRATE button shows "CALIBRATING..." while the request is in flight
+
+When I press Ctrl+Shift+D again
+Then the debug panel closes
+And the polygon overlay is retained independently if it was toggled on
+```
+
+### As an operator, I can review GPU startup timing from the debug panel
+
+The debug panel includes a STARTUP TIMING section that shows the latency
+breakdown for the most recent Roboflow GPU connection attempt. This data
+helps diagnose whether slow startups are caused by config loading, HLS
+playback, GPU provisioning, or the gap between GPU ready and first
+predictions.
+
+```gherkin
+Given the debug panel is open
+And a GPU startup attempt has completed (success or failure)
+Then a "STARTUP TIMING" section appears in the debug panel
+And it displays the attempt outcome (success, failed, or in-progress)
+And it displays the session type (initial, retry, stall-reconnect, or pause-continue)
+And it displays the connection key and retry count
+And it displays which milestone the attempt reached
+And it displays time to GPU ready as a human-readable duration
+And it displays time to predictions as a human-readable duration
+And it displays the prediction lag (GPU ready to first predictions)
+And it displays the perceived latency (page mount to first predictions)
+And durations that were not reached display "—"
+```
+
+### As an operator, I can observe GPU startup timing in the browser console
+
+Each startup attempt emits one structured log line to the browser console
+when it terminates — either on first predictions or on a terminal failure.
+The line is namespaced `[xwalk]` and includes the outcome, session type,
+retry count, reached stage, and all available durations. No log line is
+emitted per frame.
+
+```gherkin
+Given I am viewing the Realtime study with the browser console open
+When the GPU startup attempt receives its first prediction data
+Then the console shows one "[xwalk] startup:" info line
+And the line includes outcome=success and the derived durations in milliseconds
+And no additional startup log lines are emitted on subsequent prediction frames
+
+Given the GPU startup attempt fails terminally (quota exhausted or retries exhausted)
+Then the console shows one "[xwalk] startup:" info line with outcome=failed
+And the line includes the reached stage indicating where the attempt died
+```
+
+### GPU startup timing is reported server-side for aggregation
+
+Each startup attempt beacons its timing summary to the server via
+`sendBeacon` so latency data can be aggregated across all visitors.
+The beacon fires at the same points as the console log — once per
+attempt, never per frame.
+
+```gherkin
+Given the GPU startup attempt completes (success or failure)
+Then a sendBeacon POST is sent to /api/telemetry/startup
+And the payload is the StartupSummary JSON (durations, statuses, counts only — no PII)
+And the server validates the payload schema and writes a structured JSON log line to stdout
+And Cloud Logging receives the log entry for dashboarding
+
+Given sendBeacon is unavailable or the POST fails
+Then the failure is silently ignored
+And the study continues normally
 ```
