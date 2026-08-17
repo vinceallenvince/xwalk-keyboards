@@ -137,8 +137,23 @@ export function emitPerformanceMeasures(s: StartupSummary): void {
 }
 
 /**
+ * Send the summary to the server-side telemetry route via `sendBeacon`.
+ * Fire-and-forget — no response is read, and failure is silently ignored.
+ * `sendBeacon` is preferred over `fetch` because it survives page unloads
+ * and does not block the UI thread.
+ */
+export function beaconStartupSummary(s: StartupSummary): void {
+  if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") return;
+  try {
+    const blob = new Blob([JSON.stringify(s)], { type: "application/json" });
+    navigator.sendBeacon("/api/telemetry/startup", blob);
+  } catch { /* sendBeacon can throw on large payloads; ignore */ }
+}
+
+/**
  * One structured console.info line. Called once per attempt — either on
- * success (first predictions) or terminal failure.
+ * success (first predictions) or terminal failure. Also fires the
+ * server-side beacon so all call sites get aggregation for free.
  */
 export function logStartupSummary(s: StartupSummary): void {
   const parts: string[] = [
@@ -155,4 +170,5 @@ export function logStartupSummary(s: StartupSummary): void {
   if (s.perceivedLatency != null) parts.push(`perceived=${s.perceivedLatency}ms`);
 
   console.info(`[xwalk] startup: ${parts.join(" ")}`, s);
+  beaconStartupSummary(s);
 }
