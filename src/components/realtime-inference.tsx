@@ -59,7 +59,70 @@ type ConfigurationResponse =
 type CapturableVideo = HTMLVideoElement & {
   captureStream?: () => MediaStream;
   mozCaptureStream?: () => MediaStream;
+  requestVideoFrameCallback?: (cb: () => void) => number;
+  cancelVideoFrameCallback?: (id: number) => void;
 };
+
+type CanvasCapture = {
+  stream: MediaStream;
+  stop: () => void;
+};
+
+/**
+ * iOS WebKit does not implement HTMLVideoElement.captureStream(), but it DOES
+ * support HTMLCanvasElement.captureStream(). This helper draws video frames to
+ * an offscreen canvas using requestVideoFrameCallback (Safari 15.4+) and
+ * returns the canvas's capture stream — a drop-in replacement for the native
+ * video.captureStream() that Roboflow's WebRTC pipeline expects.
+ *
+ * The canvas is sized to the video's native dimensions so the downstream
+ * stripe-overlay math stays intact.
+ */
+function createCanvasCapture(video: CapturableVideo, signal: AbortSignal): CanvasCapture {
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d")!;
+
+  let stopped = false;
+  let rafId: number | undefined;
+
+  const pump = () => {
+    if (stopped || signal.aborted) return;
+    // Keep canvas sized to the video in case dimensions change mid-stream.
+    if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+    if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if (video.requestVideoFrameCallback) {
+      video.requestVideoFrameCallback(pump);
+    } else {
+      // Fallback for browsers without requestVideoFrameCallback — very
+      // unlikely on modern Safari, but keeps the path safe.
+      rafId = requestAnimationFrame(pump);
+    }
+  };
+
+  // Kick off the first frame.
+  if (video.requestVideoFrameCallback) {
+    video.requestVideoFrameCallback(pump);
+  } else {
+    rafId = requestAnimationFrame(pump);
+  }
+
+  // Let the canvas capture at the display refresh rate. Each pump() call
+  // draws a new frame, and the stream picks it up on its next capture cycle.
+  const stream = canvas.captureStream();
+
+  return {
+    stream,
+    stop: () => {
+      stopped = true;
+      if (rafId !== undefined) cancelAnimationFrame(rafId);
+      stream.getTracks().forEach((t) => t.stop());
+    },
+  };
+}
 
 function waitForPlayableVideo(video: HTMLVideoElement, signal: AbortSignal) {
   if (!video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
@@ -229,6 +292,7 @@ export function RealtimeInference({
   useEffect(() => {
     const abortController = new AbortController();
     let sourceStream: MediaStream | null = null;
+    let canvasCapture: CanvasCapture | null = null;
     let connection: Awaited<ReturnType<typeof import("@roboflow/inference-sdk").webrtc.useStream>> | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -278,9 +342,19 @@ export function RealtimeInference({
 
         await waitForPlayableVideo(sourceVideo, abortController.signal);
         timing.mark("video_playable");
-        const captureStream = sourceVideo.captureStream ?? sourceVideo.mozCaptureStream;
-        if (!captureStream) throw new Error("This browser cannot capture the HLS video stream");
-        sourceStream = captureStream.call(sourceVideo);
+
+        // Prefer the native zero-copy path (Chrome/Edge), fall back to a
+        // canvas pump on WebKit (iOS Safari/Chrome) where video.captureStream
+        // is not implemented.
+        const nativeCaptureStream = sourceVideo.captureStream ?? sourceVideo.mozCaptureStream;
+        if (nativeCaptureStream) {
+          sourceStream = nativeCaptureStream.call(sourceVideo);
+        } else if (sourceVideo.videoWidth > 0) {
+          canvasCapture = createCanvasCapture(sourceVideo, abortController.signal);
+          sourceStream = canvasCapture.stream;
+        } else {
+          throw new Error("This browser cannot capture the HLS video stream");
+        }
         const sourceTrack = sourceStream.getVideoTracks()[0];
         if (!sourceTrack) throw new Error("The HLS video did not provide a video track");
         const settings = sourceTrack.getSettings();
@@ -397,6 +471,7 @@ export function RealtimeInference({
             // Force cleanup and retry by throwing into the catch block's
             // retry path. We do this by cleaning up and re-entering attempt().
             if (connection) { void connection.cleanup(); connection = null; }
+            if (canvasCapture) { canvasCapture.stop(); canvasCapture = null; }
             if (sourceStream) { sourceStream.getTracks().forEach((track) => track.stop()); sourceStream = null; }
             clearOccupancy();
             stopBeat();
@@ -412,6 +487,7 @@ export function RealtimeInference({
         // Clean up the failed connection before retrying.
         if (connection) { void connection.cleanup(); connection = null; }
         else sourceStream?.getTracks().forEach((track) => track.stop());
+        if (canvasCapture) { canvasCapture.stop(); canvasCapture = null; }
         sourceStream = null;
 
         // Non-retryable errors: stop immediately instead of burning through
@@ -453,6 +529,7 @@ export function RealtimeInference({
       stopBeat();
       if (connection) void connection.cleanup();
       else sourceStream?.getTracks().forEach((track) => track.stop());
+      if (canvasCapture) canvasCapture.stop();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- startBeat/stopBeat only use stable refs
   }, [audioContextRef, audioEnabledRef, connectionKey, onActive, onDetectionPoints, onFrameSize, onStartupSummary, onStatusChange, pageMountedAt, sessionType, sourceVideoRef]);
