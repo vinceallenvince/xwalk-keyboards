@@ -211,7 +211,7 @@ function ConditionsContent({ calibration }: { calibration: LiveCalibration }) {
       </p>
       <p className="realtime-onboarding__body">
         Keyboard detection works best when the camera has
-        <br />a clear view of the crosswalk.
+        a clear view of the crosswalk.
       </p>
       {/* No reading is reported rather than a made-up one: the readout line
           only renders when the calibration agent has actually spoken. */}
@@ -226,7 +226,6 @@ function ConditionsContent({ calibration }: { calibration: LiveCalibration }) {
       {level !== "good" && (
         <p className="realtime-onboarding__body">
           Bad weather, shadows or obstructions may affect
-          <br />
           your keyboard&apos;s performance.
         </p>
       )}
