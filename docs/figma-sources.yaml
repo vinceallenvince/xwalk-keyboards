@@ -131,14 +131,13 @@ epics:
           - { node: "386-331", shot: null }  # five-minute pause modal
           - { node: "386-401", shot: null }  # inference closed / reload to continue
 
-      # The fullscreen UI frame is an empty placeholder with no authored
-      # content.
       - story: "As a visitor, I can view the live Realtime study full screen"
         scenario: "106-8"
         ui:
           - { node: "57-127", shot: null } # edge-to-edge live feed
         ui_mobile:
-          - { node: "386-366", shot: null } # edge-to-edge live feed
+          - { node: "386-366", shot: null } # landscape: edge-to-edge live feed
+          - { node: "418-507", shot: null } # portrait: feed centered, rotate-for-best-experience hint
 
   - epic: "About"
     page: "322-10"

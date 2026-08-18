@@ -55,6 +55,10 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const [inferenceStatus, setInferenceStatus] = useState<InferenceStatus>("waiting");
   const [inferenceMessage, setInferenceMessage] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const pseudoFullscreenRef = useRef(false);
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
+  const [showRotateHint, setShowRotateHint] = useState(false);
+  const rotateHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [frameSize, setFrameSize] = useState<FrameSize | null>(null);
   const [detectionPoints, setDetectionPoints] = useState<[number, number][]>([]);
   const [forcedUnavailable, setForcedUnavailable] = useState(false);
@@ -167,6 +171,8 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     void audioContextRef.current?.close();
     audioContextRef.current = null;
     if (inferenceTimerRef.current) clearTimeout(inferenceTimerRef.current);
+    if (rotateHintTimerRef.current) clearTimeout(rotateHintTimerRef.current);
+    if (pseudoFullscreenRef.current) document.documentElement.style.overflow = '';
   }, []);
 
   // Pre-create the AudioContext on the first user gesture so that it is
@@ -272,19 +278,85 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   }, [connectionKey, restart, streamUrl]);
 
   useEffect(() => {
-    const updateFullscreenState = () => setIsFullscreen(document.fullscreenElement === viewportRef.current);
+    const updateFullscreenState = () => {
+      // Don't let native fullscreen events override pseudo-fullscreen state.
+      if (!pseudoFullscreenRef.current) {
+        setIsFullscreen(document.fullscreenElement === viewportRef.current);
+      }
+    };
     document.addEventListener("fullscreenchange", updateFullscreenState);
     return () => document.removeEventListener("fullscreenchange", updateFullscreenState);
   }, []);
 
+  const exitPseudoFullscreen = useCallback(() => {
+    if (!pseudoFullscreenRef.current) return;
+    pseudoFullscreenRef.current = false;
+    setIsPseudoFullscreen(false);
+    setIsFullscreen(false);
+    setShowRotateHint(false);
+    if (rotateHintTimerRef.current) {
+      clearTimeout(rotateHintTimerRef.current);
+      rotateHintTimerRef.current = null;
+    }
+    document.documentElement.style.overflow = '';
+  }, []);
+
   const toggleFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await viewportRef.current?.requestFullscreen();
-    } catch {
-      // Fullscreen is an enhancement; no camera or inference state changes if it is unavailable.
+    if (isFullscreen) {
+      if (pseudoFullscreenRef.current) exitPseudoFullscreen();
+      else { try { await document.exitFullscreen(); } catch { /* native exit unsupported */ } }
+      return;
+    }
+
+    // Try native fullscreen first.
+    if (document.fullscreenEnabled) {
+      try {
+        await viewportRef.current?.requestFullscreen();
+        return;
+      } catch { /* not supported for this element — fall through */ }
+    }
+
+    // Pseudo-fullscreen fallback (iOS Safari / Chrome).
+    pseudoFullscreenRef.current = true;
+    setIsPseudoFullscreen(true);
+    setIsFullscreen(true);
+    document.documentElement.style.overflow = 'hidden';
+
+    if (window.matchMedia('(orientation: portrait)').matches) {
+      setShowRotateHint(true);
+      rotateHintTimerRef.current = setTimeout(() => {
+        setShowRotateHint(false);
+        rotateHintTimerRef.current = null;
+      }, 3_000);
     }
   };
+
+  // Dismiss the rotate hint early when the visitor rotates to landscape.
+  useEffect(() => {
+    if (!showRotateHint) return;
+    const mql = window.matchMedia('(orientation: landscape)');
+    const dismiss = () => {
+      if (mql.matches) {
+        setShowRotateHint(false);
+        if (rotateHintTimerRef.current) {
+          clearTimeout(rotateHintTimerRef.current);
+          rotateHintTimerRef.current = null;
+        }
+      }
+    };
+    mql.addEventListener('change', dismiss);
+    return () => mql.removeEventListener('change', dismiss);
+  }, [showRotateHint]);
+
+  // Let Escape exit pseudo-fullscreen (keyboard or external keyboard on iPad).
+  useEffect(() => {
+    if (!isFullscreen || !pseudoFullscreenRef.current) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') exitPseudoFullscreen();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isFullscreen, exitPseudoFullscreen]);
 
   const effectiveCamera = forcedUnavailable ? "unavailable" as CameraStatus : cameraStatus;
   const isLive = effectiveCamera === "live";
@@ -387,7 +459,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
            : inferenceMessage ?? inferenceLabels[inferenceStatus]}
         </span>
       </div>
-      <div ref={viewportRef} className="realtime-viewport">
+      <div ref={viewportRef} className={`realtime-viewport${isPseudoFullscreen ? ' realtime-viewport--pseudo-fullscreen' : ''}`}>
         <video ref={videoRef} autoPlay muted playsInline crossOrigin="anonymous" />
         {effectiveCamera === "unavailable" && (
           <div className="realtime-unavailable-overlay">
@@ -417,6 +489,31 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
           />
         )}
         {renderControls("overlay")}
+        {isPseudoFullscreen && !showPauseModal && (
+          <div
+            className="realtime-fullscreen-exit-layer"
+            onClick={() => void toggleFullscreen()}
+            role="button"
+            aria-label="Exit fullscreen"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void toggleFullscreen(); }}
+          >
+            {showRotateHint && (
+              <div className="realtime-rotate-hint">
+                <svg className="realtime-rotate-hint__icon" width="36" height="44" viewBox="0 0 36 44" fill="none" aria-hidden="true">
+                  <g transform="rotate(-25 18 22)">
+                    <rect x="8" y="6" width="20" height="32" rx="3" stroke="var(--mint)" strokeWidth="1.5" />
+                    <line x1="15" y1="33" x2="21" y2="33" stroke="var(--mint)" strokeWidth="1.5" strokeLinecap="round" />
+                  </g>
+                  <path d="M30 12c3 3 3 8 0 12" stroke="var(--mint)" strokeWidth="1.25" fill="none" strokeLinecap="round" />
+                  <path d="M29 22l1 3 2.5-1.5" stroke="var(--mint)" strokeWidth="1.25" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p className="realtime-rotate-hint__text">ROTATE FOR BEST EXPERIENCE</p>
+              </div>
+            )}
+            <p className="realtime-fullscreen-banner">TAP ANYWHERE TO EXIT FULLSCREEN</p>
+          </div>
+        )}
         <RealtimeOnboardingOverlay calibration={calibration} keyboardReady={inferenceStatus === "active"} />
         {showPauseModal && (
           <>
