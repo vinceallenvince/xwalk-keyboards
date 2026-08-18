@@ -71,20 +71,17 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
   .snapshot-telemetry { display: none; }
   .live-column { order: -1; grid-template-columns: 1fr; padding: 0 0 20px; border-top: 0; border-bottom: 1px solid var(--line); }
 }
-/* Inference pause modal */
+/* Inference pause modal — left-aligned overlay on the dimmed feed, matching
+   the onboarding-panel pattern (not a centered card). */
 .realtime-inference-status--paused { color: #e5b233; }
 .realtime-pause-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
-/* `width: max-content` keeps the card as wide as its longest authored line, so
-   the subtitle breaks only where its `<br>` says to — shrink-to-fit alone
-   under-measures the hard-broken paragraph and strands a word on a third line.
-   The max-width clamp lets it wrap normally once the viewport is narrower. */
-.realtime-pause-modal { position: absolute; z-index: 7; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: flex-start; gap: 20px; width: max-content; max-width: calc(100% - 32px); padding: 40px 48px; border: 1px solid #40404d; border-radius: 4px; background: rgba(15,15,20,.95); text-align: left; }
-.realtime-pause-modal__title { margin: 0; font: 700 1rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #d9d9d9; letter-spacing: .25em; text-transform: uppercase; }
-.realtime-pause-modal__subtitle { margin: 0; font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #8c8c99; }
+.realtime-pause-modal { position: absolute; z-index: 7; top: 50%; left: clamp(24px, 5.1%, 48px); transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: min(100% - 48px, 540px); text-align: left; }
+.realtime-pause-modal__title { margin: 0; font: 700 .875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; letter-spacing: .05em; text-transform: uppercase; }
+.realtime-pause-modal__subtitle { margin: 0; font: 400 .75rem/20px var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(255,255,255,.6); }
 .realtime-pause-modal__buttons { display: flex; gap: 16px; }
-.realtime-pause-modal__btn { padding: 8px 20px; border: 1px solid #666673; border-radius: 2px; background: transparent; color: #8c8c99; font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
+.realtime-pause-modal__btn { padding: 8px 20px; border: 1px solid rgba(255,255,255,.2); background: transparent; color: rgba(255,255,255,.6); font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
 .realtime-pause-modal__btn:hover { border-color: var(--ink); color: var(--ink); }
-.realtime-pause-modal__btn--continue { border-color: var(--mint); background: rgba(148,214,181,.15); color: var(--mint); }
+.realtime-pause-modal__btn--continue { border-color: rgba(148,214,181,.3); background: rgba(148,214,181,.15); color: var(--mint); }
 .realtime-pause-modal__btn--continue:hover { background: rgba(148,214,181,.25); }
 /* Onboarding sequence. The header lead groups the wordmark with its info
    icon so the icon rides beside the section label instead of being pushed to
@@ -162,7 +159,7 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
   .realtime-controls--overlay { display: none; }
   .realtime-viewport:fullscreen .realtime-controls--overlay { display: flex; }
   .realtime-controls--docked { display: flex; }
-  .realtime-pause-modal { top: 50%; left: 16px; transform: translateY(-50%); width: auto; max-width: calc(100% - 32px); padding: 0; border: 0; background: transparent; gap: 12px; }
+  .realtime-pause-modal { left: 16px; max-width: calc(100% - 32px); }
   .realtime-pause-modal__title { font-size: .8125rem; letter-spacing: .18em; }
   .realtime-pause-modal__subtitle { font-size: .6875rem; }
   .realtime-pause-modal__subtitle br { display: none; }
