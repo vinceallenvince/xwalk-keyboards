@@ -305,10 +305,14 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   // and `display: none` keeps the hidden copy out of the accessibility tree.
   const renderControls = (variant: "overlay" | "docked") => (
     <div className={`realtime-controls realtime-controls--${variant}${isLive ? "" : " realtime-controls--idle"}`}>
+      {/* Follows the sound button's gate: inert until the keyboard is ready.
+          `isFullscreen` keeps EXIT FULLSCREEN usable if inference drops or
+          pauses while the viewport is already fullscreened. */}
       <button
         type="button"
-        className={`realtime-control realtime-fullscreen-button${isLive ? " realtime-fullscreen-button--ready" : ""}`}
+        className={`realtime-control realtime-fullscreen-button${soundReady ? " realtime-fullscreen-button--ready" : ""}`}
         onClick={() => void toggleFullscreen()}
+        disabled={!soundReady && !isFullscreen}
       >
         {isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}
       </button>
