@@ -11,7 +11,7 @@ production app is implemented.
 | Project ID | `xwalk-keyboards-01` |
 | Primary runtime | Cloud Run |
 | Agent runtime | Cloud Run with Google ADK and Vertex AI / Gemini |
-| Default region | `us-central1` *(confirm before first deployment)* |
+| Default region | `us-central1` |
 
 The hackathon eligibility gate requires the **agent** to be deployed on Google
 Cloud Run. We will deploy both the web app and the score agent there.
@@ -41,11 +41,17 @@ the production deployment must use `xwalk-keyboards-01`.
   - Vertex AI API
 - [ ] Create least-privilege runtime service accounts for the web app and
   score agent.
-- [ ] Create a separate build/deployment identity with only the roles needed
-  to build and deploy Cloud Run services.
+- [x] Create a separate build/deployment identity with only the roles needed
+  to build and deploy Cloud Run services (`github-deploy@xwalk-keyboards-01.iam.gserviceaccount.com`,
+  impersonated by GitHub Actions through Workload Identity Federation — see
+  `.github/workflows/deploy.yml` for the one-time setup commands).
 - [ ] Configure Secret Manager values.
 
 ## Local gcloud setup
+
+Routine web-app deploys no longer touch local gcloud — they run in GitHub
+Actions (see below). This setup is still needed for IAM changes, Secret
+Manager operations, and local ADK/Vertex AI work.
 
 From each repository, verify the active account and set the project explicitly:
 
@@ -121,20 +127,44 @@ CROSSWALK_AGENT_URL
 CROSSWALK_AGENT_API_KEY
 ```
 
-After deployment, record the Cloud Run URL here:
+These live in the Cloud Run service configuration (Secret Manager bindings and
+env vars). The CI deploy passes no env or secret flags, so the existing service
+configuration carries forward on every revision; change bindings in the service
+configuration, not in the deploy pipeline.
 
 ```text
 Web app URL: https://xwalk-keyboards-21826886868.us-central1.run.app
 ```
 
+## How the web app deploys (GitHub Actions)
+
+Since 2026-08-17 the web app deploys automatically. **Merging a PR to `main`
+is a production deployment.** The pipeline is `.github/workflows/deploy.yml`:
+
+| Step | Detail |
+| --- | --- |
+| Trigger | Every push to `main` (i.e. every merged PR) |
+| Serialization | `deploy-production` concurrency group — deploys queue, never overlap |
+| Auth | Workload Identity Federation; impersonates `github-deploy@xwalk-keyboards-01.iam.gserviceaccount.com` (repo secrets `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`) |
+| Build + deploy | `google-github-actions/deploy-cloudrun@v2`, source deploy of service `xwalk-keyboards` in `us-central1` |
+| Smoke test | `/`, `/realtime`, `/realtime/5056`, `/about`, `/camera-registry` must all return < 400 or the run fails |
+
+The one-time GCP setup (service account, roles, identity pool/provider) is
+documented as commands in the workflow file's header comment.
+
+**Manual `gcloud run deploy` is deprecated** for the web app. Use it only as a
+break-glass path when Actions itself is down, and confirm the active account
+and project first. To verify or roll back a release, use the Actions run
+history and Cloud Run revision list instead.
+
 ## Deployment order
 
-1. Deploy and verify `crosswalk-score-agent`.
-2. Set `CROSSWALK_AGENT_URL` in the web-app service configuration to that
-   deployed URL.
-3. Deploy `xwalk-keyboards` with its server-only secrets and Roboflow workflow
-   bindings.
-4. Open the public web URL and run the smoke tests below.
+1. `xwalk-keyboards` deploys itself: merge to `main`, watch the Actions run,
+   then spot-check the production URL (the route-level smoke test has already
+   run in CI).
+2. When `crosswalk-score-agent` is eventually deployed to this project, deploy
+   and verify it first, then set `CROSSWALK_AGENT_URL` in the web-app service
+   configuration; the next merge to `main` picks it up.
 
 ## Post-deployment smoke test
 
@@ -147,19 +177,24 @@ Web app URL: https://xwalk-keyboards-21826886868.us-central1.run.app
 
 ### Web app
 
+CI already verifies the five routes return non-error statuses on every deploy.
+For a functional pass after notable releases:
+
 - Homepage loads with its live camera background.
 - Realtime video starts independently from Roboflow inference.
 - Realtime camera and inference recovery states work independently.
-- Orchestration shows its initial grid, fills queues, and begins a scored
-  60-second loop only when a complete batch is ready.
-- A known unavailable static camera is replaced by an available fallback
-  without changing the grid slot or breaking the loop.
 - The Camera Registry loads snapshots without invoking Roboflow.
-- Leaving either study stops its audio and background work.
+- Leaving the study stops its audio and background work.
+- Mobile layouts render per the `ui_mobile` Figma frames (spot-check the
+  homepage and Realtime on a phone-sized viewport).
 
-## Deployment record
+## Deployment record (retired)
 
-Add an entry for every production deployment:
+This table recorded the manual-deploy era and is retired as of 2026-08-17 —
+GitHub Actions now deploys every merge to `main`, so the Actions run history
+and the Cloud Run revision list are the deployment record. The first CI deploy
+was the responsive mobile layouts (PR #19, commit `76f40ee`, 2026-08-17),
+manually verified on a mobile device in production. Historical entries:
 
 | Date | Service | Revision | URL | Deployed by | Notes |
 | --- | --- | --- | --- | --- | --- |
