@@ -548,10 +548,17 @@ export function RealtimeInference({
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       context.clearRect(0, 0, bounds.width, bounds.height);
 
+      // The video element uses object-fit: contain normally and object-fit:
+      // cover in pseudo-fullscreen.  The overlay must match the same mapping so
+      // stripe polygons land on top of the actual crosswalk.  Contain scales the
+      // video to fit inside the viewport (positive offsets = letterbox).  Cover
+      // scales the video to fill the viewport (negative offsets = crop).
+      const useCover = canvas.closest(".realtime-viewport--pseudo-fullscreen") !== null;
       const sourceAspect = frame.width / frame.height;
       const viewportAspect = bounds.width / bounds.height;
-      const contentWidth = sourceAspect > viewportAspect ? bounds.width : bounds.height * sourceAspect;
-      const contentHeight = sourceAspect > viewportAspect ? bounds.width / sourceAspect : bounds.height;
+      const wider = sourceAspect > viewportAspect;
+      const contentWidth  = (wider === useCover) ? bounds.height * sourceAspect : bounds.width;
+      const contentHeight = (wider === useCover) ? bounds.height : bounds.width / sourceAspect;
       const offsetX = (bounds.width - contentWidth) / 2;
       const offsetY = (bounds.height - contentHeight) / 2;
       const scaleX = contentWidth / frame.width;
