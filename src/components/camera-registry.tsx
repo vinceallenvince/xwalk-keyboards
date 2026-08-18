@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { CameraRecord } from "@/data/cameras";
+import { RegistryLivePreview } from "./registry-live-preview";
 
 type SnapshotState = {
   imageSource?: string;
@@ -122,7 +123,7 @@ export function CameraRegistry({ fallbackCameras, priorityCameras }: {
       <aside className="live-column" aria-labelledby="live-feeds">
         <h2 id="live-feeds"><span className="live-indicator" aria-hidden="true" />Live feeds</h2>
         <article className="live-feed-card">
-          <div className="live-preview"><span>VIEW 5056</span><small>PLAYBACK DEFERRED</small></div>
+          <RegistryLivePreview />
           <p>Feed 01 // West St @ W34</p>
           <a href="https://511ny.org/map/Cctv/5056" target="_blank" rel="noreferrer">OPEN 511NY ↗</a>
         </article>
