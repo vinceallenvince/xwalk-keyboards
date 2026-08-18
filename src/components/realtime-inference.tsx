@@ -233,6 +233,7 @@ export function RealtimeInference({
   stripes: liveStripes,
 }: RealtimeInferenceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const glowCanvasRef = useRef<HTMLCanvasElement | null>(null);
   // Keyed by stripe, not by note: two stripes can play the same pitch once a
   // crosswalk reads long enough to overlap the other's range, and they must
   // still light and retrigger independently.
@@ -574,29 +575,66 @@ export function RealtimeInference({
         ctx.closePath();
       };
 
-      // Glow is built from three blur passes at increasing radii, drawn
-      // lightest-and-widest first so the layers composite additively. The
-      // `filter` property applies a true gaussian blur to the fill itself,
-      // not just a shadow behind it, which is what makes the edges soft.
-      const glowLayers: Array<{ blur: number; fill: string }> = [
-        { blur: 20, fill: "rgba(148, 215, 181, 0.15)" },  // wide halo
-        { blur: 10, fill: "rgba(148, 215, 181, 0.25)" },  // medium bloom
-        { blur: 3,  fill: "rgba(148, 215, 181, 0.45)" },  // tight core
-      ];
+      // Glow is built from three shadow passes at increasing radii, drawn
+      // lightest-and-widest first so the layers composite additively.
+      //
+      // Each layer is rendered on an offscreen canvas at 1:1 CSS-pixel
+      // resolution (no DPR scaling) using the shadow-offset trick: the
+      // fill itself is translated far off-canvas so only its shadow is
+      // visible at the original position.  This avoids two cross-browser
+      // issues with the previous ctx.filter approach:
+      //   1. Safari/WebKit ignores ctx.filter or applies blur in canvas-
+      //      pixel space after setTransform, producing hard edges on 2×/3×
+      //      mobile displays.
+      //   2. shadowBlur is universally supported and operates in the
+      //      offscreen canvas's native pixel space, which equals CSS
+      //      pixels here — consistent across all DPR values.
+      // The offscreen result is composited onto the main DPR-scaled canvas
+      // via drawImage, which handles the upscale.
+      const offW = Math.ceil(bounds.width);
+      const offH = Math.ceil(bounds.height);
+      let offscreen = glowCanvasRef.current;
+      if (!offscreen || offscreen.width !== offW || offscreen.height !== offH) {
+        offscreen = document.createElement("canvas");
+        offscreen.width = offW;
+        offscreen.height = offH;
+        glowCanvasRef.current = offscreen;
+      }
+      const offCtx = offscreen.getContext("2d");
 
-      for (const stripe of liveStripes) {
-        if (!occupiedKeys.has(stripeKey(stripe.segment, stripe.stripeIndex))) continue;
-        const points = scalePolygon(stripe.polygon, calibration.referenceFrame, frame);
-        if (points.length < 3) continue;
+      if (offCtx) {
+        offCtx.clearRect(0, 0, offW, offH);
+        const SHADOW_OFFSET = 10_000;
 
-        for (const layer of glowLayers) {
-          context.save();
-          context.filter = `blur(${layer.blur * scaleX}px)`;
-          tracePath(context, points);
-          context.fillStyle = layer.fill;
-          context.fill();
-          context.restore();
+        const glowLayers: Array<{ blur: number; fill: string }> = [
+          { blur: 20, fill: "rgba(148, 215, 181, 0.15)" },  // wide halo
+          { blur: 10, fill: "rgba(148, 215, 181, 0.25)" },  // medium bloom
+          { blur: 3,  fill: "rgba(148, 215, 181, 0.45)" },  // tight core
+        ];
+
+        for (const stripe of liveStripes) {
+          if (!occupiedKeys.has(stripeKey(stripe.segment, stripe.stripeIndex))) continue;
+          const points = scalePolygon(stripe.polygon, calibration.referenceFrame, frame);
+          if (points.length < 3) continue;
+
+          for (const layer of glowLayers) {
+            offCtx.save();
+            offCtx.shadowColor = layer.fill;
+            offCtx.shadowBlur = layer.blur * scaleX;
+            offCtx.shadowOffsetX = SHADOW_OFFSET;
+            offCtx.shadowOffsetY = SHADOW_OFFSET;
+            offCtx.translate(-SHADOW_OFFSET, -SHADOW_OFFSET);
+            tracePath(offCtx, points);
+            // Full-opacity fill so shadow alpha comes from shadowColor alone;
+            // the fill itself is 10 000 px off-canvas and invisible.
+            offCtx.fillStyle = "rgba(148, 215, 181, 1)";
+            offCtx.fill();
+            offCtx.restore();
+          }
         }
+
+        // Composite the 1:1 glow layer onto the DPR-scaled main canvas.
+        context.drawImage(offscreen, 0, 0);
       }
     };
     draw();
