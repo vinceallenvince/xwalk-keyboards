@@ -18,12 +18,14 @@ type CameraStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
 const INFERENCE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-const cameraLabels = (statusLabel: string): Record<CameraStatus, string> => ({
-  connecting: `CONNECTING // ${statusLabel}`,
-  live: `FEED LIVE // ${statusLabel}`,
-  reconnecting: `FEED RECONNECTING // ${statusLabel}`,
-  unavailable: `FEED DOWN // ${statusLabel}`,
-});
+// The location suffix is a separate span so the mobile layout can drop it —
+// "FEED LIVE" and the STATUS line share one row on small screens.
+const cameraLabels: Record<CameraStatus, string> = {
+  connecting: "CONNECTING",
+  live: "FEED LIVE",
+  reconnecting: "FEED RECONNECTING",
+  unavailable: "FEED DOWN",
+};
 
 // The two status lines speak from two points of view: the feed line is the
 // camera, this one is the instrument. A visitor cannot act on the name of the
@@ -296,12 +298,40 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     }
   }, [applyCalibration, camera.cameraId, recalibrating]);
 
+  // Rendered twice: an overlay copy inside the viewport (desktop, and any
+  // fullscreen session — the fullscreened element is the only thing painted,
+  // so EXIT FULLSCREEN must live inside it) and a docked copy below the
+  // viewport (mobile, per the ui_mobile frames). CSS shows exactly one copy,
+  // and `display: none` keeps the hidden copy out of the accessibility tree.
+  const renderControls = (variant: "overlay" | "docked") => (
+    <div className={`realtime-controls realtime-controls--${variant}${isLive ? "" : " realtime-controls--idle"}`}>
+      <button
+        type="button"
+        className={`realtime-control realtime-fullscreen-button${isLive ? " realtime-fullscreen-button--ready" : ""}`}
+        onClick={() => void toggleFullscreen()}
+      >
+        {isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}
+      </button>
+      <button
+        type="button"
+        className={`realtime-control realtime-sound-button${audioEnabled ? " realtime-sound-button--on" : ""}`}
+        onClick={toggleAudio}
+        disabled={!soundReady}
+        aria-pressed={audioEnabled}
+      >
+        <i aria-hidden="true" className="realtime-sound-button__dot" />
+        {audioEnabled ? "SOUND ON" : "SOUND OFF"}
+      </button>
+    </div>
+  );
+
   return (
     <section className="realtime-camera" aria-label="Realtime camera">
       <div className="realtime-statusbar">
         <span className={`realtime-feed-status realtime-feed-status--${effectiveCamera}`}>
           <i className={`status-dot status-dot--${effectiveCamera}`} />
-          {cameraLabels(camera.statusLabel)[effectiveCamera]}
+          {cameraLabels[effectiveCamera]}
+          <span className="realtime-feed-status__loc">{` // ${camera.statusLabel}`}</span>
         </span>
         <span className={`realtime-inference-status ${
           effectiveCamera === "unavailable" ? "realtime-inference-status--unavailable"
@@ -346,25 +376,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             stripes={calibration.stripes}
           />
         )}
-        <div className={`realtime-controls${isLive ? "" : " realtime-controls--idle"}`}>
-          <button
-            type="button"
-            className={`realtime-control realtime-fullscreen-button${isLive ? " realtime-fullscreen-button--ready" : ""}`}
-            onClick={() => void toggleFullscreen()}
-          >
-            {isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}
-          </button>
-          <button
-            type="button"
-            className={`realtime-control realtime-sound-button${audioEnabled ? " realtime-sound-button--on" : ""}`}
-            onClick={toggleAudio}
-            disabled={!soundReady}
-            aria-pressed={audioEnabled}
-          >
-            <i aria-hidden="true" className="realtime-sound-button__dot" />
-            {audioEnabled ? "SOUND ON" : "SOUND OFF"}
-          </button>
-        </div>
+        {renderControls("overlay")}
         <RealtimeOnboardingOverlay calibration={calibration} keyboardReady={inferenceStatus === "active"} />
         {showPauseModal && (
           <>
@@ -401,6 +413,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
           viewportRef={viewportRef}
         />
       </div>
+      {renderControls("docked")}
       {audioMessage && <p className="visually-hidden" aria-live="polite">{audioMessage}</p>}
     </section>
   );
