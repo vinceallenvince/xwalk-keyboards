@@ -106,6 +106,13 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
       setAudioEnabled(true);
       setAudioMessage(null);
     } catch {
+      // Close the failed context so a subsequent user-initiated tap creates
+      // a fresh one within its own gesture scope. Without this, Chrome and
+      // Brave on iOS leave a zombie AudioContext that can never be resumed.
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
       setAudioMessage("Browser audio could not start");
     }
   }, []);
@@ -120,8 +127,13 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     void (audioEnabledRef.current ? disableAudio() : enableAudio());
   }, [disableAudio, enableAudio]);
 
-  // Sound comes on by itself once inference is live. The visitor reached this
-  // route by clicking through, which satisfies the browser gesture requirement.
+  // Sound comes on by itself once inference is live. Safari uses sticky user
+  // activation, so AudioContext.resume() works from any context after the
+  // visitor has tapped. Chrome and Brave on iOS use WKWebView which requires
+  // transient activation — resume() must be inside a tap handler chain. The
+  // pre-create effect below bridges the gap by creating and resuming the
+  // AudioContext during the visitor's first tap (e.g. the onboarding NEXT
+  // button), so it is already running when this callback fires from WebRTC.
   const handleInferenceActive = useCallback(() => {
     if (!audioEnabledRef.current) void enableAudio();
     // Start the 5-minute usage timer when inference first goes active.
@@ -155,6 +167,33 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     void audioContextRef.current?.close();
     audioContextRef.current = null;
     if (inferenceTimerRef.current) clearTimeout(inferenceTimerRef.current);
+  }, []);
+
+  // Pre-create the AudioContext on the first user gesture so that it is
+  // already running when handleInferenceActive fires from a WebRTC callback.
+  // iOS Chrome and Brave (WKWebView) require AudioContext.resume() inside a
+  // transient user activation; Safari uses sticky activation. Eagerly creating
+  // and resuming during the visitor's first tap (the onboarding NEXT button)
+  // means both engines converge: by the time inference goes active, the
+  // context is already in "running" state and enableAudio() is a no-op resume.
+  useEffect(() => {
+    const preCreate = () => {
+      document.removeEventListener("click", preCreate);
+      document.removeEventListener("touchstart", preCreate);
+      if (!audioContextRef.current) {
+        try {
+          const ctx = new AudioContext();
+          audioContextRef.current = ctx;
+          void ctx.resume();
+        } catch { /* AudioContext unavailable in this environment */ }
+      }
+    };
+    document.addEventListener("click", preCreate);
+    document.addEventListener("touchstart", preCreate);
+    return () => {
+      document.removeEventListener("click", preCreate);
+      document.removeEventListener("touchstart", preCreate);
+    };
   }, []);
 
   useEffect(() => {
