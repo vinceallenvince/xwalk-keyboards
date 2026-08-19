@@ -183,8 +183,9 @@ Only after the Phase 1 archive shows the model is reliable across conditions
 ### Phase 3 — Refinements, if warranted
 
 - Geometric cross-check (above).
-- Extend to the twelve Orchestration snapshot cameras, which drift too. Design
-  the schema per-camera from day one so this is a no-op.
+- Extend to additional cameras if more studies come online (the Orchestration
+  study and its snapshot cameras were removed in 2026-08 — VIN-18/VIN-20).
+  The schema is per-camera from day one so this is a no-op.
 - Condition-aware cadence — check more often after detecting `slight` movement,
   back off when stable.
 
