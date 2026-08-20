@@ -18,6 +18,19 @@ describe("camera registry", () => {
     expect(liveCameraById(9999)).toBeUndefined();
   });
 
+  it("registers View 5072 as a live camera without dethroning the default", () => {
+    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5072]);
+    expect(liveCameraById(5072)).toMatchObject({
+      cameraId: 5072,
+      location: "West Street at Chambers St",
+      statusLabel: "WEST STREET @ CHAMBERS ST",
+    });
+    // 5072 ships with an empty reference on purpose: no keys until the
+    // calibration agent first publishes for it (VIN-39).
+    expect(liveCameraById(5072)?.calibration.stripes).toHaveLength(0);
+    expect(liveCameraById(5072)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
+  });
+
   it("equips every live camera to drive the realtime study on its own", () => {
     for (const camera of LIVE_CAMERAS) {
       expect(camera.hlsUrl).toMatch(/^https:/);
