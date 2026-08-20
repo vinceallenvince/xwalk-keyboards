@@ -104,6 +104,34 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     ],
     calibration: REALTIME_CALIBRATION,
   },
+  {
+    cameraId: 5072,
+    cameraKey: "camera_5072",
+    displayLabel: "Live Feed · View 5072",
+    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_279/playlist.m3u8",
+    location: "West Street at Chambers St",
+    role: "live",
+    // 511NY map site id (the /tooltip/Cameras/<id> key for this view).
+    sourceId: "927",
+    statusLabel: "WEST STREET @ CHAMBERS ST",
+    viewUrl: snapshotUrl(5072),
+    // Provisional: the calibration agent publishes left/right segment names
+    // for this camera too. Pitch anchors are finalized against the agent's
+    // first 5072 publish, which shows which stripes are actually visible
+    // (VIN-39) — the median trees may permanently hide some.
+    segmentAnchors: [
+      { segment: "left", anchor: "C4" },
+      { segment: "right", anchor: "F#5" },
+    ],
+    // No baked-in reference geometry: the keyboard has no keys until the
+    // agent's first publish (or the local fallback JSON) provides stripes.
+    // Video and inference run either way — silence here is honest, not broken.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
 ];
 
 export const DEFAULT_LIVE_CAMERA = LIVE_CAMERAS[0];
