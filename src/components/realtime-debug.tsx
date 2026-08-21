@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import type { LiveCalibration } from "@/lib/use-calibration";
 import type { FrameSize, Stripe } from "@/lib/realtime-calibration";
 import { scalePolygon } from "@/lib/realtime-calibration";
+import { compareSegments } from "@/lib/realtime-scale";
 import type { StartupSummary } from "@/lib/startup-timing";
 
 type RealtimeDebugProps = {
@@ -111,9 +112,13 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
       ctx.setLineDash([]);
     }
 
-    const colors: Record<string, string> = {
-      left: "rgba(148, 215, 181, 0.7)",
-      right: "rgba(181, 148, 215, 0.7)",
+    // Clusters are named by the agent and their count is not fixed, so colours
+    // are generated per cluster rather than mapped from a fixed vocabulary —
+    // otherwise every cluster past the first two renders the same grey.
+    const segmentNames = [...new Set(calibration.stripes.map((s) => s.segment))].sort(compareSegments);
+    const colorFor = (segment: string) => {
+      const index = segmentNames.indexOf(segment);
+      return `hsla(${(150 + index * 70) % 360}, 45%, 71%, 0.7)`;
     };
 
     for (const stripe of calibration.stripes) {
@@ -125,7 +130,7 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
       ctx.moveTo(offsetX + first[0] * scaleX, offsetY + first[1] * scaleY);
       for (const pt of rest) ctx.lineTo(offsetX + pt[0] * scaleX, offsetY + pt[1] * scaleY);
       ctx.closePath();
-      ctx.strokeStyle = colors[stripe.segment] ?? "rgba(255,255,255,0.5)";
+      ctx.strokeStyle = colorFor(stripe.segment);
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
@@ -179,6 +184,15 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
   const { stripes } = calibration;
   const visible = stripes.filter((s) => "visible" in s ? (s as Stripe & { visible?: boolean }).visible !== false : true);
 
+  // Stripe count per cluster, in the same positional order the keyboard is
+  // numbered in — so a cluster splitting mid-run is visible as it happens.
+  const clusterCounts = new Map<string, number>();
+  for (const stripe of stripes) clusterCounts.set(stripe.segment, (clusterCounts.get(stripe.segment) ?? 0) + 1);
+  const clusters = [...clusterCounts.entries()].sort(([a], [b]) => compareSegments(a, b));
+  // The agent stopped publishing boundaries; a hull with more points than the
+  // four a stripe-derived quad carries means this calibration predates that.
+  const publishedBoundaries = Object.values(calibration.boundaries).some((b) => b.length > 4);
+
   return (
     <>
       {showPolygons && <canvas ref={canvasRef} className="realtime-debug-canvas" aria-hidden="true" />}
@@ -198,10 +212,14 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
           <dd>{calibration.updatedAt ? new Date(calibration.updatedAt).toLocaleString() : "—"}</dd>
           <dt>stripes</dt>
           <dd>{visible.length} / {stripes.length}</dd>
+          <dt>clusters</dt>
+          <dd>{clusters.length ? clusters.map(([name, count]) => `${name}(${count})`).join(" ") : "—"}</dd>
+          <dt>keyboard</dt>
+          <dd>{stripes.length ? `${stripes[0].note} → ${stripes[stripes.length - 1].note}` : "—"}</dd>
           {Object.entries(calibration.boundaries).map(([segment, boundary]) => (
             <Fragment key={segment}>
-              <dt>{segment} boundary</dt>
-              <dd>{boundary.length} pts</dd>
+              <dt>{segment} hull</dt>
+              <dd>{boundary.length} pts{publishedBoundaries ? "" : " (synthesized)"}</dd>
             </Fragment>
           ))}
           <dt>frame</dt>

@@ -6,7 +6,7 @@ import {
   stripeForPoint,
 } from "./realtime-calibration";
 import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
-import { noteForSlot } from "./realtime-scale";
+import { noteForOrdinal } from "./realtime-scale";
 
 describe("View 5056 Realtime calibration", () => {
   it("is keyed to View 5056 and has an ordered, unique stripe keyboard", () => {
@@ -23,13 +23,14 @@ describe("View 5056 Realtime calibration", () => {
   });
 
   it("agrees with the generated scale on every stripe", () => {
-    // The reference's explicit notes and the anchor-derived scale must never
-    // diverge — live calibrations carry no notes, so noteForSlot is the only
+    // The reference's explicit notes and the generated scale must never
+    // diverge — live calibrations carry no notes, so the generator is the only
     // source of truth for them, and a stripe must sound the same whichever
-    // calibration source is active.
-    for (const stripe of REALTIME_CALIBRATION.stripes) {
-      expect(noteForSlot(DEFAULT_LIVE_CAMERA.segmentAnchors, stripe.segment, stripe.stripeIndex)).toBe(stripe.note);
-    }
+    // calibration source is active. The reference is stored in crossing order,
+    // so its position in the array is its global ordinal.
+    REALTIME_CALIBRATION.stripes.forEach((stripe, ordinal) => {
+      expect(noteForOrdinal(DEFAULT_LIVE_CAMERA.baseAnchor, ordinal)).toBe(stripe.note);
+    });
   });
 
   it("scales points and identifies a stripe at native-frame dimensions", () => {

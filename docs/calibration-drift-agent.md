@@ -40,6 +40,18 @@ truth forever. Detection notices.
 
 ## The one thing that must be protected: the musical contract
 
+> **Superseded (2026-08-21, VIN-44).** This section argued that stable stripe
+> identity was the property worth the most machinery, and it drove the
+> relocation-not-discovery design, the continuity layer, and the boundary
+> pipeline. That case lost. XWALK KEYBOARDS is an instrument, not a survey: a
+> pedestrian does not know the mapping, so a transposed keyboard is still a
+> keyboard. Stripe identity is now allowed to wobble, boundaries are no longer
+> detected or published, and the client numbers stripes globally from a single
+> per-camera anchor. What is preserved below is the reasoning, not the contract
+> — read it as the record of a decision that was reversed, and see
+> `architecture.md` for what the app actually does now.
+
+
 Realtime's calibration is not two polygons. It is 25 individually ordered
 stripes, each bound to a specific note from C4 to C6, split across two crosswalk
 segments with an unplayable median and seam ownership defined by midpoints

@@ -1,5 +1,4 @@
 import { REALTIME_CALIBRATION, type ReferenceCalibration } from "@/lib/realtime-calibration";
-import type { SegmentAnchor } from "@/lib/realtime-scale";
 
 export type CameraRole = "priority" | "fallback" | "live";
 
@@ -70,14 +69,21 @@ export const FALLBACK_CAMERAS = createStaticCameras(fallbackCameraSeeds, "fallba
 /**
  * A camera the Realtime study can play. On top of the registry record it
  * carries everything the study needs to be camera-agnostic: the upstream
- * stream URL, the status-bar label, the per-segment pitch anchors (which
- * double as the registry of renderable segments), and the baked-in reference
- * calibration used when the agent has never published for this camera.
+ * stream URL, the status-bar label, the pitch its keyboard starts from, and
+ * the baked-in reference calibration used when the agent has never published
+ * for this camera.
  */
 export type LiveCameraRecord = CameraRecord & {
   hlsUrl: string;
   statusLabel: string;
-  segmentAnchors: readonly SegmentAnchor[];
+  /**
+   * The note the crossing's first stripe plays. Every stripe after it climbs
+   * one semitone, counted across all clusters — so this single value tunes the
+   * whole instrument. There is deliberately no per-cluster anchor: the agent's
+   * cluster count is not fixed (a truck parked mid-crosswalk splits one run
+   * into two), so anything keyed to a specific cluster would be guessing.
+   */
+  baseAnchor: string;
   calibration: ReferenceCalibration;
 };
 
@@ -92,16 +98,11 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     sourceId: "16090",
     statusLabel: "WEST STREET @ W34 ST",
     viewUrl: snapshotUrl(5056),
-    // The right crosswalk begins a semitone above the left's original top note,
-    // so a pedestrian crossing both in sequence walks up one continuous
-    // chromatic run. Anchors are fixed rather than derived from a crosswalk's
-    // detected length on purpose: if the right anchor followed the left's
-    // stripe count, a van parked over the left crosswalk would transpose the
-    // right one between frames.
-    segmentAnchors: [
-      { segment: "left", anchor: "C4" },
-      { segment: "right", anchor: "F#5" },
-    ],
+    // On a complete read this reproduces the original hand-calibrated keyboard
+    // exactly — 18 left stripes C4-F5, then 7 right stripes F#5-C6 — because
+    // the two crosswalks were always one continuous chromatic run, and global
+    // numbering is just that run stated directly.
+    baseAnchor: "C4",
     calibration: REALTIME_CALIBRATION,
   },
   {
@@ -115,14 +116,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     sourceId: "927",
     statusLabel: "WEST STREET @ CHAMBERS ST",
     viewUrl: snapshotUrl(5072),
-    // Provisional: the calibration agent publishes left/right segment names
-    // for this camera too. Pitch anchors are finalized against the agent's
-    // first 5072 publish, which shows which stripes are actually visible
-    // (VIN-39) — the median trees may permanently hide some.
-    segmentAnchors: [
-      { segment: "left", anchor: "C4" },
-      { segment: "right", anchor: "F#5" },
-    ],
+    baseAnchor: "C4",
     // No baked-in reference geometry: the keyboard has no keys until the
     // agent's first publish (or the local fallback JSON) provides stripes.
     // Video and inference run either way — silence here is honest, not broken.

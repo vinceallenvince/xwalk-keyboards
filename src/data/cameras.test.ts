@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { midiForNote } from "@/lib/realtime-scale";
+
 import { DEFAULT_LIVE_CAMERA, FALLBACK_CAMERAS, LIVE_CAMERAS, liveCameraById, PRIORITY_CAMERAS } from "./cameras";
 
 describe("camera registry", () => {
@@ -35,12 +37,9 @@ describe("camera registry", () => {
     for (const camera of LIVE_CAMERAS) {
       expect(camera.hlsUrl).toMatch(/^https:/);
       expect(camera.statusLabel.length).toBeGreaterThan(0);
-      expect(camera.segmentAnchors.length).toBeGreaterThan(0);
+      expect(camera.baseAnchor).toBeTruthy();
+      expect(midiForNote(camera.baseAnchor)).not.toBeNull();
       expect(camera.calibration.referenceFrame.width).toBeGreaterThan(0);
-      // Every anchor'd segment name is unique — duplicate names would make
-      // anchor lookup ambiguous.
-      const names = camera.segmentAnchors.map((entry) => entry.segment);
-      expect(new Set(names).size).toBe(names.length);
     }
   });
 });

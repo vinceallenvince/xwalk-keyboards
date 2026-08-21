@@ -2,49 +2,46 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 import { REALTIME_CALIBRATION } from "./realtime-calibration";
-import { midiForNote, noteForSlot, stripeKey } from "./realtime-scale";
+import { compareSegments, keyboardSignature, midiForNote, noteForOrdinal, stripeKey } from "./realtime-scale";
 
 const NOTE_PATTERN = /^([A-G])([#b]?)(-?\d+)$/;
 
-// View 5056's anchors — the camera whose hand-authored scale the generator
-// must reproduce exactly.
-const ANCHORS = DEFAULT_LIVE_CAMERA.segmentAnchors;
+const BASE = DEFAULT_LIVE_CAMERA.baseAnchor;
 
 const REFERENCE_LEFT = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left");
 const REFERENCE_RIGHT = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right");
 
-describe("noteForSlot", () => {
+describe("noteForOrdinal", () => {
   it("reproduces the original hand-authored scale exactly", () => {
-    // The whole point of the anchors: nothing that already made a sound
-    // should start making a different one. The reference shares the agent's
-    // 0-based per-segment indexes, so this is a direct identity.
-    for (const stripe of [...REFERENCE_LEFT, ...REFERENCE_RIGHT]) {
-      expect(noteForSlot(ANCHORS, stripe.segment, stripe.stripeIndex)).toBe(stripe.note);
-    }
+    // The two crosswalks were always one continuous chromatic run — 18 left
+    // stripes C4-F5, then 7 right stripes F#5-C6 — so numbering the crossing
+    // globally is that run stated directly. Nothing that already made a sound
+    // starts making a different one on a complete read.
+    const crossing = [...REFERENCE_LEFT, ...REFERENCE_RIGHT];
+    crossing.forEach((stripe, ordinal) => {
+      expect(noteForOrdinal(BASE, ordinal)).toBe(stripe.note);
+    });
   });
 
   it("keeps climbing past the end of the old fixed scale", () => {
-    // The bug: right slots 7-10 all clamped to C6, so one pedestrian lit five
-    // stripes at once. They must now be distinct, ascending pitches.
-    const overflow = [7, 8, 9, 10].map((i) => noteForSlot(ANCHORS, "right", i));
+    // The bug this replaced: trailing slots all clamped to one pitch, so a
+    // single pedestrian lit five stripes at once.
+    const overflow = [25, 26, 27, 28].map((i) => noteForOrdinal(BASE, i));
 
     expect(overflow).toEqual(["C#6", "D6", "Eb6", "E6"]);
     expect(new Set(overflow).size).toBe(4);
   });
 
-  it("never repeats a pitch within a segment across any plausible crosswalk", () => {
-    // 30 slots is nearly triple what either crosswalk currently reads, and
-    // stays under the C8 ceiling from both anchors. Past that ceiling pitches
-    // do repeat — see the clamp test — but the overlay keys on stripe
-    // identity, so repeats no longer light the wrong bars.
-    for (const segment of ["left", "right"] as const) {
-      const notes = Array.from({ length: 30 }, (_, i) => noteForSlot(ANCHORS, segment, i));
-      expect(new Set(notes).size).toBe(notes.length);
-    }
+  it("never repeats a pitch across any plausible crossing", () => {
+    // 48 stripes is nearly double what the crossing currently reads and stays
+    // under the C8 ceiling. Past that ceiling pitches do repeat — see the clamp
+    // test — but the overlay keys on stripe identity, not pitch.
+    const notes = Array.from({ length: 48 }, (_, i) => noteForOrdinal(BASE, i));
+    expect(new Set(notes).size).toBe(notes.length);
   });
 
-  it("ascends by exactly one semitone per slot", () => {
-    const midis = Array.from({ length: 40 }, (_, i) => midiForNote(noteForSlot(ANCHORS, "left", i))!);
+  it("ascends by exactly one semitone per stripe", () => {
+    const midis = Array.from({ length: 40 }, (_, i) => midiForNote(noteForOrdinal(BASE, i))!);
     for (let i = 1; i < midis.length; i += 1) {
       expect(midis[i] - midis[i - 1]).toBe(1);
     }
@@ -54,31 +51,44 @@ describe("noteForSlot", () => {
     // noteFrequency in realtime-inference falls back to 440Hz on a name it
     // cannot read, which would be silent breakage rather than a crash.
     for (let i = 0; i < 60; i += 1) {
-      expect(noteForSlot(ANCHORS, "right", i)).toMatch(NOTE_PATTERN);
+      expect(noteForOrdinal(BASE, i)).toMatch(NOTE_PATTERN);
     }
   });
 
   it("clamps at the top of hearing rather than running away", () => {
-    const absurd = noteForSlot(ANCHORS, "left", 5000);
+    const absurd = noteForOrdinal(BASE, 5000);
     expect(absurd).toMatch(NOTE_PATTERN);
     expect(midiForNote(absurd)).toBe(108); // C8
   });
 
-  it("treats negative and fractional indexes as the anchor slot", () => {
-    expect(noteForSlot(ANCHORS, "left", -5)).toBe("C4");
-    expect(noteForSlot(ANCHORS, "left", 0.5)).toBe("C4");
+  it("treats negative and fractional ordinals as the anchor", () => {
+    expect(noteForOrdinal(BASE, -5)).toBe("C4");
+    expect(noteForOrdinal(BASE, 0.5)).toBe("C4");
   });
 
-  it("starts the right crosswalk where the left one originally ended", () => {
-    const lastLeft = midiForNote(REFERENCE_LEFT[REFERENCE_LEFT.length - 1].note)!;
-    expect(midiForNote(noteForSlot(ANCHORS, "right", 0))).toBe(lastLeft + 1);
+  it("falls back to C4 when the anchor is not a note", () => {
+    expect(noteForOrdinal("not-a-note", 0)).toBe("C4");
+  });
+});
+
+describe("compareSegments", () => {
+  it("orders the agent's positional cluster names numerically", () => {
+    // Alphabetically segment10 would sort between segment1 and segment2,
+    // silently reordering the keyboard on any crossing that reads ten clusters.
+    const names = ["segment10", "segment2", "segment0", "segment1"];
+    expect([...names].sort(compareSegments)).toEqual([
+      "segment0", "segment1", "segment2", "segment10",
+    ]);
   });
 
-  it("voices an unknown segment from the camera's first anchor", () => {
-    // A stripe whose segment has no anchor is normally dropped upstream; if
-    // one slips through, defaulting to the first anchor beats crashing.
-    expect(noteForSlot(ANCHORS, "segment3", 0)).toBe("C4");
-    expect(noteForSlot([], "left", 0)).toBe("C4");
+  it("orders legacy left/right calibrations correctly", () => {
+    // Published before the switch to positional names; they carry no number,
+    // so they fall through to alphabetical — which happens to be right.
+    expect(["right", "left"].sort(compareSegments)).toEqual(["left", "right"]);
+  });
+
+  it("puts numbered clusters ahead of unnumbered ones", () => {
+    expect(["left", "segment0"].sort(compareSegments)).toEqual(["segment0", "left"]);
   });
 });
 
@@ -97,14 +107,38 @@ describe("midiForNote", () => {
 });
 
 describe("stripeKey", () => {
-  it("distinguishes stripes that share a pitch across crosswalks", () => {
-    // left:18 and right:0 both play F#5 once the left crosswalk reads that
-    // long — the overlay must still tell them apart.
-    expect(noteForSlot(ANCHORS, "left", 18)).toBe(noteForSlot(ANCHORS, "right", 0));
-    expect(stripeKey("left", 18)).not.toBe(stripeKey("right", 0));
+  it("distinguishes stripes in different clusters", () => {
+    expect(stripeKey("segment0", 3)).not.toBe(stripeKey("segment1", 3));
   });
 
   it("is stable for the same stripe", () => {
-    expect(stripeKey("left", 3)).toBe(stripeKey("left", 3));
+    expect(stripeKey("segment0", 3)).toBe(stripeKey("segment0", 3));
+  });
+});
+
+describe("keyboardSignature", () => {
+  const stripes = [
+    { segment: "segment0", stripeIndex: 0 },
+    { segment: "segment0", stripeIndex: 1 },
+    { segment: "segment1", stripeIndex: 0 },
+  ];
+
+  it("is stable when the agent republishes the same keyboard", () => {
+    expect(keyboardSignature(stripes)).toBe(keyboardSignature([...stripes]));
+  });
+
+  it("changes when a cluster splits", () => {
+    // The trigger for adopting occupancy silently: keys are renamed, so every
+    // pedestrian standing still would otherwise read as newly arrived.
+    const split = [
+      { segment: "segment0", stripeIndex: 0 },
+      { segment: "segment1", stripeIndex: 0 },
+      { segment: "segment2", stripeIndex: 0 },
+    ];
+    expect(keyboardSignature(split)).not.toBe(keyboardSignature(stripes));
+  });
+
+  it("changes when a stripe goes missing", () => {
+    expect(keyboardSignature(stripes.slice(0, 2))).not.toBe(keyboardSignature(stripes));
   });
 });

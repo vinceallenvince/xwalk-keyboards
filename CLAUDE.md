@@ -41,11 +41,11 @@ All third-party API keys (Roboflow) stay server-side in Next.js API routes. The 
 
 ### Calibration
 
-Realtime stripe geometry is hardcoded in `src/lib/realtime-calibration.ts` — 25 stripes across left/right crosswalk segments, mapped C4–C6. It uses a reference frame with explicit dimensions; polygons scale to the actual input frame via `x * targetWidth / referenceWidth`.
+Realtime stripe geometry is hardcoded in `src/lib/realtime-calibration.ts` — 25 stripes across two crosswalk clusters, mapped C4–C6. It uses a reference frame with explicit dimensions; polygons scale to the actual input frame via `x * targetWidth / referenceWidth`.
 
-The hardcoded stripes are the **fallback and the scale**, not the live geometry. `src/lib/use-calibration.ts` fetches live polygons from the calibration agent via `/api/calibration/[cameraId]`, falling back to `public/calibration-fallback.json` and then to the hardcoded reference.
+The hardcoded stripes are the **fallback and the scale**, not the live geometry. `src/lib/use-calibration.ts` fetches live polygons from the calibration agent via `/api/calibration/[cameraId]`, falling back to `public/calibration-fallback-[cameraId].json` and then to the hardcoded reference.
 
-**The app owns the musical contract; the agent owns geometry.** The agent is camera-agnostic — it publishes a `stripeIndex` (slot position along the crosswalk) and a polygon, with no note names. `noteForSlot` in `src/lib/realtime-scale.ts` maps index → note chromatically from per-segment anchors (`SEGMENT_ANCHOR`: left C4, right F#5). Calibrations published before that split still carry `note`, and `toStripes` prefers it when present.
+**The app owns the musical contract; the agent owns geometry.** The agent is camera-agnostic — it publishes gap-separated stripe clusters (`segment0`, `segment1`, … in positional order) with an ordinal `stripeIndex` inside each, and no note names. The client numbers stripes globally across clusters and plays `baseAnchor + globalOrdinal` (`noteForOrdinal` in `src/lib/realtime-scale.ts`; `baseAnchor` is `C4` for every live camera). Stripe identity is deliberately **not** stable across runs — a missed stripe transposes everything after it until the next calibration (VIN-44). Legacy payloads naming clusters `left`/`right` still order correctly.
 
 ### State management
 

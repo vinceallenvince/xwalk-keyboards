@@ -204,19 +204,35 @@ x_target = x_reference * targetWidth / referenceWidth
 y_target = y_reference * targetHeight / referenceHeight
 ```
 
-For the Realtime source (View `5056`, West Street at W. 34 St), preserve the
-left and right crosswalks as distinct polygons
-with an unplayable median between them. Its stripe mapping is one continuous
-keyboard: right-side stripes have higher notes, followed by the left-side
-stripes at lower notes as a person walks right-to-left toward and beyond the
-median. Within a crosswalk segment, seam ownership is defined by the midpoint
-between neighboring white stripes, so a person near a seam is assigned to the
-nearest stripe rather than lost to a gap.
+The calibration agent partitions each Realtime frame into **clusters** of white
+stripes by gap, publishing them as `segment0`, `segment1`, ... in positional
+order along the crosswalk axis, with stripes numbered ordinally `0..n-1` inside
+each cluster. Cluster count is not fixed: a vehicle parked mid-crosswalk splits
+one run into two, and a sparse read yields fewer.
+
+The client numbers stripes **globally** across clusters in that order and plays
+`baseAnchor + globalOrdinal` -- one continuous chromatic run from the camera's
+single anchor (`C4` today), climbing left to right across the whole crossing.
+On a complete read of View `5056` this reproduces the original hand-calibrated
+keyboard exactly: 18 left stripes C4-F5, then 7 right stripes F#5-C6.
+
+**Stripe identity is explicitly not stable across runs.** A stripe that goes
+undetected renumbers every stripe after it, transposing the rest of the crossing
+until the next calibration. This is a deliberate trade (VIN-44): an ascending
+scale that starts somewhere different each day is still an ascending scale, and
+the machinery that guaranteed otherwise cost more than the property was worth.
+Freshness -- keys sitting on the paint -- is the guarantee that survives.
+
+The agent does not publish crosswalk boundary polygons. The client synthesizes
+one hit-region per cluster as a convex hull of that cluster's stripes, expanded
+vertically, so a pedestrian stepping just off the paint still triggers the
+nearest stripe. Because each cluster hulls separately, the median between two
+crosswalk runs falls outside every hull and stays unplayable.
 
 Validate calibration at build/test time:
 
 - every configured polygon has finite points and a valid reference frame;
-- every Realtime stripe is ordered and carries a stable identity.
+- every Realtime stripe carries a cluster and an ordinal within it.
 
 ## Realtime study architecture
 
