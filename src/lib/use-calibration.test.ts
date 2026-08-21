@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 import { REALTIME_CALIBRATION } from "./realtime-calibration";
 import { noteForOrdinal } from "./realtime-scale";
-import { toBoundaries, toStripes } from "./use-calibration";
+import { gcsAuthenticatedUrl, toBoundaries, toStripes } from "./use-calibration";
 
 const CAMERA = DEFAULT_LIVE_CAMERA;
 const BASE = CAMERA.baseAnchor;
@@ -145,5 +145,45 @@ describe("toBoundaries", () => {
     expect(Object.keys(boundaries)).toEqual(["left"]);
     // The published outline is wider than the stripe, so the hull must be too.
     expect(Math.max(...boundaries.left.map(([x]) => x))).toBeGreaterThan(20);
+  });
+});
+
+describe("gcsAuthenticatedUrl", () => {
+  it("converts a gs:// URI to the browser-openable authenticated URL", () => {
+    expect(gcsAuthenticatedUrl("gs://xwalk-keyboards-01/calibration/history/camera_5056/run-20260821T154522Z-ab12cd.jpg"))
+      .toBe("https://storage.cloud.google.com/xwalk-keyboards-01/calibration/history/camera_5056/run-20260821T154522Z-ab12cd.jpg");
+  });
+
+  it("returns null when the agent published no frame", () => {
+    // The agent omits frameUri entirely rather than publishing null, but the
+    // client must not care which it gets.
+    expect(gcsAuthenticatedUrl(undefined)).toBeNull();
+    expect(gcsAuthenticatedUrl(null)).toBeNull();
+    expect(gcsAuthenticatedUrl("")).toBeNull();
+  });
+
+  it("refuses anything that is not a gs:// URI", () => {
+    // This value ends up in an href, so a scheme we did not expect renders as
+    // plain text rather than becoming a link.
+    expect(gcsAuthenticatedUrl("javascript:alert(1)")).toBeNull();
+    expect(gcsAuthenticatedUrl("data:text/html,<script>")).toBeNull();
+    expect(gcsAuthenticatedUrl("https://example.com/frame.jpg")).toBeNull();
+    expect(gcsAuthenticatedUrl("  gs://bucket/object.jpg")).toBeNull();
+  });
+
+  it("refuses malformed gs:// URIs rather than building a half-URL", () => {
+    expect(gcsAuthenticatedUrl("gs://")).toBeNull();
+    expect(gcsAuthenticatedUrl("gs://bucket")).toBeNull();      // no object
+    expect(gcsAuthenticatedUrl("gs://bucket/")).toBeNull();     // empty object
+    expect(gcsAuthenticatedUrl("gs:///object.jpg")).toBeNull(); // no bucket
+    expect(gcsAuthenticatedUrl("gs://bucket/a b.jpg")).toBeNull();
+    expect(gcsAuthenticatedUrl("gs://bucket/a\nevil")).toBeNull();
+  });
+
+  it("always resolves to the GCS host whatever the path contains", () => {
+    // The host is hardcoded and follows https:// directly, so a path that
+    // looks like a hostname cannot redirect the link.
+    const url = gcsAuthenticatedUrl("gs://bucket/@evil.com/x.jpg");
+    expect(new URL(url!).host).toBe("storage.cloud.google.com");
   });
 });

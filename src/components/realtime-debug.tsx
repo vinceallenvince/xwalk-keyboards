@@ -192,6 +192,9 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
   // The agent stopped publishing boundaries; a hull with more points than the
   // four a stripe-derived quad carries means this calibration predates that.
   const publishedBoundaries = Object.values(calibration.boundaries).some((b) => b.length > 4);
+  const clusterSummary = clusters.length
+    ? clusters.map(([name, count]) => `${name}(${count})`).join(" ")
+    : "—";
 
   return (
     <>
@@ -213,7 +216,21 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
           <dt>stripes</dt>
           <dd>{visible.length} / {stripes.length}</dd>
           <dt>clusters</dt>
-          <dd>{clusters.length ? clusters.map(([name, count]) => `${name}(${count})`).join(" ") : "—"}</dd>
+          <dd>
+            {calibration.frameUrl ? (
+              // Straight to the frame these counts were read from — a missing
+              // stripe is usually explained by what was standing on it.
+              <a
+                className="realtime-debug-link"
+                href={calibration.frameUrl}
+                target="_blank"
+                rel="noreferrer"
+                title="Open the frame this calibration was measured from"
+              >
+                {clusterSummary}
+              </a>
+            ) : clusterSummary}
+          </dd>
           <dt>keyboard</dt>
           <dd>{stripes.length ? `${stripes[0].note} → ${stripes[stripes.length - 1].note}` : "—"}</dd>
           {Object.entries(calibration.boundaries).map(([segment, boundary]) => (

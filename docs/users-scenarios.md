@@ -565,6 +565,15 @@ panel shows live calibration data and provides operator actions for
 diagnosing drift, testing failure states, and triggering manual
 recalibration.
 
+The cluster counts are a link to the archived frame that calibration was read
+from. A missing stripe usually explains itself the moment the frame is in front
+of you — pedestrians standing on the paint suppress the detections underneath
+them, so a gap in the keyboard often lines up with a group mid-crossing. The
+link opens the frame in Google Cloud Storage and so requires an operator signed
+in with read access to the calibration bucket; it is absent when the run
+archived no frame, and when the study is running on its baked-in reference
+rather than a published calibration.
+
 ```gherkin
 Given I am viewing the Realtime study
 When I press Ctrl+Shift+D
@@ -572,7 +581,9 @@ Then a debug panel appears over the viewport
 And the panel header reads "CALIBRATION DEBUG"
 And the panel displays the calibration source (live or reference)
 And the panel displays the calibration status, reasoning, updatedAt, and stripe count
-And the panel displays the crosswalk boundary point counts per segment
+And the panel displays the stripe count per cluster and the keyboard's note range
+And the cluster counts link to the camera frame the calibration was measured from
+And the panel displays the crosswalk hull point counts per cluster
 And the panel displays the current video frame dimensions
 And a RENDER POLYGONS button toggles an overlay of all stripe outlines and boundary quads over the feed
 And a FORCE UNAVAILABLE button puts the camera into the unavailable state for testing
