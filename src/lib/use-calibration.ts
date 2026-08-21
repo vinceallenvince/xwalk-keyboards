@@ -18,6 +18,13 @@ export type LiveCalibration = {
   stripes: readonly Stripe[];
   updatedAt: string | null;
   source: "live" | "reference";
+  /**
+   * Browser-openable link to the frame this calibration was measured from,
+   * or null when the run archived none (and always for the baked-in
+   * reference). Lets an operator see what the camera saw — a gap in the
+   * stripes usually explains itself once the frame is in front of you.
+   */
+  frameUrl: string | null;
 };
 
 /**
@@ -36,6 +43,12 @@ type CalibrationResponse = {
   createdAt?: string;
   /** The frame the agent measured this calibration's polygons in. */
   referenceFrame?: { width: number; height: number };
+  /**
+   * Where the agent archived the source frame, as `gs://bucket/object`. The
+   * agent omits the key entirely when a run archived no frame, so a reader
+   * never gets a path to an object that is not there.
+   */
+  frameUri?: string;
   // The agent's newer schema publishes boundaries keyed by segment name; the
   // flattened left/right fields are the published aliases it still writes.
   // Prefer the map when present so extra crosswalks survive the trip.
@@ -58,6 +71,32 @@ type CalibrationResponse = {
 export { noteForOrdinal };
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+const GCS_SCHEME = "gs://";
+const GCS_AUTHENTICATED_HOST = "https://storage.cloud.google.com";
+// A bucket with no slash, then a non-empty object path — and no whitespace or
+// control characters in either, since those are what would break the value out
+// of an href or render as a misleading link.
+const GCS_OBJECT_PATH = /^[^\s/\u0000-\u001f]+\/[^\s\u0000-\u001f]+$/;
+
+/**
+ * The browser-openable form of a `gs://` URI — what GCS calls the
+ * "authenticated URL", authorised against the viewer's own Google session
+ * rather than any credential this app holds.
+ *
+ * Returns null for anything that is not a well-formed `gs://` URI, so an
+ * unexpected value renders as plain text instead of reaching the DOM as a link
+ * target. The host is hardcoded and always follows `https://` directly, so
+ * whatever the path contains, the link cannot resolve anywhere else.
+ */
+export function gcsAuthenticatedUrl(uri: string | null | undefined): string | null {
+  if (!uri?.startsWith(GCS_SCHEME)) return null;
+
+  const path = uri.slice(GCS_SCHEME.length);
+  if (!GCS_OBJECT_PATH.test(path)) return null;
+
+  return `${GCS_AUTHENTICATED_HOST}/${path}`;
+}
 
 /**
  * Turn a published calibration's stripes into the playable keyboard.
@@ -180,6 +219,7 @@ export function referenceCalibrationFor(camera: LiveCameraRecord): LiveCalibrati
     stripes: camera.calibration.stripes,
     updatedAt: null,
     source: "reference",
+    frameUrl: null,
   };
 }
 
@@ -234,6 +274,7 @@ export function useCalibration(camera: LiveCameraRecord): {
       stripes,
       updatedAt: data.updatedAt ?? data.createdAt ?? null,
       source: "live",
+      frameUrl: gcsAuthenticatedUrl(data.frameUri),
     });
   }, []);
 

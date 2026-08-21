@@ -126,6 +126,8 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
 .realtime-debug-data dt { color: #8e8e9a; text-align: right; }
 .realtime-debug-data dd { margin: 0; word-break: break-word; }
 .realtime-debug-live { color: var(--mint); font-weight: 700; }
+.realtime-debug-link { color: var(--mint); text-decoration: underline; text-underline-offset: 2px; }
+.realtime-debug-link:hover { background: rgba(148,215,181,.15); }
 .realtime-debug-actions { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .realtime-debug-toggle { width: 100%; padding: 6px 8px; border: 1px solid #8e8e9a; border-radius: 2px; background: rgba(8,8,10,.8); color: #8e8e9a; font: inherit; letter-spacing: inherit; cursor: pointer; }
 .realtime-debug-toggle:not(:disabled):hover { background: rgba(148,215,181,.15); color: var(--mint); border-color: var(--mint); }
