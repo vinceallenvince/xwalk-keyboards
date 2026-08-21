@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveCameraRecord } from "@/data/cameras";
 import { expandPolygonY, processPolygon, simplifyPolygon } from "@/lib/polygon-utils";
 import type { Boundaries, FrameSize, Point, Stripe } from "@/lib/realtime-calibration";
-import { isRenderableSegment, noteForSlot } from "@/lib/realtime-scale";
+import { compareSegments, noteForOrdinal } from "@/lib/realtime-scale";
 
 export type CalibrationStatus = "ok" | "degraded" | "no_crosswalk" | "feed_down" | "needs_review";
 
@@ -55,27 +55,53 @@ type CalibrationResponse = {
 };
 
 // Re-exported so the scale has one import site across the app.
-export { noteForSlot };
+export { noteForOrdinal };
 
 const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Turn a published calibration's stripes into the playable keyboard.
+ *
+ * The crossing is numbered as one continuous run: clusters in positional order,
+ * stripes by their ordinal within each cluster, notes counted globally from the
+ * camera's base anchor. Nothing is filtered by cluster name — the agent's
+ * cluster count varies run to run, so there is no fixed vocabulary to check
+ * against, and a name we did not expect must still play rather than fall silent.
+ *
+ * Because the ordinal is global, a cluster splitting in two (a truck parked
+ * mid-crosswalk) leaves every note exactly where it was.
+ */
 export function toStripes(
   camera: LiveCameraRecord,
   raw: CalibrationResponse["stripes"],
 ): readonly Stripe[] {
   if (!raw?.length) return camera.calibration.stripes;
 
-  return raw
-    .filter((s) => isRenderableSegment(camera.segmentAnchors, s.segment) && s.polygon?.length >= 3)
-    .map((s) => ({
-      stripeIndex: s.stripeIndex,
-      segment: s.segment,
-      note: noteForSlot(camera.segmentAnchors, s.segment, s.stripeIndex),
-      // Simplify the jagged instance-segmentation outlines into clean quads,
-      // then expand ~15% so a fast-walking pedestrian stepping slightly off
-      // the paint still triggers the note.
-      polygon: processPolygon(s.polygon.map(([x, y]) => [x, y] as const)),
-    }));
+  const bySegment = new Map<string, NonNullable<CalibrationResponse["stripes"]>>();
+  for (const stripe of raw) {
+    if (!(stripe.polygon?.length >= 3)) continue;
+    const group = bySegment.get(stripe.segment);
+    if (group) group.push(stripe);
+    else bySegment.set(stripe.segment, [stripe]);
+  }
+
+  const stripes: Stripe[] = [];
+  for (const segment of [...bySegment.keys()].sort(compareSegments)) {
+    const group = [...bySegment.get(segment)!].sort((a, b) => a.stripeIndex - b.stripeIndex);
+    for (const s of group) {
+      stripes.push({
+        stripeIndex: s.stripeIndex,
+        segment: s.segment,
+        // stripes.length is the running global ordinal across all clusters.
+        note: noteForOrdinal(camera.baseAnchor, stripes.length),
+        // Simplify the jagged instance-segmentation outlines into clean quads,
+        // then expand ~15% so a fast-walking pedestrian stepping slightly off
+        // the paint still triggers the note.
+        polygon: processPolygon(s.polygon.map(([x, y]) => [x, y] as const)),
+      });
+    }
+  }
+  return stripes;
 }
 
 /**
@@ -118,17 +144,18 @@ function rawBoundaries(data: CalibrationResponse): Record<string, number[][]> {
 }
 
 /**
- * One boundary per renderable segment that has any geometry this calibration —
- * hulled with its stripes via toBoundary, falling back to the camera's
- * reference boundary for segments the payload left out.
+ * One hit-region per cluster that has any geometry this calibration.
  *
- * Only valid when the payload's polygons share the reference calibration's
- * frame — when the payload declares its own referenceFrame, the caller must
- * not mix reference boundaries in, so the fallback only applies to stripes
- * that were themselves parsed from the same payload.
+ * The agent no longer detects or publishes crosswalk boundaries, so in practice
+ * each region is a hull of that cluster's own stripes (see toBoundary), which
+ * still catches a pedestrian stepping just off the paint. Published boundaries
+ * are still honoured when present, for calibrations written before the switch.
+ *
+ * Hulling per cluster rather than over the whole crossing is what keeps the
+ * median unplayable: the gap between two crosswalk runs falls outside every
+ * hull, so nobody standing on the island is assigned to a stripe.
  */
 export function toBoundaries(
-  camera: LiveCameraRecord,
   data: CalibrationResponse,
   stripes: readonly Stripe[],
 ): Boundaries {
@@ -137,7 +164,6 @@ export function toBoundaries(
 
   const boundaries: Record<string, readonly Point[]> = {};
   for (const segment of segments) {
-    if (!isRenderableSegment(camera.segmentAnchors, segment)) continue;
     const boundary = toBoundary(raw[segment], stripes.filter((s) => s.segment === segment));
     if (boundary) boundaries[segment] = boundary;
   }
@@ -197,7 +223,7 @@ export function useCalibration(camera: LiveCameraRecord): {
     const stripes = toStripes(cam, data.stripes);
     if (stripes.length === 0) return;
 
-    const boundaries = toBoundaries(cam, data, stripes);
+    const boundaries = toBoundaries(data, stripes);
     if (Object.keys(boundaries).length === 0) return;
 
     setCalibration({

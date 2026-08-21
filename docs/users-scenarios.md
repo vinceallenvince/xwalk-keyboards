@@ -265,13 +265,20 @@ whether they are in the calibrated crosswalk. Only people inside the crosswalk
 become part of the instrument. The visual response belongs to the painted
 crosswalk stripe, not to a floating marker above the pedestrian.
 
+The crosswalk is one continuous keyboard. Notes climb chromatically from the
+left-most detected stripe to the right-most, straight across the median — a
+pedestrian walking the full crossing walks up the scale. The median itself is
+not part of the instrument: standing between the two crosswalk runs plays
+nothing.
+
 ```gherkin
 Given I am viewing an active Realtime study
 And the West Street at W. 34 St camera feed and Roboflow inference are active
 When a pedestrian is detected inside the calibrated crosswalk
 Then the app maps the pedestrian's position to the corresponding crosswalk stripe
-And the left-most white stripe maps to the piano note "C"
-And each stripe to the right maps to the next piano key
+And the left-most white stripe maps to the piano note "C4"
+And each stripe to the right maps to the next piano key, continuing across the median
+And a pedestrian standing on the median between crosswalk runs triggers no note
 And the occupied crosswalk stripe is highlighted in the live video
 And no floating pedestrian triangle appears in the live video
 And the app plays the note corresponding to the occupied stripe
@@ -281,6 +288,24 @@ Then no crosswalk stripe is highlighted for that pedestrian
 And that pedestrian does not trigger a note
 When no pedestrians are detected inside the calibrated crosswalk
 Then the Realtime study does not play a crosswalk note
+```
+
+### As a visitor, I hear a keyboard that may be tuned differently than last time
+
+The crosswalk is re-read every few minutes, and how much of it the camera can
+see changes with traffic, weather, and light. Which note a given painted stripe
+plays is therefore not fixed — a stripe hidden by a truck renumbers the ones
+after it, shifting the run. The study does not defend against this: it is an
+instrument, not a measurement, and an ascending scale that begins somewhere new
+is still an ascending scale. What is guaranteed is that the keys sit on the
+paint and the run always ascends left to right.
+
+```gherkin
+Given the crosswalk has been recalibrated since I last played it
+When a pedestrian steps on the same painted stripe as before
+Then it may play a different note than it did before
+And the crosswalk still plays an ascending chromatic run from left to right
+And no error or degraded state is shown, because this is normal operation
 ```
 
 ### As a visitor, I can understand and recover from a Realtime connection loss

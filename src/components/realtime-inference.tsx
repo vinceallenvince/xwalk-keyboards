@@ -10,7 +10,7 @@ import {
   type OccupiedStripe,
 } from "@/lib/realtime-detections";
 import { scalePolygon, type FrameSize, type Stripe } from "@/lib/realtime-calibration";
-import { stripeKey } from "@/lib/realtime-scale";
+import { keyboardSignature, stripeKey } from "@/lib/realtime-scale";
 import {
   createStartupTimingRecorder,
   emitPerformanceMeasures,
@@ -255,7 +255,20 @@ export function RealtimeInference({
   // resolves. Reading through a ref lets a drifted camera's new geometry take
   // effect without tearing down the connection every time it refreshes.
   const calibrationRef = useRef(calibration);
-  useEffect(() => { calibrationRef.current = calibration; }, [calibration]);
+  // A stripe's key is `cluster:ordinal`, and both halves move when the agent
+  // republishes — a truck splitting one crosswalk run into two clusters renames
+  // every key after it. Renamed keys are absent from activeStripesRef and from
+  // the debounce map, so without this guard every pedestrian already standing
+  // on the paint would re-fire their note at once: a chord on each recalibration
+  // rather than a note per arrival. On the frame after the keyboard is re-cut we
+  // adopt the current occupancy silently, then resume triggering normally.
+  const adoptOccupancyRef = useRef(false);
+  useEffect(() => {
+    if (keyboardSignature(calibration.stripes) !== keyboardSignature(calibrationRef.current.stripes)) {
+      adoptOccupancyRef.current = true;
+    }
+    calibrationRef.current = calibration;
+  }, [calibration]);
 
   const [activeStripes, setActiveStripes] = useState<OccupiedStripe[]>([]);
   const [frame, setFrame] = useState<FrameSize | null>(null);
@@ -442,11 +455,18 @@ export function RealtimeInference({
             }
 
             // --- Note triggers ------------------------------------------------
-            for (const stripe of occupied) {
-              const lastTriggeredAt = lastTriggeredAtRef.current.get(stripe.key) ?? 0;
-              if (!activeStripesRef.current.has(stripe.key) && now - lastTriggeredAt >= 600) {
-                playPianoNote(audioContextRef.current, stripe.note);
-                lastTriggeredAtRef.current.set(stripe.key, now);
+            if (adoptOccupancyRef.current) {
+              // First frame under a re-cut keyboard: take the occupancy as-is
+              // so nobody standing still is heard as newly arriving.
+              adoptOccupancyRef.current = false;
+              for (const stripe of occupied) lastTriggeredAtRef.current.set(stripe.key, now);
+            } else {
+              for (const stripe of occupied) {
+                const lastTriggeredAt = lastTriggeredAtRef.current.get(stripe.key) ?? 0;
+                if (!activeStripesRef.current.has(stripe.key) && now - lastTriggeredAt >= 600) {
+                  playPianoNote(audioContextRef.current, stripe.note);
+                  lastTriggeredAtRef.current.set(stripe.key, now);
+                }
               }
             }
             activeStripesRef.current = new Set(occupied.map((stripe) => stripe.key));
