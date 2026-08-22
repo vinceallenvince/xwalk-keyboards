@@ -6,10 +6,10 @@ import { useCallback, useState } from "react";
 import { HomeVideoBackground, type HomeFeedStatus } from "@/components/home-video-background";
 
 const feedLabels: Record<HomeFeedStatus, string> = {
-  connecting: "CONNECTING // WEST STREET @ W34 ST",
-  live: "FEED LIVE // WEST STREET @ W34 ST",
-  reconnecting: "RECONNECTING // WEST STREET @ W34 ST",
-  unavailable: "CAMERA UNAVAILABLE // WEST STREET @ W34 ST",
+  connecting: "CONNECTING // WEST STREET @ W23 ST",
+  live: "FEED LIVE // WEST STREET @ W23 ST",
+  reconnecting: "RECONNECTING // WEST STREET @ W23 ST",
+  unavailable: "CAMERA UNAVAILABLE // WEST STREET @ W23 ST",
 };
 
 export function HomeExperience() {
@@ -18,7 +18,7 @@ export function HomeExperience() {
 
   return (
     <main className="home-shell">
-      <HomeVideoBackground onStatusChange={reportFeedStatus} />
+      <HomeVideoBackground cameraId={5059} onStatusChange={reportFeedStatus} />
       <div className="home-video-wash" aria-hidden="true" />
       <div className="home-grid" aria-hidden="true"><i /><i /><i /></div>
       <p className="home-feed-status"><span className={feedStatus === "live" ? "" : "home-feed-status__dot--idle"} />{feedLabels[feedStatus]}</p>
@@ -36,7 +36,7 @@ export function HomeExperience() {
       </section>
       <section className="home-studies" id="studies" aria-label="Choose a study">
         <nav className="study-selector">
-          <Link href="/realtime">REALTIME</Link>
+          <Link href="/realtime/5059">REALTIME</Link>
           <i aria-hidden="true" />
           <span aria-disabled="true">SEQUENCE<small className="study-selector__status">[ In progress ]</small></span>
         </nav>

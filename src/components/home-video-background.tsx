@@ -6,9 +6,8 @@ import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 
 export type HomeFeedStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
-const streamUrl = `/api/hls/${DEFAULT_LIVE_CAMERA.cameraId}/playlist.m3u8`;
-
-export function HomeVideoBackground({ onStatusChange }: { onStatusChange: (status: HomeFeedStatus) => void }) {
+export function HomeVideoBackground({ cameraId, onStatusChange }: { cameraId?: number; onStatusChange: (status: HomeFeedStatus) => void }) {
+  const streamUrl = `/api/hls/${cameraId ?? DEFAULT_LIVE_CAMERA.cameraId}/playlist.m3u8`;
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -71,7 +70,7 @@ export function HomeVideoBackground({ onStatusChange }: { onStatusChange: (statu
       video.removeEventListener("playing", markLive);
       video.removeEventListener("error", retry);
     };
-  }, [onStatusChange]);
+  }, [onStatusChange, streamUrl]);
 
   return <video aria-hidden="true" className="home-video-background" ref={videoRef} autoPlay muted playsInline />;
 }

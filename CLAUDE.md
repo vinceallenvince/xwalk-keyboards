@@ -21,7 +21,7 @@ Package manager is **pnpm** (v8.15.3 via `packageManager` field). The Dockerfile
 
 ### One study: Realtime (`/realtime`)
 
-- **Source**: one live HLS camera (511NY View 5056, West Street @ W 34 St)
+- **Source**: three live HLS cameras — 5056 (West Street @ W 34 St), 5059 (West Street @ W 23 St), 5072 (West Street @ Chambers St). The homepage background streams 5059, the About page streams 5072, and the homepage REALTIME link opens `/realtime/5059`. `/realtime` (no param) falls back to `DEFAULT_LIVE_CAMERA` (5056).
 - **Vision**: Roboflow WebRTC — the browser streams decoded frames, the workflow returns person detections for the current frame
 - **Audio**: browser Web Audio API (`AudioContext`), one oscillator voice per occupied stripe — event-driven, no scoring
 - **Visual**: mint stripe glow on a canvas overlay, keyed by stripe identity (`segment:stripeIndex`)
