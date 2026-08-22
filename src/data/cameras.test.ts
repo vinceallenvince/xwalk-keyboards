@@ -20,17 +20,32 @@ describe("camera registry", () => {
     expect(liveCameraById(9999)).toBeUndefined();
   });
 
-  it("registers View 5072 as a live camera without dethroning the default", () => {
-    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5072]);
+  it("orders the live cameras north to south without dethroning the default", () => {
+    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5072]);
+    expect(liveCameraById(5059)).toMatchObject({
+      cameraId: 5059,
+      location: "West Street at W. 23 St",
+      statusLabel: "WEST STREET @ W23 ST",
+    });
     expect(liveCameraById(5072)).toMatchObject({
       cameraId: 5072,
       location: "West Street at Chambers St",
       statusLabel: "WEST STREET @ CHAMBERS ST",
     });
-    // 5072 ships with an empty reference on purpose: no keys until the
-    // calibration agent first publishes for it (VIN-39).
-    expect(liveCameraById(5072)?.calibration.stripes).toHaveLength(0);
-    expect(liveCameraById(5072)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
+  });
+
+  it("ships 5059 and 5072 without baked-in geometry", () => {
+    // Both ship with an empty reference on purpose: no keys until the
+    // calibration agent first publishes for them (VIN-39).
+    for (const cameraId of [5059, 5072]) {
+      expect(liveCameraById(cameraId)?.calibration.stripes).toHaveLength(0);
+      expect(liveCameraById(cameraId)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
+    }
+  });
+
+  it("gives every live camera a distinct stream", () => {
+    const streams = LIVE_CAMERAS.map((camera) => camera.hlsUrl);
+    expect(new Set(streams).size).toBe(LIVE_CAMERAS.length);
   });
 
   it("equips every live camera to drive the realtime study on its own", () => {

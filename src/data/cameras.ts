@@ -106,6 +106,26 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     calibration: REALTIME_CALIBRATION,
   },
   {
+    cameraId: 5059,
+    cameraKey: "camera_5059",
+    displayLabel: "Live Feed · View 5059",
+    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_275/playlist.m3u8",
+    location: "West Street at W. 23 St",
+    role: "live",
+    // 511NY map site id (the /tooltip/Cameras/<id> key for this view).
+    sourceId: "913",
+    statusLabel: "WEST STREET @ W23 ST",
+    viewUrl: snapshotUrl(5059),
+    baseAnchor: "C4",
+    // Empty reference for the same reason as 5072: no keys until the agent
+    // publishes for this camera.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
     cameraId: 5072,
     cameraKey: "camera_5072",
     displayLabel: "Live Feed · View 5072",
