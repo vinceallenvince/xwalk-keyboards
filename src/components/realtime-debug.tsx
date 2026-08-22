@@ -189,9 +189,6 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
   const clusterCounts = new Map<string, number>();
   for (const stripe of stripes) clusterCounts.set(stripe.segment, (clusterCounts.get(stripe.segment) ?? 0) + 1);
   const clusters = [...clusterCounts.entries()].sort(([a], [b]) => compareSegments(a, b));
-  // The agent stopped publishing boundaries; a hull with more points than the
-  // four a stripe-derived quad carries means this calibration predates that.
-  const publishedBoundaries = Object.values(calibration.boundaries).some((b) => b.length > 4);
   const clusterSummary = clusters.length
     ? clusters.map(([name, count]) => `${name}(${count})`).join(" ")
     : "—";
@@ -236,7 +233,7 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
           {Object.entries(calibration.boundaries).map(([segment, boundary]) => (
             <Fragment key={segment}>
               <dt>{segment} hull</dt>
-              <dd>{boundary.length} pts{publishedBoundaries ? "" : " (synthesized)"}</dd>
+              <dd>{boundary.length} pts{calibration.hullsFromStripes ? " (from stripes)" : ""}</dd>
             </Fragment>
           ))}
           <dt>frame</dt>

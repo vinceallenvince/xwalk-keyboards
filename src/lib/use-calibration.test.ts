@@ -85,15 +85,6 @@ describe("toStripes", () => {
     expect(stripes).toHaveLength(2);
   });
 
-  it("reads calibrations published before the switch to positional names", () => {
-    const stripes = toStripes(CAMERA, [
-      { stripeIndex: 0, segment: "right", polygon: QUAD },
-      { stripeIndex: 0, segment: "left", polygon: QUAD },
-    ]);
-
-    expect(stripes.map((s) => s.segment)).toEqual(["left", "right"]);
-  });
-
   it("drops polygons with too few points to fill", () => {
     expect(toStripes(CAMERA, [{ stripeIndex: 0, segment: "segment0", polygon: [[1, 2], [3, 4]] }])).toHaveLength(0);
   });
@@ -135,16 +126,32 @@ describe("toBoundaries", () => {
     }
   });
 
-  it("still honours boundaries from calibrations that published them", () => {
-    const stripes = toStripes(CAMERA, [{ stripeIndex: 0, segment: "left", polygon: QUAD }]);
+  it("builds a many-sided hull from stripes alone, so point count cannot imply provenance", () => {
+    // The debug panel labels hulls as stripe-derived, and that has to come from
+    // whether a boundary was published rather than from the shape of the
+    // result: several stripes hull to well over the four points a single quad
+    // has, which is exactly what made an earlier point-count heuristic wrong.
+    const stripes = toStripes(CAMERA, [
+      { stripeIndex: 0, segment: "segment0", polygon: [[10, 120], [20, 121], [20, 131], [10, 130]] },
+      { stripeIndex: 1, segment: "segment0", polygon: [[22, 121], [32, 122], [32, 132], [22, 131]] },
+      { stripeIndex: 2, segment: "segment0", polygon: [[34, 122], [44, 123], [44, 133], [34, 132]] },
+    ]);
+
+    expect(toBoundaries({ status: "ok" }, stripes).segment0.length).toBeGreaterThan(4);
+  });
+
+  it("still honours a published boundary if one ever arrives", () => {
+    // The agent no longer sends these, but honouring one costs nothing and
+    // means a future change on that side does not need a client release.
+    const stripes = toStripes(CAMERA, [{ stripeIndex: 0, segment: "segment0", polygon: QUAD }]);
     const boundaries = toBoundaries(
-      { status: "ok", leftCrosswalk: [[0, 100], [40, 100], [40, 140], [0, 140]] },
+      { status: "ok", crosswalks: { segment0: [[0, 100], [40, 100], [40, 140], [0, 140]] } },
       stripes,
     );
 
-    expect(Object.keys(boundaries)).toEqual(["left"]);
+    expect(Object.keys(boundaries)).toEqual(["segment0"]);
     // The published outline is wider than the stripe, so the hull must be too.
-    expect(Math.max(...boundaries.left.map(([x]) => x))).toBeGreaterThan(20);
+    expect(Math.max(...boundaries.segment0.map(([x]) => x))).toBeGreaterThan(20);
   });
 });
 

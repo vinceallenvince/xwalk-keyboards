@@ -13,10 +13,10 @@ describe("View 5056 Realtime calibration", () => {
     expect(REALTIME_CALIBRATION.cameraId).toBe(5056);
     expect(REALTIME_CALIBRATION.referenceFrame).toEqual({ width: 352, height: 240 });
     // Indexes follow the agent convention: 0-based, per segment.
-    const left = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left");
-    const right = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right");
-    expect(left.map((s) => s.stripeIndex)).toEqual([...Array(18).keys()]);
-    expect(right.map((s) => s.stripeIndex)).toEqual([...Array(7).keys()]);
+    const first = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "segment0");
+    const second = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "segment1");
+    expect(first.map((s) => s.stripeIndex)).toEqual([...Array(18).keys()]);
+    expect(second.map((s) => s.stripeIndex)).toEqual([...Array(7).keys()]);
     expect(new Set(REALTIME_CALIBRATION.stripes.map((stripe) => stripe.note)).size).toBe(
       REALTIME_CALIBRATION.stripes.length
     );

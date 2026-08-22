@@ -186,16 +186,15 @@ pixel coordinates:
 {
   "camera_5056": {
     "referenceFrame": { "width": 352, "height": 240 },
-    "leftCrosswalk": [[0, 0]],
-    "rightCrosswalk": [[0, 0]],
-    "stripes": [{ "stripeIndex": 1, "segment": "left", "note": "C4", "polygon": [[0, 0]] }]
+    "stripes": [{ "stripeIndex": 0, "segment": "segment0", "polygon": [[0, 0]] }]
   }
 }
 ```
 
 The example is intentionally abbreviated. Real files contain three or more
-points per polygon. A static camera may have one `horizontalCrosswalk` polygon
-instead; configure its workflow parameter binding explicitly.
+points per polygon. Note what is absent: no crosswalk boundary polygons (the
+client hulls each cluster's own stripes) and no note names (the client derives
+pitch from a stripe's position across the whole crossing).
 
 Coordinates must be scaled to the exact input frame passed to Roboflow:
 
@@ -290,9 +289,11 @@ inference: waiting -> starting -> active <-> reconnecting -> unavailable
   detections onto later video.
 
 The browser passes the captured stream's actual frame width and height to the
-server WebRTC route. The route scales left/right polygons and initializes the
-workflow with `person` as the class filter. Configure the WebRTC worker for
-prediction data outputs and no annotated video output.
+server WebRTC route, which initializes the workflow with `person` as the class
+filter. No polygons are sent: the workflow is plain person detection and the
+browser decides inside/outside against its current calibration, which is what
+lets geometry hot-swap without restarting inference. Configure the WebRTC
+worker for prediction data outputs and no annotated video output.
 
 ### Realtime visual and audio behavior
 

@@ -19,6 +19,13 @@ export type LiveCalibration = {
   updatedAt: string | null;
   source: "live" | "reference";
   /**
+   * Whether the hit-regions were derived purely from the stripes, rather than
+   * from a boundary polygon the payload carried. True for every live
+   * calibration the agent currently publishes; surfaced in the debug panel so
+   * an operator can tell a measured outline from an inferred one.
+   */
+  hullsFromStripes: boolean;
+  /**
    * Browser-openable link to the frame this calibration was measured from,
    * or null when the run archived none (and always for the baked-in
    * reference). Lets an operator see what the camera saw — a gap in the
@@ -49,12 +56,10 @@ type CalibrationResponse = {
    * never gets a path to an object that is not there.
    */
   frameUri?: string;
-  // The agent's newer schema publishes boundaries keyed by segment name; the
-  // flattened left/right fields are the published aliases it still writes.
-  // Prefer the map when present so extra crosswalks survive the trip.
+  // Boundary polygons keyed by cluster. The agent stopped detecting and
+  // publishing these with VIN-44 — the client hulls each cluster's own stripes
+  // instead — but one is still honoured if it ever arrives.
   crosswalks?: Record<string, number[][]>;
-  leftCrosswalk?: number[][];
-  rightCrosswalk?: number[][];
   // The calibration agent is camera-agnostic: it reports where a stripe sits
   // on the crosswalk (stripeIndex, 0-based per segment) and leaves the musical
   // reading entirely to us. Earlier schemas also carried `note` and `visible`;
@@ -172,16 +177,6 @@ function toBoundary(
   return expandPolygonY(simplifyPolygon(allPoints), 1.2);
 }
 
-/** The agent's boundary polygons keyed by segment, from either schema shape. */
-function rawBoundaries(data: CalibrationResponse): Record<string, number[][]> {
-  if (data.crosswalks) return data.crosswalks;
-
-  const record: Record<string, number[][]> = {};
-  if (data.leftCrosswalk?.length) record.left = data.leftCrosswalk;
-  if (data.rightCrosswalk?.length) record.right = data.rightCrosswalk;
-  return record;
-}
-
 /**
  * One hit-region per cluster that has any geometry this calibration.
  *
@@ -198,7 +193,7 @@ export function toBoundaries(
   data: CalibrationResponse,
   stripes: readonly Stripe[],
 ): Boundaries {
-  const raw = rawBoundaries(data);
+  const raw = data.crosswalks ?? {};
   const segments = new Set([...Object.keys(raw), ...stripes.map((s) => s.segment)]);
 
   const boundaries: Record<string, readonly Point[]> = {};
@@ -219,6 +214,8 @@ export function referenceCalibrationFor(camera: LiveCameraRecord): LiveCalibrati
     stripes: camera.calibration.stripes,
     updatedAt: null,
     source: "reference",
+    // The baked-in reference carries hand-authored crosswalk outlines.
+    hullsFromStripes: false,
     frameUrl: null,
   };
 }
@@ -274,6 +271,7 @@ export function useCalibration(camera: LiveCameraRecord): {
       stripes,
       updatedAt: data.updatedAt ?? data.createdAt ?? null,
       source: "live",
+      hullsFromStripes: Object.keys(data.crosswalks ?? {}).length === 0,
       frameUrl: gcsAuthenticatedUrl(data.frameUri),
     });
   }, []);
