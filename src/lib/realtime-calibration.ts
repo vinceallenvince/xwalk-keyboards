@@ -27,43 +27,47 @@ export type ReferenceCalibration = {
 // Calibrated with Roboflow's polygon tool against a View 5056 native HLS frame
 // (352 × 240) on 2026-08-07. The source dimensions come from
 // HTMLVideoElement.videoWidth and videoHeight, not from a browser screenshot.
+//
+// Clusters are named the way the calibration agent names them — positionally,
+// `segment0` then `segment1` along the crossing — so the reference and a live
+// publish speak one vocabulary and nothing has to translate between them.
 export const REALTIME_CALIBRATION = {
   cameraId: 5056,
   boundaries: {
-    left: [
+    segment0: [
       [27, 108], [193, 120], [188, 139], [1, 125],
     ],
-    right: [
+    segment1: [
       [291, 132], [349, 137], [350, 155], [301, 150],
     ],
   } as Boundaries,
   referenceFrame: { height: 240, width: 352 },
   stripes: [
-    { note: "C4", polygon: [[6.5, 118], [15.5, 119], [1, 128], [0, 124]], segment: "left", stripeIndex: 0 },
-    { note: "C#4", polygon: [[15.5, 119], [25, 119.5], [4.5, 132.5], [1, 128]], segment: "left", stripeIndex: 1 },
-    { note: "D4", polygon: [[25, 119.5], [34, 120.5], [14.5, 133.5], [4.5, 132.5]], segment: "left", stripeIndex: 2 },
-    { note: "Eb4", polygon: [[34, 120.5], [43, 121], [25, 134], [14.5, 133.5]], segment: "left", stripeIndex: 3 },
-    { note: "E4", polygon: [[43, 121], [53, 121.5], [34.5, 135], [25, 134]], segment: "left", stripeIndex: 4 },
-    { note: "F4", polygon: [[53, 121.5], [62, 122], [44.5, 136], [34.5, 135]], segment: "left", stripeIndex: 5 },
-    { note: "F#4", polygon: [[62, 122], [71.5, 122.5], [55.5, 136.5], [44.5, 136]], segment: "left", stripeIndex: 6 },
-    { note: "G4", polygon: [[71.5, 122.5], [81, 123], [66, 137], [55.5, 136.5]], segment: "left", stripeIndex: 7 },
-    { note: "Ab4", polygon: [[81, 123], [91, 123.5], [76.5, 138], [66, 137]], segment: "left", stripeIndex: 8 },
-    { note: "A4", polygon: [[91, 123.5], [100, 124.5], [87.5, 138.5], [76.5, 138]], segment: "left", stripeIndex: 9 },
-    { note: "Bb4", polygon: [[100, 124.5], [110, 125], [99, 139], [87.5, 138.5]], segment: "left", stripeIndex: 10 },
-    { note: "B4", polygon: [[110, 125], [120, 125.5], [110, 140], [99, 139]], segment: "left", stripeIndex: 11 },
-    { note: "C5", polygon: [[120, 125.5], [129.5, 126], [121, 141], [110, 140]], segment: "left", stripeIndex: 12 },
-    { note: "C#5", polygon: [[129.5, 126], [139.5, 126.5], [132, 141.5], [121, 141]], segment: "left", stripeIndex: 13 },
-    { note: "D5", polygon: [[139.5, 126.5], [149, 127], [143, 142], [132, 141.5]], segment: "left", stripeIndex: 14 },
-    { note: "Eb5", polygon: [[149, 127], [159, 127.5], [154, 143], [143, 142]], segment: "left", stripeIndex: 15 },
-    { note: "E5", polygon: [[159, 127.5], [169, 128.5], [165, 144.5], [154, 143]], segment: "left", stripeIndex: 16 },
-    { note: "F5", polygon: [[169, 128.5], [178, 129.5], [176, 146.5], [165, 144.5]], segment: "left", stripeIndex: 17 },
-    { note: "F#5", polygon: [[278, 137.5], [287, 138.5], [302.5, 156], [292.5, 155]], segment: "right", stripeIndex: 0 },
-    { note: "G5", polygon: [[287, 138.5], [298, 140], [313.5, 157], [302.5, 156]], segment: "right", stripeIndex: 1 },
-    { note: "Ab5", polygon: [[298, 140], [308.5, 141.5], [324, 158], [313.5, 157]], segment: "right", stripeIndex: 2 },
-    { note: "A5", polygon: [[308.5, 141.5], [318.5, 142.5], [334.5, 159], [324, 158]], segment: "right", stripeIndex: 3 },
-    { note: "Bb5", polygon: [[318.5, 142.5], [328.5, 143.5], [345.5, 160], [334.5, 159]], segment: "right", stripeIndex: 4 },
-    { note: "B5", polygon: [[328.5, 143.5], [339, 144.5], [355.5, 161], [345.5, 160]], segment: "right", stripeIndex: 5 },
-    { note: "C6", polygon: [[339, 144.5], [349, 145.5], [366.5, 162], [355.5, 161]], segment: "right", stripeIndex: 6 },
+    { note: "C4", polygon: [[6.5, 118], [15.5, 119], [1, 128], [0, 124]], segment: "segment0", stripeIndex: 0 },
+    { note: "C#4", polygon: [[15.5, 119], [25, 119.5], [4.5, 132.5], [1, 128]], segment: "segment0", stripeIndex: 1 },
+    { note: "D4", polygon: [[25, 119.5], [34, 120.5], [14.5, 133.5], [4.5, 132.5]], segment: "segment0", stripeIndex: 2 },
+    { note: "Eb4", polygon: [[34, 120.5], [43, 121], [25, 134], [14.5, 133.5]], segment: "segment0", stripeIndex: 3 },
+    { note: "E4", polygon: [[43, 121], [53, 121.5], [34.5, 135], [25, 134]], segment: "segment0", stripeIndex: 4 },
+    { note: "F4", polygon: [[53, 121.5], [62, 122], [44.5, 136], [34.5, 135]], segment: "segment0", stripeIndex: 5 },
+    { note: "F#4", polygon: [[62, 122], [71.5, 122.5], [55.5, 136.5], [44.5, 136]], segment: "segment0", stripeIndex: 6 },
+    { note: "G4", polygon: [[71.5, 122.5], [81, 123], [66, 137], [55.5, 136.5]], segment: "segment0", stripeIndex: 7 },
+    { note: "Ab4", polygon: [[81, 123], [91, 123.5], [76.5, 138], [66, 137]], segment: "segment0", stripeIndex: 8 },
+    { note: "A4", polygon: [[91, 123.5], [100, 124.5], [87.5, 138.5], [76.5, 138]], segment: "segment0", stripeIndex: 9 },
+    { note: "Bb4", polygon: [[100, 124.5], [110, 125], [99, 139], [87.5, 138.5]], segment: "segment0", stripeIndex: 10 },
+    { note: "B4", polygon: [[110, 125], [120, 125.5], [110, 140], [99, 139]], segment: "segment0", stripeIndex: 11 },
+    { note: "C5", polygon: [[120, 125.5], [129.5, 126], [121, 141], [110, 140]], segment: "segment0", stripeIndex: 12 },
+    { note: "C#5", polygon: [[129.5, 126], [139.5, 126.5], [132, 141.5], [121, 141]], segment: "segment0", stripeIndex: 13 },
+    { note: "D5", polygon: [[139.5, 126.5], [149, 127], [143, 142], [132, 141.5]], segment: "segment0", stripeIndex: 14 },
+    { note: "Eb5", polygon: [[149, 127], [159, 127.5], [154, 143], [143, 142]], segment: "segment0", stripeIndex: 15 },
+    { note: "E5", polygon: [[159, 127.5], [169, 128.5], [165, 144.5], [154, 143]], segment: "segment0", stripeIndex: 16 },
+    { note: "F5", polygon: [[169, 128.5], [178, 129.5], [176, 146.5], [165, 144.5]], segment: "segment0", stripeIndex: 17 },
+    { note: "F#5", polygon: [[278, 137.5], [287, 138.5], [302.5, 156], [292.5, 155]], segment: "segment1", stripeIndex: 0 },
+    { note: "G5", polygon: [[287, 138.5], [298, 140], [313.5, 157], [302.5, 156]], segment: "segment1", stripeIndex: 1 },
+    { note: "Ab5", polygon: [[298, 140], [308.5, 141.5], [324, 158], [313.5, 157]], segment: "segment1", stripeIndex: 2 },
+    { note: "A5", polygon: [[308.5, 141.5], [318.5, 142.5], [334.5, 159], [324, 158]], segment: "segment1", stripeIndex: 3 },
+    { note: "Bb5", polygon: [[318.5, 142.5], [328.5, 143.5], [345.5, 160], [334.5, 159]], segment: "segment1", stripeIndex: 4 },
+    { note: "B5", polygon: [[328.5, 143.5], [339, 144.5], [355.5, 161], [345.5, 160]], segment: "segment1", stripeIndex: 5 },
+    { note: "C6", polygon: [[339, 144.5], [349, 145.5], [366.5, 162], [355.5, 161]], segment: "segment1", stripeIndex: 6 },
   ] satisfies readonly Stripe[],
 } as const;
 

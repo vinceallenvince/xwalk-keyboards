@@ -44,23 +44,22 @@ function segmentOrdinal(segment: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+/** Sorts after every numbered cluster, without special-casing in the compare. */
+const UNNUMBERED = Number.MAX_SAFE_INTEGER;
+
 /**
  * Order clusters along the crossing.
  *
  * The agent names them positionally (`segment0`, `segment1`, ...), so the
  * trailing number is the order — and comparing it numerically is what keeps
- * `segment10` after `segment9` instead of after `segment1`. Names without a
- * number sort alphabetically, behind the numbered ones; that happens to order
- * the legacy `left`/`right` pair correctly, so calibrations published before
- * the switch still read left to right with no special case.
+ * `segment10` after `segment9` instead of after `segment1`. A name carrying no
+ * number is not something the pipeline produces; it sorts last, by name, purely
+ * so the ordering stays total rather than leaving the keyboard's order to
+ * whatever order the payload happened to arrive in.
  */
 export function compareSegments(a: string, b: string): number {
-  const left = segmentOrdinal(a);
-  const right = segmentOrdinal(b);
-  if (left !== null && right !== null) return left - right || a.localeCompare(b);
-  if (left !== null) return -1;
-  if (right !== null) return 1;
-  return a.localeCompare(b);
+  return (segmentOrdinal(a) ?? UNNUMBERED) - (segmentOrdinal(b) ?? UNNUMBERED)
+    || a.localeCompare(b);
 }
 
 /**

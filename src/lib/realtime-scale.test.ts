@@ -8,8 +8,8 @@ const NOTE_PATTERN = /^([A-G])([#b]?)(-?\d+)$/;
 
 const BASE = DEFAULT_LIVE_CAMERA.baseAnchor;
 
-const REFERENCE_LEFT = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "left");
-const REFERENCE_RIGHT = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "right");
+const REFERENCE_FIRST = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "segment0");
+const REFERENCE_SECOND = REALTIME_CALIBRATION.stripes.filter((s) => s.segment === "segment1");
 
 describe("noteForOrdinal", () => {
   it("reproduces the original hand-authored scale exactly", () => {
@@ -17,7 +17,7 @@ describe("noteForOrdinal", () => {
     // stripes C4-F5, then 7 right stripes F#5-C6 — so numbering the crossing
     // globally is that run stated directly. Nothing that already made a sound
     // starts making a different one on a complete read.
-    const crossing = [...REFERENCE_LEFT, ...REFERENCE_RIGHT];
+    const crossing = [...REFERENCE_FIRST, ...REFERENCE_SECOND];
     crossing.forEach((stripe, ordinal) => {
       expect(noteForOrdinal(BASE, ordinal)).toBe(stripe.note);
     });
@@ -81,14 +81,12 @@ describe("compareSegments", () => {
     ]);
   });
 
-  it("orders legacy left/right calibrations correctly", () => {
-    // Published before the switch to positional names; they carry no number,
-    // so they fall through to alphabetical — which happens to be right.
-    expect(["right", "left"].sort(compareSegments)).toEqual(["left", "right"]);
-  });
-
-  it("puts numbered clusters ahead of unnumbered ones", () => {
-    expect(["left", "segment0"].sort(compareSegments)).toEqual(["segment0", "left"]);
+  it("keeps the ordering total for names the pipeline does not produce", () => {
+    // Nothing emits unnumbered cluster names any more, but the compare must
+    // still impose an order — leaving it to payload arrival order would make
+    // the keyboard's direction depend on JSON key order.
+    expect(["zulu", "segment0", "alpha"].sort(compareSegments)).toEqual(["segment0", "alpha", "zulu"]);
+    expect(compareSegments("alpha", "alpha")).toBe(0);
   });
 });
 

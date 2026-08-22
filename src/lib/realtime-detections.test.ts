@@ -29,7 +29,7 @@ describe("Realtime prediction mapping", () => {
     expect(occupied.map((s) => s.note)).toEqual(["F#4", "Bb5"]);
     // Each occupied stripe is identified independently of what it plays,
     // keyed with the agent's 0-based per-segment indexes.
-    expect(occupied.map((s) => s.key)).toEqual(["left:6", "right:4"]);
+    expect(occupied.map((s) => s.key)).toEqual(["segment0:6", "segment1:4"]);
     expect(countPredictionsForOutput(output, "all")).toBe(3);
   });
 
