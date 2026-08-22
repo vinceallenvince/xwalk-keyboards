@@ -13,6 +13,8 @@ type SnapshotState = {
 
 type RegistryCamera = Pick<CameraRecord, "cameraId" | "cameraKey" | "displayLabel" | "location" | "viewUrl">;
 
+type RegistryLiveCamera = Pick<CameraRecord, "cameraId" | "location" | "viewUrl">;
+
 function CameraCard({ camera, state }: { camera: RegistryCamera; state: SnapshotState | undefined }) {
   const snapshot = state ?? { status: "loading" as const };
   const stateLabel =
@@ -49,8 +51,9 @@ function CameraCard({ camera, state }: { camera: RegistryCamera; state: Snapshot
   );
 }
 
-export function CameraRegistry({ fallbackCameras, priorityCameras }: {
+export function CameraRegistry({ fallbackCameras, liveCameras, priorityCameras }: {
   fallbackCameras: readonly RegistryCamera[];
+  liveCameras: readonly RegistryLiveCamera[];
   priorityCameras: readonly RegistryCamera[];
 }) {
   const [snapshots, setSnapshots] = useState<Record<number, SnapshotState>>({});
@@ -122,11 +125,13 @@ export function CameraRegistry({ fallbackCameras, priorityCameras }: {
       </div>
       <aside className="live-column" aria-labelledby="live-feeds">
         <h2 id="live-feeds"><span className="live-indicator" aria-hidden="true" />Live feeds</h2>
-        <article className="live-feed-card">
-          <RegistryLivePreview />
-          <p>Feed 01 // West St @ W34</p>
-          <a href="https://511ny.org/map/Cctv/5056" target="_blank" rel="noreferrer">OPEN 511NY ↗</a>
-        </article>
+        {liveCameras.map((camera, index) => (
+          <article className="live-feed-card" key={camera.cameraId}>
+            <RegistryLivePreview cameraId={camera.cameraId} />
+            <p>{`Feed ${String(index + 1).padStart(2, "0")} // ${camera.location}`}</p>
+            <a href={camera.viewUrl} target="_blank" rel="noreferrer" aria-label={`Open View ${camera.cameraId} on 511NY`}>OPEN 511NY ↗</a>
+          </article>
+        ))}
         <p className="aside-note">One snapshot per static source. No polling or Roboflow inference occurs here.</p>
       </aside>
     </div>

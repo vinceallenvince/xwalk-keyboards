@@ -2,19 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
-
 type FeedStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
-const streamUrl = `/api/hls/${DEFAULT_LIVE_CAMERA.cameraId}/playlist.m3u8`;
-
-export function RegistryLivePreview() {
+export function RegistryLivePreview({ cameraId }: { cameraId: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState<FeedStatus>("connecting");
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    const streamUrl = `/api/hls/${cameraId}/playlist.m3u8`;
 
     let cancelled = false;
     let hls: import("hls.js").default | null = null;
@@ -74,7 +72,7 @@ export function RegistryLivePreview() {
       video.removeEventListener("playing", markLive);
       video.removeEventListener("error", retry);
     };
-  }, []);
+  }, [cameraId]);
 
   const statusLabel =
     status === "live" ? "LIVE"
@@ -86,7 +84,7 @@ export function RegistryLivePreview() {
     <div className="live-preview">
       <video ref={videoRef} className="live-preview__video" autoPlay muted playsInline />
       <div className="live-preview__overlay">
-        <span>VIEW {DEFAULT_LIVE_CAMERA.cameraId}</span>
+        <span>VIEW {cameraId}</span>
         <small className={status === "live" ? "live-preview__status--live" : undefined}>{statusLabel}</small>
       </div>
     </div>
