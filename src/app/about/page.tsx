@@ -6,10 +6,10 @@ import { HomeVideoBackground, type HomeFeedStatus } from "@/components/home-vide
 import { SiteHeader, SiteFooter } from "@/components/site-chrome";
 
 const feedLabels: Record<HomeFeedStatus, string> = {
-  connecting: "CONNECTING // WEST STREET @ W34 ST",
-  live: "FEED LIVE // WEST STREET @ W34 ST",
-  reconnecting: "RECONNECTING // WEST STREET @ W34 ST",
-  unavailable: "CAMERA UNAVAILABLE // WEST STREET @ W34 ST",
+  connecting: "CONNECTING // WEST STREET @ CHAMBERS ST",
+  live: "FEED LIVE // WEST STREET @ CHAMBERS ST",
+  reconnecting: "RECONNECTING // WEST STREET @ CHAMBERS ST",
+  unavailable: "CAMERA UNAVAILABLE // WEST STREET @ CHAMBERS ST",
 };
 
 export default function AboutPage() {
@@ -18,7 +18,7 @@ export default function AboutPage() {
 
   return (
     <main className="app-shell about-shell">
-      <HomeVideoBackground onStatusChange={reportFeedStatus} />
+      <HomeVideoBackground cameraId={5072} onStatusChange={reportFeedStatus} />
       <div className="about-video-wash" aria-hidden="true" />
       <SiteHeader section="ABOUT" />
       <section className="about-page">
