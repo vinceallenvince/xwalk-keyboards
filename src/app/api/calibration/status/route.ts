@@ -9,7 +9,10 @@ export const runtime = "nodejs";
 const BUCKET = process.env.CALIBRATION_BUCKET ?? "xwalk-keyboards-01";
 const PREFIX = process.env.CALIBRATION_GCS_PREFIX ?? "calibration";
 
-type CameraStatus = { cameraId: number; status: string };
+type CameraStatus = { cameraId: number; status: string; crosswalkRank: number };
+
+/** Default rank when the field is absent (mid-tier). */
+const DEFAULT_RANK = 3;
 
 /**
  * Fetch an access token from the GCE metadata server. On Cloud Run this
@@ -33,21 +36,24 @@ async function getAccessToken(): Promise<string | null> {
  * Read the status from a local fallback calibration JSON when GCS is
  * unreachable (e.g. local dev without metadata-server auth).
  */
-async function fallbackStatus(cameraId: number): Promise<string> {
+async function fallbackCalibration(cameraId: number): Promise<{ status: string; crosswalkRank: number }> {
   try {
     const filePath = join(process.cwd(), "public", `calibration-fallback-${cameraId}.json`);
     const raw = await readFile(filePath, "utf-8");
-    const data = JSON.parse(raw) as { status?: string };
-    return data.status ?? "ok";
+    const data = JSON.parse(raw) as { status?: string; crosswalk_rank?: number };
+    return {
+      status: data.status ?? "ok",
+      crosswalkRank: data.crosswalk_rank ?? DEFAULT_RANK,
+    };
   } catch {
-    return "ok";
+    return { status: "ok", crosswalkRank: DEFAULT_RANK };
   }
 }
 
 /**
  * GET /api/calibration/status
  *
- * Returns `{ cameras: [{ cameraId, status }] }` for every registered live
+ * Returns `{ cameras: [{ cameraId, status, crosswalkRank }] }` for every registered live
  * camera. The homepage calls this once on load to decide which camera links
  * to show — cameras with `no_crosswalk` are excluded from the link list
  * unless all cameras are rotated.
@@ -72,19 +78,23 @@ export async function GET() {
         // No calibration published yet — the camera uses its baked-in
         // reference, which is always playable (status "ok").
         if (response.status === 404) {
-          return { cameraId: camera.cameraId, status: "ok" };
+          return { cameraId: camera.cameraId, status: "ok", crosswalkRank: DEFAULT_RANK };
         }
 
         if (!response.ok) {
-          const status = await fallbackStatus(camera.cameraId);
-          return { cameraId: camera.cameraId, status };
+          const fb = await fallbackCalibration(camera.cameraId);
+          return { cameraId: camera.cameraId, ...fb };
         }
 
-        const data = (await response.json()) as { status?: string };
-        return { cameraId: camera.cameraId, status: data.status ?? "ok" };
+        const data = (await response.json()) as { status?: string; crosswalk_rank?: number };
+        return {
+          cameraId: camera.cameraId,
+          status: data.status ?? "ok",
+          crosswalkRank: data.crosswalk_rank ?? DEFAULT_RANK,
+        };
       } catch {
-        const status = await fallbackStatus(camera.cameraId);
-        return { cameraId: camera.cameraId, status };
+        const fb = await fallbackCalibration(camera.cameraId);
+        return { cameraId: camera.cameraId, ...fb };
       }
     }),
   );
