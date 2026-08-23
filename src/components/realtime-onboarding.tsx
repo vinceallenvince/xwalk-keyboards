@@ -65,6 +65,9 @@ type OnboardingValue = {
   closeInfo: () => void;
   setBlocked: (blocked: boolean) => void;
   reportPredictions: () => void;
+  /** Reset the sequence to its initial state — used when the camera rotates
+   * back and the study should restart from the first onboarding step. */
+  reset: () => void;
 };
 
 const OnboardingContext = createContext<OnboardingValue | null>(null);
@@ -114,6 +117,15 @@ export function RealtimeOnboardingProvider({ children }: { children: ReactNode }
     setStepState((current) => (current === "warming-up" ? null : current));
   }, []);
 
+  // Reset the sequence so it replays from step 1 — used when the camera
+  // rotates back after a no-crosswalk period, giving the visitor a fresh start.
+  const reset = useCallback(() => {
+    setStepState(disabled ? null : "how-to-hear");
+    setPredictionsReceived(false);
+    setInfoOpen(false);
+    setBlocked(false);
+  }, [disabled]);
+
   return (
     <OnboardingContext.Provider
       value={{
@@ -126,6 +138,7 @@ export function RealtimeOnboardingProvider({ children }: { children: ReactNode }
         closeInfo,
         setBlocked,
         reportPredictions,
+        reset,
       }}
     >
       {children}
@@ -145,6 +158,11 @@ export function useSetOnboardingBlocked() {
 /** Lets the camera report that prediction data is arriving. */
 export function useReportPredictions() {
   return useOnboarding().reportPredictions;
+}
+
+/** Reset the onboarding sequence to step 1 — used on no-crosswalk recovery. */
+export function useResetOnboarding() {
+  return useOnboarding().reset;
 }
 
 /**

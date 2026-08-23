@@ -2,15 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import Link from "next/link";
+
 import { RealtimeDebug } from "@/components/realtime-debug";
 import { RealtimeInference, type InferenceStatus } from "@/components/realtime-inference";
 import type { SessionType, StartupSummary } from "@/lib/startup-timing";
 import {
   RealtimeOnboardingOverlay,
   useReportPredictions,
+  useResetOnboarding,
   useSetOnboardingBlocked,
 } from "@/components/realtime-onboarding";
-import type { LiveCameraRecord } from "@/data/cameras";
+import { LIVE_CAMERAS, type LiveCameraRecord } from "@/data/cameras";
 import { useCalibration } from "@/lib/use-calibration";
 import type { FrameSize } from "@/lib/realtime-calibration";
 
@@ -72,6 +75,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const { calibration, applyCalibration } = useCalibration(camera);
   const setOnboardingBlocked = useSetOnboardingBlocked();
   const reportPredictions = useReportPredictions();
+  const resetOnboarding = useResetOnboarding();
   const reportStartupSummary = useCallback((summary: StartupSummary) => setStartupSummary(summary), []);
 
   // The pause modal owns the viewport for as long as it is up: the onboarding
@@ -360,8 +364,14 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
 
   const effectiveCamera = forcedUnavailable ? "unavailable" as CameraStatus : cameraStatus;
   const isLive = effectiveCamera === "live";
-  const inferenceAllowed = isLive && !inferenceTimedOut && !inferenceClosed;
+  // The camera is live but rotated to a view with no crosswalk. The agent
+  // published an empty-stripe calibration, so there is no keyboard to play.
+  const noCrosswalk = calibration.source === "live"
+    && calibration.status === "no_crosswalk"
+    && calibration.stripes.length === 0;
+  const inferenceAllowed = isLive && !inferenceTimedOut && !inferenceClosed && !noCrosswalk;
   const soundReady = inferenceStatus === "active" && !forcedUnavailable && !inferenceTimedOut && !inferenceClosed;
+  const otherCameras = LIVE_CAMERAS.filter((c) => c.cameraId !== camera.cameraId);
   const [recalibrating, setRecalibrating] = useState(false);
 
   const handleRecalibrate = useCallback(async () => {
@@ -406,13 +416,39 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     }
   }, [applyCalibration, camera.cameraId, recalibrating]);
 
+  // When the camera rotates away from the crosswalk, clear the inference
+  // timer — there is no inference to pause when there is no crosswalk.
+  // The pause modal is hidden by the `!noCrosswalk` render guard, so no
+  // setState is needed here (avoiding the set-state-in-effect cascade).
+  useEffect(() => {
+    if (!noCrosswalk) return;
+    if (inferenceTimerRef.current) {
+      clearTimeout(inferenceTimerRef.current);
+      inferenceTimerRef.current = null;
+    }
+  }, [noCrosswalk]);
+
+  // When the camera rotates back and real stripes arrive, restart the study
+  // from scratch — fresh onboarding, fresh inference, clean slate.
+  const prevNoCrosswalkRef = useRef(false);
+  useEffect(() => {
+    if (prevNoCrosswalkRef.current && !noCrosswalk) {
+      resetOnboarding();
+      setInferenceStatus("waiting");
+      setInferenceTimedOut(false);
+      setInferenceClosed(false);
+      setSessionType("initial");
+    }
+    prevNoCrosswalkRef.current = noCrosswalk;
+  }, [noCrosswalk, resetOnboarding]);
+
   // Rendered twice: an overlay copy inside the viewport (desktop, and any
   // fullscreen session — the fullscreened element is the only thing painted,
   // so EXIT FULLSCREEN must live inside it) and a docked copy below the
   // viewport (mobile, per the ui_mobile frames). CSS shows exactly one copy,
   // and `display: none` keeps the hidden copy out of the accessibility tree.
   const renderControls = (variant: "overlay" | "docked") => (
-    <div className={`realtime-controls realtime-controls--${variant}${isLive ? "" : " realtime-controls--idle"}`}>
+    <div className={`realtime-controls realtime-controls--${variant}${isLive && !noCrosswalk ? "" : " realtime-controls--idle"}`}>
       {/* Follows the sound button's gate: inert until the keyboard is ready.
           `isFullscreen` keeps EXIT FULLSCREEN usable if inference drops or
           pauses while the viewport is already fullscreened. */}
@@ -447,6 +483,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
         </span>
         <span className={`realtime-inference-status ${
           effectiveCamera === "unavailable" ? "realtime-inference-status--unavailable"
+          : noCrosswalk ? "realtime-inference-status--no-crosswalk"
           : inferenceClosed ? "realtime-inference-status--paused"
           : inferenceTimedOut ? "realtime-inference-status--paused"
           : `realtime-inference-status--${inferenceStatus}`
@@ -454,6 +491,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
           {/* A camera outage is not the keyboard's fault, so this line defers
               to the real cause rather than blaming the instrument. */}
           {effectiveCamera === "unavailable" ? "FEED UNAVAILABLE"
+           : noCrosswalk ? "STATUS: KEYBOARD UNAVAILABLE"
            : inferenceClosed ? "XWALK KEYBOARD PAUSED: RELOAD TO CONTINUE"
            : inferenceTimedOut ? "XWALK KEYBOARD PAUSED"
            : inferenceMessage ?? inferenceLabels[inferenceStatus]}
@@ -466,6 +504,30 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             <p className="realtime-unavailable-title">VIDEO FEED UNAVAILABLE</p>
             <p className="realtime-unavailable-subtitle">The camera feed for this intersection is currently offline.</p>
           </div>
+        )}
+        {noCrosswalk && effectiveCamera !== "unavailable" && (
+          <>
+            <div className="realtime-nocrosswalk-scrim" />
+            <div className="realtime-nocrosswalk-notice" role="status" aria-label="No crosswalk detected">
+              <p className="realtime-nocrosswalk-notice__title">NO CROSSWALK DETECTED</p>
+              <p className="realtime-nocrosswalk-notice__body">
+                Sometimes due to bad weather or intentional repositioning
+                we may find our cameras no longer include a crosswalk.
+              </p>
+              <p className="realtime-nocrosswalk-notice__body">Please try one of these:</p>
+              <div className="realtime-nocrosswalk-notice__links">
+                {otherCameras.map((cam) => (
+                  <Link
+                    key={cam.cameraId}
+                    href={`/realtime/${cam.cameraId}`}
+                    className="realtime-nocrosswalk-notice__link"
+                  >
+                    CAM {cam.cameraId}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </>
         )}
         {inferenceAllowed && (
           <RealtimeInference
@@ -514,8 +576,10 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             <p className="realtime-fullscreen-banner">TAP ANYWHERE TO EXIT FULLSCREEN</p>
           </div>
         )}
-        <RealtimeOnboardingOverlay calibration={calibration} keyboardReady={inferenceStatus === "active"} />
-        {showPauseModal && (
+        {!noCrosswalk && (
+          <RealtimeOnboardingOverlay calibration={calibration} keyboardReady={inferenceStatus === "active"} />
+        )}
+        {showPauseModal && !noCrosswalk && (
           <>
             <div className="realtime-pause-scrim" />
             <div className="realtime-pause-modal" role="dialog" aria-label="XWalk Keyboard paused">
