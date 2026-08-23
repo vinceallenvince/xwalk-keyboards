@@ -359,6 +359,90 @@ Then the study resumes its normal live state with current detections
 And the unavailable overlay is removed
 ```
 
+### As a visitor, if the camera has rotated away from the crosswalk, I am redirected to another camera
+
+511NY cameras rotate through preset views on an unknown schedule. When a
+camera rotates away from the crosswalk, the calibration agent publishes a
+zero-stripe calibration (`stripes: []`, `status: no_crosswalk`). The live
+video feed still works — the camera is up — but there is no crosswalk in
+frame and therefore no keyboard to play.
+
+This is not an error state. It is a temporary viewport rotation, and the
+study communicates it as a redirect opportunity rather than a failure. The
+onboarding sequence does not run; the visitor goes straight to the redirect
+notice because there is nothing to warm up.
+
+```gherkin
+Given I open the Realtime study for a camera
+And the calibration agent's current calibration has status "no_crosswalk" and an empty stripes array
+When the page loads
+Then the feed status reads "FEED LIVE // <CAMERA INTERSECTION>" with a live mint dot
+And the inference status reads "STATUS: KEYBOARD UNAVAILABLE"
+And the live camera video is visible at reduced opacity behind the notice
+And a centered notice appears over the viewport
+And the notice title reads "CAMERA VIEW CHANGED"
+And the notice explains that this camera is not currently showing a crosswalk
+And the notice presents links to the other registered realtime cameras, excluding the current one
+And each camera link displays the camera's intersection name (e.g., "WEST STREET @ W. 23 ST")
+And each camera link navigates to that camera's realtime page (e.g., /realtime/5059)
+And the "FULLSCREEN" and sound controls remain visible but visually inactive
+And no onboarding sequence runs because there is no keyboard to warm up
+And no crosswalk stripe highlights or notes are produced
+```
+
+The notice is not a modal with a dismiss action — there is no useful state
+behind it to return to. The visitor either navigates to another camera or
+waits for the camera to rotate back.
+
+```gherkin
+Given the camera-rotated notice is displayed
+When the calibration agent publishes a new calibration with one or more stripes
+Then the notice is removed
+And the onboarding sequence begins from its first step
+And the study proceeds through its normal startup flow
+And no manual page reload is required
+```
+
+The existing five-minute re-fetch cycle handles recovery: the client polls
+the calibration JSON, and when stripes reappear the notice auto-dismisses
+and onboarding begins.
+
+```gherkin
+Given all registered cameras have status "no_crosswalk"
+When I view the camera-rotated notice
+Then the notice still lists the other cameras as links
+And no "all cameras unavailable" special state is shown
+And a visitor who navigates to another camera sees its own camera-rotated notice
+```
+
+The notice and the five-minute pause modal are never shown at the same time.
+The camera-rotated state takes precedence: if there is no crosswalk in frame,
+there is no inference to pause.
+
+```gherkin
+Given the camera-rotated notice is displayed
+Then the five-minute inference timer is not started
+And no pause modal is shown
+And no inference connection is opened
+
+Given inference is active and the five-minute timer is running
+When a recalibration arrives with status "no_crosswalk" and empty stripes
+Then inference is stopped
+And the pause modal is not shown
+And the camera-rotated notice appears
+And the five-minute timer is cleared
+```
+
+The conditions step in the onboarding sequence reflects the zero-stripe
+state honestly when it runs on a subsequent visit after recovery.
+
+```gherkin
+Given the calibration status is "no_crosswalk"
+And the onboarding sequence has not yet run because the notice was shown instead
+When the calibration recovers and onboarding begins
+Then the conditions step derives from the recovered calibration's status, not the prior "no_crosswalk"
+```
+
 ### As a visitor, I can view the live Realtime study full screen
 
 Fullscreen removes the surrounding study interface and makes the live camera
