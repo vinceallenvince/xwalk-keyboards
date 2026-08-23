@@ -46,37 +46,36 @@ And a mint vertical divider separates the two study modes
 And "REALTIME" and "SEQUENCE" are rendered in their inactive gray states
 ```
 
-### As a visitor, I can preview a study mode before choosing it
+### As a visitor, I can preview a camera link before choosing it
 
-Both study modes are inactive gray by default. Hovering a mode gives it the
-mint highlight and returns the other mode to gray, making the prospective
+All camera links are inactive gray by default. Hovering a link gives it
+the mint highlight and returns the others to gray, making the prospective
 selection clear before the visitor commits.
 
 ```gherkin
-Given the study selector is centered in the viewport
-When the visitor rolls over "REALTIME"
-Then "REALTIME" changes to the active highlight color
-And "SEQUENCE" remains in its inactive gray state
-And "SEQUENCE" is not a link and does not respond to hover or click
+Given the camera links section is centered in the viewport
+When the visitor rolls over "CAM 5059"
+Then "CAM 5059" changes to the active mint highlight color
+And the other camera links remain in their inactive gray state
+When the visitor rolls over a different camera link
+Then that link receives the mint highlight
+And "CAM 5059" returns to its inactive gray state
 ```
 
 ### As a visitor, I see dynamic camera links on the homepage
 
-The static REALTIME / SEQUENCE study selector is replaced by per-camera
-links driven by each camera's calibration status. The homepage fetches
+The homepage fetches
 calibration data for all registered live cameras on load and shows a link
 for each camera whose crosswalk is currently visible. Links are ordered
 left to right in descending order by camera ID.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all three registered live cameras (5072, 5059, 5056) have a calibration status other than "no_crosswalk"
+And all three registered live cameras (e.g. 5072, 5059, 5056) have a calibration status other than "no_crosswalk"
 When the homepage finishes loading and calibration statuses have been fetched
-Then the camera links section replaces the former REALTIME / SEQUENCE study selector
-And three camera links are displayed in descending order by camera ID: "CAM 5072 | CAM 5059 | CAM 5056"
+And three camera links are displayed in descending order by camera ID (e.g. CAM 5072 | CAM 5059 | CAM 5056)
 And a mint vertical divider separates each pair of camera links
-And each link navigates to that camera's Realtime page (/realtime/5072, /realtime/5059, /realtime/5056)
-And no "REALTIME", "SEQUENCE", or "[ In progress ]" labels are shown
+And each link navigates to that camera's Realtime page (e.g. /realtime/5072, /realtime/5059, /realtime/5056)
 ```
 
 ```gherkin
@@ -111,9 +110,9 @@ renders all cameras rather than showing an empty selector.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all three registered live cameras have calibration status "no_crosswalk"
+And all registered live cameras have calibration status "no_crosswalk"
 When the homepage finishes loading
-Then the camera links section displays all three links: "CAM 5072 | CAM 5059 | CAM 5056"
+Then the camera links section displays all links (e.g. "CAM 5072 | CAM 5059 | CAM 5056")
 And the visitor always has somewhere to go
 And selecting a camera link navigates to that camera's Realtime page
 And the visitor sees that camera's "NO CROSSWALK DETECTED" notice on arrival
