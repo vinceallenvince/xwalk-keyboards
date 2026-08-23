@@ -60,6 +60,106 @@ And "SEQUENCE" remains in its inactive gray state
 And "SEQUENCE" is not a link and does not respond to hover or click
 ```
 
+### As a visitor, I see dynamic camera links on the homepage
+
+The static REALTIME / SEQUENCE study selector is replaced by per-camera
+links driven by each camera's calibration status. The homepage fetches
+calibration data for all registered live cameras on load and shows a link
+for each camera whose crosswalk is currently visible. Links are ordered
+left to right in descending order by camera ID.
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+And all three registered live cameras (5072, 5059, 5056) have a calibration status other than "no_crosswalk"
+When the homepage finishes loading and calibration statuses have been fetched
+Then the camera links section replaces the former REALTIME / SEQUENCE study selector
+And three camera links are displayed in descending order by camera ID: "CAM 5072 | CAM 5059 | CAM 5056"
+And a mint vertical divider separates each pair of camera links
+And each link navigates to that camera's Realtime page (/realtime/5072, /realtime/5059, /realtime/5056)
+And no "REALTIME", "SEQUENCE", or "[ In progress ]" labels are shown
+```
+
+```gherkin
+Given the camera links section is visible
+When the visitor selects "CAM 5059"
+Then the visitor navigates to /realtime/5059
+And the Realtime study opens with its normal onboarding sequence for camera 5059
+```
+
+### As a visitor, cameras with no crosswalk are hidden from the homepage links
+
+When a camera has rotated away from its crosswalk, its calibration status
+reads `no_crosswalk`. The homepage excludes that camera's link so visitors
+are not sent to a page with nothing to play. If only one camera has a
+crosswalk, only one link appears.
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+And camera 5059 has calibration status "no_crosswalk"
+And cameras 5072 and 5056 have calibration status other than "no_crosswalk"
+When the homepage finishes loading
+Then the camera links section displays two links: "CAM 5072 | CAM 5056"
+And no link for camera 5059 is shown
+And the remaining links are still ordered in descending order by camera ID
+```
+
+### As a visitor, I still see all camera links when every camera is rotated
+
+The homepage always gives the visitor somewhere to go. When every
+registered camera has rotated away from its crosswalk, the link section
+renders all cameras rather than showing an empty selector.
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+And all three registered live cameras have calibration status "no_crosswalk"
+When the homepage finishes loading
+Then the camera links section displays all three links: "CAM 5072 | CAM 5059 | CAM 5056"
+And the visitor always has somewhere to go
+And selecting a camera link navigates to that camera's Realtime page
+And the visitor sees that camera's "NO CROSSWALK DETECTED" notice on arrival
+```
+
+### As a visitor, the camera links reflect the state at page load
+
+The homepage fetches calibration statuses once when the page loads. The
+link list does not update dynamically while the visitor is on the page —
+a camera that recovers or rotates away after the fetch is reflected on the
+next visit or browser refresh.
+
+```gherkin
+Given the visitor is viewing the homepage
+And camera 5072 had calibration status "no_crosswalk" at page load
+When camera 5072 recovers its crosswalk while the visitor is still on the homepage
+Then the camera links section does not change
+And camera 5072's link does not appear until the visitor refreshes or returns to the homepage
+
+Given the visitor is viewing the homepage
+And all three cameras had available crosswalks at page load
+When camera 5056 rotates away while the visitor is still on the homepage
+Then the camera links section does not change
+And camera 5056's link remains visible until the visitor refreshes or returns to the homepage
+```
+
+### As a visitor, the background video stream is independent of crosswalk availability
+
+The homepage background video is ambient — it plays camera 5059's live
+feed for visual atmosphere, not for inference. The background stream
+continues regardless of whether camera 5059's crosswalk is available.
+
+```gherkin
+Given camera 5059 has calibration status "no_crosswalk"
+When the homepage loads
+Then the West Street at W. 23 St background video stream plays normally
+And the background video remains darkened as ambient visual atmosphere
+And no inference, stripe highlights, or audio are started on the homepage
+And the feed status still reads the camera's connection state (e.g., "FEED LIVE // WEST STREET @ W23 ST")
+
+Given camera 5059 has calibration status "ok"
+When the homepage loads
+Then the background video stream behaves identically
+And the background stream is always ambient, regardless of calibration status
+```
+
 ## Shared Navigation
 
 ### As a visitor, I can return to the XWALK KEYBOARDS homepage
