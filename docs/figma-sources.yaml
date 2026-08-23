@@ -13,9 +13,11 @@
 # that captures the same state. `shot: null` means no runtime screenshot exists
 # yet. Node ids change when frames are rebuilt — re-run the sync to regenerate.
 #
-# The current Homepage Figma story combines the initial hero and selector
-# interactions in one section. Its UI frames retain the initial state, neutral
-# selector state, and the two hover-preview states in reading order.
+# The current Homepage Figma story combines the initial hero and camera-link
+# selector in one section. Its UI frames retain the initial state, neutral
+# selector state (all three camera links inactive), the two hover-preview
+# states, and the excluded-cam state (one camera rotated, 2 links) in
+# reading order.
 #
 # Mobile: a story whose mobile (@mobile) behaviour diverges from desktop carries a
 # parallel `ui_mobile:` list of the same { node, shot } shape, captured at the
@@ -38,14 +40,16 @@ epics:
         scenario: "57-19"
         ui:
           - { node: "3-6", shot: "homepage-initial" }                     # homepage initial hero
-          - { node: "69-354", shot: "homepage-scrolled-inactive" }        # scrolled selector: both options inactive
-          - { node: "10-5", shot: "homepage-scrolled-realtime" }          # scrolled selector: Realtime hover preview
-          - { node: "69-327", shot: null }                                # scrolled selector: Sequence hover preview
+          - { node: "69-354", shot: "homepage-scrolled-inactive" }        # scrolled selector: all camera links inactive
+          - { node: "10-5", shot: "homepage-scrolled-realtime" }          # scrolled selector: CAM 5059 hover
+          - { node: "69-327", shot: null }                                # scrolled selector: CAM 5072 hover
+          - { node: "441-224", shot: null }                               # scrolled selector: one camera excluded (2 links)
         ui_mobile:
           - { node: "372-29", shot: null }                                # homepage initial hero
-          - { node: "384-2", shot: null }                                 # scrolled selector: both options inactive
-          - { node: "384-30", shot: null }                                # scrolled selector: Realtime hover preview
-          - { node: "384-58", shot: null }                                # scrolled selector: Sequence hover preview
+          - { node: "384-2", shot: null }                                 # scrolled selector: all camera links inactive
+          - { node: "384-30", shot: null }                                # scrolled selector: CAM 5059 hover
+          - { node: "384-58", shot: null }                                # scrolled selector: CAM 5072 hover
+          - { node: null, shot: null }                                    # scrolled selector: one camera excluded (2 links)
 
   - epic: "Realtime Study"
     page: "57-23"
