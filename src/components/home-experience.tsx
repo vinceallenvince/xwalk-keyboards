@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 
 import { HomeVideoBackground, type HomeFeedStatus } from "@/components/home-video-background";
+import { useCameraLinks } from "@/lib/use-camera-links";
 
 const feedLabels: Record<HomeFeedStatus, string> = {
   connecting: "CONNECTING // WEST STREET @ W23 ST",
@@ -15,6 +16,7 @@ const feedLabels: Record<HomeFeedStatus, string> = {
 export function HomeExperience() {
   const [feedStatus, setFeedStatus] = useState<HomeFeedStatus>("connecting");
   const reportFeedStatus = useCallback((status: HomeFeedStatus) => setFeedStatus(status), []);
+  const { cameras } = useCameraLinks();
 
   return (
     <main className="home-shell">
@@ -34,11 +36,14 @@ export function HomeExperience() {
           </a>
         </div>
       </section>
-      <section className="home-studies" id="studies" aria-label="Choose a study">
+      <section className="home-studies" id="studies" aria-label="Choose a camera">
         <nav className="study-selector">
-          <Link href="/realtime/5059">REALTIME</Link>
-          <i aria-hidden="true" />
-          <span aria-disabled="true">SEQUENCE<small className="study-selector__status">[ In progress ]</small></span>
+          {cameras.map((cam, i) => (
+            <Fragment key={cam.cameraId}>
+              {i > 0 && <i aria-hidden="true" />}
+              <Link href={`/realtime/${cam.cameraId}`}>CAM {cam.cameraId}</Link>
+            </Fragment>
+          ))}
         </nav>
       </section>
       <footer className="home-footer">
