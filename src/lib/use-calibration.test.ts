@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
+import { DEFAULT_LIVE_CAMERA, LIVE_CAMERAS } from "@/data/cameras";
 import { REALTIME_CALIBRATION } from "./realtime-calibration";
 import { noteForOrdinal } from "./realtime-scale";
 import { gcsAuthenticatedUrl, toBoundaries, toStripes } from "./use-calibration";
@@ -92,6 +92,16 @@ describe("toStripes", () => {
   it("falls back to the camera's reference when the payload has no stripes", () => {
     expect(toStripes(CAMERA, [])).toEqual(REALTIME_CALIBRATION.stripes);
     expect(toStripes(CAMERA, undefined)).toEqual(REALTIME_CALIBRATION.stripes);
+  });
+
+  it("returns empty for a camera with no baked-in reference stripes", () => {
+    // Cameras 5059 and 5072 have no hand-calibrated geometry — they start
+    // silent until the agent publishes. When a no_crosswalk payload arrives,
+    // applyCalibration handles it before toStripes is ever called, so this
+    // fallback path only fires for non-no_crosswalk empty payloads.
+    const cam5059 = LIVE_CAMERAS.find((c) => c.cameraId === 5059)!;
+    expect(toStripes(cam5059, [])).toEqual([]);
+    expect(toStripes(cam5059, undefined)).toEqual([]);
   });
 });
 

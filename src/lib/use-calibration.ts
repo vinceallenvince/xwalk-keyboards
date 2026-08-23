@@ -257,6 +257,25 @@ export function useCalibration(camera: LiveCameraRecord): {
    */
   const applyCalibration: CalibrationUpdater = useCallback((data: CalibrationResponse) => {
     const cam = cameraRef.current;
+
+    // A no_crosswalk status with empty stripes is a truthful calibration —
+    // the camera is not showing a crosswalk. Publish it as-is so the UI
+    // can show the redirect notice rather than keeping stale geometry.
+    if (data.status === "no_crosswalk" && (!data.stripes || data.stripes.length === 0)) {
+      setCalibration({
+        status: "no_crosswalk",
+        reasoning: data.reasoning ?? null,
+        boundaries: {},
+        referenceFrame: data.referenceFrame ?? cam.calibration.referenceFrame,
+        stripes: [],
+        updatedAt: data.updatedAt ?? data.createdAt ?? null,
+        source: "live",
+        hullsFromStripes: false,
+        frameUrl: gcsAuthenticatedUrl(data.frameUri),
+      });
+      return;
+    }
+
     const stripes = toStripes(cam, data.stripes);
     if (stripes.length === 0) return;
 
