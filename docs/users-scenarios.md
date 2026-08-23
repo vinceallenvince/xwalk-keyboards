@@ -380,10 +380,10 @@ Then the feed status reads "FEED LIVE // <CAMERA INTERSECTION>" with a live mint
 And the inference status reads "STATUS: KEYBOARD UNAVAILABLE"
 And the live camera video is visible at reduced opacity behind the notice
 And a centered notice appears over the viewport
-And the notice title reads "CAMERA VIEW CHANGED"
+And the notice title reads "NO CROSSWALK DETECTED"
 And the notice explains that this camera is not currently showing a crosswalk
 And the notice presents links to the other registered realtime cameras, excluding the current one
-And each camera link displays the camera's intersection name (e.g., "WEST STREET @ W. 23 ST")
+And each camera link is labeled with the camera ID (e.g., "CAM 5059")
 And each camera link navigates to that camera's realtime page (e.g., /realtime/5059)
 And the "FULLSCREEN" and sound controls remain visible but visually inactive
 And no onboarding sequence runs because there is no keyboard to warm up
