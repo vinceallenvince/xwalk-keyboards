@@ -47,8 +47,15 @@ export function HomeExperience() {
         </nav>
       </section>
       <footer className="home-footer">
-        <span>SOURCE: 511NY // <Link href="/about">ABOUT</Link></span>
-        <span className="footer-pattern">PATTERN: MONUMENTAL_ISO <i aria-hidden="true" /> <b>STUDY NO. 042-B</b></span>
+        <span>
+          <Link href="/about">ABOUT</Link>
+          {" // CAM SOURCE: "}
+          <a href="https://511ny.org" target="_blank" rel="noopener noreferrer">511NY</a>
+          {" // POWERED BY: "}
+          <a href="https://roboflow.com" target="_blank" rel="noopener noreferrer">Roboflow</a>
+          {" + "}
+          <a href="https://cloud.google.com/run" target="_blank" rel="noopener noreferrer">Google Cloud Run</a>
+        </span>
       </footer>
     </main>
   );
