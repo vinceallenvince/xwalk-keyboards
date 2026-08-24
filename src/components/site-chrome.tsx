@@ -30,25 +30,25 @@ export function SiteHeader({ accessory, section }: { accessory?: ReactNode; sect
 
 export function SiteFooter({ onAboutPage }: { onAboutPage?: boolean }) {
   const aboutEl = onAboutPage ? "ABOUT" : <Link href="/about">ABOUT</Link>;
-  const links = (
-    <>
-      <a href="https://511ny.org" target="_blank" rel="noopener noreferrer">511NY</a>
-      {" // "}
-      <span className="footer-label footer-label--desktop">POWERED BY: </span>
-      <span className="footer-label footer-label--mobile">TOOLS: </span>
-      <a href="https://roboflow.com" target="_blank" rel="noopener noreferrer">Roboflow</a>
-      {" + "}
-      <a href="https://cloud.google.com/run" target="_blank" rel="noopener noreferrer">Google Cloud Run</a>
-    </>
-  );
   return (
     <footer className="site-footer">
       <span>
         {aboutEl}
-        {" // "}
+        <span className="footer-sep footer-sep--double">{" // "}</span>
+        <span className="footer-sep footer-sep--single"> / </span>
         <span className="footer-label footer-label--desktop">CAM SOURCE: </span>
         <span className="footer-label footer-label--mobile">CAMS: </span>
-        {links}
+        <a href="https://511ny.org" target="_blank" rel="noopener noreferrer">511NY</a>
+        <span className="footer-sep footer-sep--double">{" // "}</span>
+        <span className="footer-sep footer-sep--single"> / </span>
+        <span className="footer-label footer-label--desktop">POWERED BY: </span>
+        <span className="footer-label footer-label--mobile">TOOLS: </span>
+        <a href="https://roboflow.com" target="_blank" rel="noopener noreferrer">Roboflow</a>
+        {" + "}
+        <a href="https://cloud.google.com/run" target="_blank" rel="noopener noreferrer">
+          <span className="footer-label footer-label--desktop">Google Cloud Run</span>
+          <span className="footer-label footer-label--mobile">Cloud Run</span>
+        </a>
       </span>
     </footer>
   );
