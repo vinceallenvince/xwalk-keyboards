@@ -62,6 +62,8 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const [showRotateHint, setShowRotateHint] = useState(false);
   const rotateHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showExitBanner, setShowExitBanner] = useState(false);
+  const exitBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [frameSize, setFrameSize] = useState<FrameSize | null>(null);
   const [detectionPoints, setDetectionPoints] = useState<[number, number][]>([]);
   const [forcedUnavailable, setForcedUnavailable] = useState(false);
@@ -176,6 +178,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     audioContextRef.current = null;
     if (inferenceTimerRef.current) clearTimeout(inferenceTimerRef.current);
     if (rotateHintTimerRef.current) clearTimeout(rotateHintTimerRef.current);
+    if (exitBannerTimerRef.current) clearTimeout(exitBannerTimerRef.current);
     if (pseudoFullscreenRef.current) document.documentElement.style.overflow = '';
   }, []);
 
@@ -302,6 +305,11 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
       clearTimeout(rotateHintTimerRef.current);
       rotateHintTimerRef.current = null;
     }
+    setShowExitBanner(false);
+    if (exitBannerTimerRef.current) {
+      clearTimeout(exitBannerTimerRef.current);
+      exitBannerTimerRef.current = null;
+    }
     document.documentElement.style.overflow = '';
   }, []);
 
@@ -325,6 +333,12 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     setIsPseudoFullscreen(true);
     setIsFullscreen(true);
     document.documentElement.style.overflow = 'hidden';
+
+    setShowExitBanner(true);
+    exitBannerTimerRef.current = setTimeout(() => {
+      setShowExitBanner(false);
+      exitBannerTimerRef.current = null;
+    }, 3_000);
 
     if (window.matchMedia('(orientation: portrait)').matches) {
       setShowRotateHint(true);
@@ -573,7 +587,9 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
                 <p className="realtime-rotate-hint__text">ROTATE FOR BEST EXPERIENCE</p>
               </div>
             )}
-            <p className="realtime-fullscreen-banner">TAP ANYWHERE TO EXIT FULLSCREEN</p>
+            {showExitBanner && (
+              <p className="realtime-fullscreen-banner">TAP ANYWHERE TO EXIT FULLSCREEN</p>
+            )}
           </div>
         )}
         {!noCrosswalk && (
