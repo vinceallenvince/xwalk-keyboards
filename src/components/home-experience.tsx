@@ -49,9 +49,13 @@ export function HomeExperience() {
       <footer className="home-footer">
         <span>
           <Link href="/about">ABOUT</Link>
-          {" // CAM SOURCE: "}
+          {" // "}
+          <span className="footer-label footer-label--desktop">CAM SOURCE: </span>
+          <span className="footer-label footer-label--mobile">CAMS: </span>
           <a href="https://511ny.org" target="_blank" rel="noopener noreferrer">511NY</a>
-          {" // POWERED BY: "}
+          {" // "}
+          <span className="footer-label footer-label--desktop">POWERED BY: </span>
+          <span className="footer-label footer-label--mobile">TOOLS: </span>
           <a href="https://roboflow.com" target="_blank" rel="noopener noreferrer">Roboflow</a>
           {" + "}
           <a href="https://cloud.google.com/run" target="_blank" rel="noopener noreferrer">Google Cloud Run</a>
