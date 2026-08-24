@@ -12,3 +12,4 @@ docs/images/
 e2e/__screens__/
 e2e/__results__/
 e2e/*-alignment.md
+.claude/worktrees/
