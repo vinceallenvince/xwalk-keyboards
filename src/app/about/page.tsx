@@ -42,8 +42,8 @@ export default function AboutPage() {
           </p>
           <h2>HOW IT WORKS</h2>
           <p>
-            The web app uses Roboflow to detect pedestrians in a traffic cam
-            video in realtime. An AI agent running on Cloud Run orchestrates a
+            The web app uses Roboflow to detect pedestrians in a <a href="https://511ny.org/" target="_blank" rel="noreferrer" aria-label="Open link to 511NY.org">511NY</a> traffic cam
+            video in real time. An AI agent running on Cloud Run orchestrates a
             calibration cycle and uses Roboflow to detect crosswalk stripes on
             regular intervals. Get more information on how the app works
             at <a href="https://vinceallen.com" target="_blank" rel="noreferrer" aria-label="Open link to vinceallen.com">vinceallen.com</a>!
