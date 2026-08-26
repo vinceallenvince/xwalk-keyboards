@@ -840,3 +840,57 @@ Given sendBeacon is unavailable or the POST fails
 Then the failure is silently ignored
 And the study continues normally
 ```
+
+### As a developer, I can confirm the app stores nothing on the visitor's device
+
+Analytics on this site is cookieless by construction, not by configuration.
+Nothing is written to the device, so there is no consent banner and no
+visitor identity to leak. This is the invariant every other analytics
+scenario depends on — if it breaks, the banner-free posture breaks with
+it. It is worth asserting in a test rather than trusting by inspection.
+
+```gherkin
+Given I load any page of the site with a clean browser profile
+When the page has finished loading and the analytics beacons have fired
+Then document.cookie is empty
+And localStorage and sessionStorage contain no entries
+And no visitor ID, session ID, or device fingerprint is generated anywhere in the client
+And no consent banner or cookie notice is rendered
+
+Given I navigate between pages via client-side routing
+Then no identifier is created to link the two page views
+And the two page views cannot be attributed to the same visitor
+```
+
+### As a developer, page views are counted by a cookieless third-party beacon
+
+The generic traffic layer — pageviews, referrers, geography, Core Web
+Vitals — comes from Cloudflare Web Analytics rather than from code we
+maintain. The site is not proxied through Cloudflare, so the hostname is
+registered manually and the beacon posts cross-origin to Cloudflare.
+
+The site token is public by design; it ships in the HTML of every page and
+is not a secret. It is therefore inlined in the layout rather than injected
+through the environment, which keeps the project's server-only env var rule
+intact and leaves the Dockerfile untouched.
+
+```gherkin
+Given I load any page of the site
+Then a beacon script is loaded from static.cloudflareinsights.com
+And it carries the public site token as a data attribute
+And it is deferred so it never blocks first paint
+And measurement data is sent to cloudflareinsights.com/cdn-cgi/rum
+
+Given the beacon script is blocked by an ad blocker or fails to load
+Then no console error surfaces to the visitor
+And every page renders and behaves normally
+
+Given I navigate between routes without a full page load
+Then the beacon reports the new route as a page view
+```
+
+Beyond this, the only telemetry the app emits is GPU startup timing, which
+predates analytics and is documented above. There is deliberately no
+first-party page view endpoint: app-specific events (which camera was
+chosen, whether the keyboard produced sound) are out of scope until there
+is a question we actually want answered.

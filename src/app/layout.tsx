@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Archivo, Big_Shoulders, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -19,7 +20,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html className={`${archivo.variable} ${geistMono.variable} ${bigShoulders.variable}`} lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Cloudflare Web Analytics — cookieless, no consent banner required.
+            The token is a public site identifier, not a secret. */}
+        <Script
+          data-cf-beacon='{"token": "e0047d2327a74750828cc34bcb820d35"}'
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   );
 }
