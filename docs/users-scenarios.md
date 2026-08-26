@@ -586,6 +586,12 @@ video continues behind it so the page does not go blank. The modal is a
 respectful interruption, not an error state — the study worked, and the
 visitor is invited to continue if they choose.
 
+The modal is rendered inside the fullscreen container so it works in both
+native fullscreen and mobile pseudo-fullscreen without exiting. In
+pseudo-fullscreen the "tap anywhere to exit" layer is hidden while the
+modal is showing so the visitor cannot accidentally leave fullscreen by
+tapping the scrim behind the buttons.
+
 ```gherkin
 Given I have been viewing the Realtime study with active inference for five minutes
 When the five-minute threshold is reached
@@ -598,11 +604,22 @@ And the modal explains that the XWalk Keyboard has been paused to conserve resou
 And the modal offers a "CONTINUE" button and a "CLOSE" button
 And the SOUND ON / FULLSCREEN controls remain visible but inactive
 
+Given I am in native fullscreen when the five-minute threshold is reached
+Then the modal appears inside the fullscreen viewport
+And fullscreen mode is not exited
+And the modal scrim and buttons are fully visible and interactive
+
+Given I am in pseudo-fullscreen (mobile) when the five-minute threshold is reached
+Then the modal appears inside the pseudo-fullscreen viewport
+And the "tap anywhere to exit" layer is hidden so it does not intercept modal taps
+And fullscreen mode is not exited
+
 When I select "CONTINUE"
 Then the modal closes
 And inference restarts with a fresh WebRTC connection
 And stripe highlights and audio resume from current detections
 And the five-minute timer resets so I receive another full five-minute window
+And fullscreen mode remains active if it was active before the pause
 
 When I select "CLOSE"
 Then the modal closes
@@ -610,6 +627,7 @@ And the live camera video continues without inference
 And no stripe highlights or audio are produced
 And the inference status reads "XWALK KEYBOARD PAUSED: RELOAD TO CONTINUE"
 And the visitor may reload the page to start a new five-minute session
+And fullscreen mode remains active if it was active before the pause
 ```
 
 ### As a visitor, if inference fails during my five-minute window, recovery is transparent
