@@ -11,10 +11,27 @@ const archivo = Archivo({ subsets: ["latin"], variable: "--font-display" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 const bigShoulders = Big_Shoulders({ axes: ["opsz"], subsets: ["latin"], variable: "--font-selector" });
 
+const SITE_URL = "https://xwalkkeyboards.app";
+
 export const metadata: Metadata = {
   description: "XWALK KEYBOARDS — NYC crosswalk keyboard studies.",
   icons: { icon: "/favicon.svg" },
+  metadataBase: new URL(SITE_URL),
+  openGraph: {
+    description: "Live NYC traffic-camera crosswalks turned into playable piano keyboards.",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "XWALK KEYBOARDS" }],
+    siteName: "XWALK KEYBOARDS",
+    title: "XWALK KEYBOARDS",
+    type: "website",
+    url: SITE_URL,
+  },
   title: "XWALK KEYBOARDS",
+  twitter: {
+    card: "summary_large_image",
+    description: "Live NYC traffic-camera crosswalks turned into playable piano keyboards.",
+    images: ["/og.png"],
+    title: "XWALK KEYBOARDS",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
