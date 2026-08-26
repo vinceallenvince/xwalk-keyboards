@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   title: "XWALK KEYBOARDS",
   twitter: {
     card: "summary_large_image",
-    description: "Live NYC traffic-camera crosswalks turned into playable piano keyboards.",
+    description: "Transforms live NYC traffic-camera crosswalks into playable piano keyboards.",
     images: ["/og.png"],
     title: "XWALK KEYBOARDS",
   },
