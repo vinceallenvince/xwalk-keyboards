@@ -34,6 +34,20 @@ export default function AboutPage() {
             step on the white stripes of the crosswalk, the app plays the
             corresponding notes.
           </p>
+          <h2>HOW IT STARTED</h2>
+          <p>
+            This project won first place at AI Tinkerers&apos; <a href="https://nyc.aitinkerers.org/hackathons/h_zvqhzy3dMEY" target="_blank" rel="noreferrer" aria-label="Open link to NYC Vision Hack v.2">NYC Vision Hack v.2</a> in Aug 2026.
+            The challenge: leverage AI, computer vision via <a href="https://roboflow.com/" target="_blank" rel="noreferrer" aria-label="Open link to Roboflow">Roboflow</a>,
+            and deploy via <a href="https://cloud.google.com/run" target="_blank" rel="noreferrer" aria-label="Open link to Google Cloud Run">Google Cloud Run</a> to transform raw NYC data into intelligent vision agents.
+          </p>
+          <h2>HOW IT WORKS</h2>
+          <p>
+            The web app uses Roboflow to detect pedestrians in a traffic cam
+            video in realtime. An AI agent running on Cloud Run orchestrates a
+            calibration cycle and uses Roboflow to detect crosswalk stripes on
+            regular intervals. Get more information on how the app works
+            at <a href="https://vinceallen.com" target="_blank" rel="noreferrer" aria-label="Open link to vinceallen.com">vinceallen.com</a>!
+          </p>
         </div>
       </section>
       <SiteFooter onAboutPage />
