@@ -45,7 +45,13 @@ export default function AboutPage() {
             The web app uses Roboflow to detect pedestrians in a <a href="https://511ny.org/" target="_blank" rel="noreferrer" aria-label="Open link to 511NY.org">511NY</a> traffic cam
             video in real time. An AI agent running on Cloud Run orchestrates a
             calibration cycle and uses Roboflow to detect crosswalk stripes on
-            regular intervals. Get more information on how the app works
+            regular intervals. When the web app detects a pedestrian inside
+            a crosswalk stripe boundary, it plays the note corresponding to the stripe's
+            position on a piano keyboard.
+          </p>
+          <h2>MORE DETAILS</h2>
+          <p>
+            Get more details on how the app works
             at <a href="https://vinceallen.com" target="_blank" rel="noreferrer" aria-label="Open link to vinceallen.com">vinceallen.com</a>!
           </p>
         </div>
