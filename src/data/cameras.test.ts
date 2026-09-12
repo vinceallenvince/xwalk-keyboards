@@ -21,7 +21,7 @@ describe("camera registry", () => {
   });
 
   it("orders the live cameras north to south without dethroning the default", () => {
-    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5072]);
+    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072]);
     expect(liveCameraById(5059)).toMatchObject({
       cameraId: 5059,
       location: "West Street at W. 23 St",
@@ -37,7 +37,7 @@ describe("camera registry", () => {
   it("ships 5059 and 5072 without baked-in geometry", () => {
     // Both ship with an empty reference on purpose: no keys until the
     // calibration agent first publishes for them (VIN-39).
-    for (const cameraId of [5059, 5072]) {
+    for (const cameraId of [5059, 5062, 5072]) {
       expect(liveCameraById(cameraId)?.calibration.stripes).toHaveLength(0);
       expect(liveCameraById(cameraId)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
     }

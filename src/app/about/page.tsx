@@ -46,7 +46,7 @@ export default function AboutPage() {
             video in real time. An AI agent running on Cloud Run orchestrates a
             calibration cycle and uses Roboflow to detect crosswalk stripes on
             regular intervals. When the web app detects a pedestrian inside
-            a crosswalk stripe boundary, it plays the note corresponding to the stripe's
+            a crosswalk stripe boundary, it plays the note corresponding to the stripe&apos;s
             position on a piano keyboard.
           </p>
           <h2>MORE DETAILS</h2>

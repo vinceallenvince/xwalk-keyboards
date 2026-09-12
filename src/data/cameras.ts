@@ -126,6 +126,23 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     },
   },
   {
+    cameraId: 5062,
+    cameraKey: "camera_5062",
+    displayLabel: "Live Feed · View 5062",
+    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_278/playlist.m3u8",
+    location: "West Street at Spring St",
+    role: "live",
+    sourceId: "16096",
+    statusLabel: "WEST STREET @ SPRING ST",
+    viewUrl: snapshotUrl(5062),
+    baseAnchor: "C4",
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
     cameraId: 5072,
     cameraKey: "camera_5072",
     displayLabel: "Live Feed · View 5072",
