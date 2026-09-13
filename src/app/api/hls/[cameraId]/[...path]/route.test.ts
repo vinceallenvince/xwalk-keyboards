@@ -30,12 +30,18 @@ describe("HLS proxy", () => {
     expect((upstream as URL).toString()).toBe(
       "https://s9.nysdot.skyvdn.com/rtplive/R11_272/playlist.m3u8?token=abc",
     );
+    expect(await response.text()).toBe("playlist");
+    expect(response.headers.get("content-type")).toBe("application/vnd.apple.mpegurl");
+    expect(response.headers.get("cache-control")).toBe("no-store, max-age=0");
   });
 
-  it("resolves CARLA from the private server environment", async () => {
+  it("proxies CARLA media segments with their binary response headers", async () => {
     vi.stubEnv("CARLA_HLS_BASE_URL", "http://10.150.0.2:8080/live/");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("segment", {
-      headers: { "content-type": "video/MP2T" },
+      headers: {
+        "accept-ranges": "bytes",
+        "content-type": "video/MP2T",
+      },
     }));
 
     const response = await GET(
@@ -44,10 +50,13 @@ describe("HLS proxy", () => {
     );
 
     expect(response.status).toBe(200);
-    const upstream = fetchMock.mock.calls[0]?.[0];
+    const [upstream] = fetchMock.mock.calls[0];
     expect((upstream as URL).toString()).toBe(
       "http://10.150.0.2:8080/live/segment-000123.ts",
     );
+    expect(await response.text()).toBe("segment");
+    expect(response.headers.get("content-type")).toBe("video/MP2T");
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
   });
 
   it("rejects unknown cameras before attempting an upstream request", async () => {

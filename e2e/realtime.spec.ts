@@ -6,6 +6,10 @@ import { expect, test, type Page } from "@playwright/test";
 const SHOTS = join(__dirname, "__screens__", "realtime-study");
 const CAMERA_STILL = join(__dirname, "..", "docs", "images", "videoframe_104668.png");
 const CALIBRATION_FALLBACK = join(__dirname, "..", "public", "calibration-fallback-5056.json");
+const CARLA_CALIBRATION_FALLBACK = join(__dirname, "..", "public", "calibration-fallback-90014.json");
+const HLS_FIXTURE_DIR = join(__dirname, "fixtures", "hls");
+const HLS_FIXTURE_PLAYLIST = readFileSync(join(HLS_FIXTURE_DIR, "playlist.m3u8"), "utf8");
+const HLS_FIXTURE_SEGMENT = readFileSync(join(HLS_FIXTURE_DIR, "segment-000000.mpegts"));
 
 /**
  * Realtime depends on two live services that are neither available nor stable
@@ -61,6 +65,36 @@ async function driveCameraLive(page: Page) {
   });
 }
 
+/**
+ * Serve a real, finite 352 x 240 HLS presentation entirely from test files.
+ * hls.js parses and transmuxes the manifest/segment exactly as it does for the
+ * CARLA proxy; only the network transport is replaced, so no VM or GPU is
+ * involved.
+ */
+async function serveCarlaHlsFixture(page: Page) {
+  await page.route("**/api/hls/90014/playlist.m3u8*", (route) => route.fulfill({
+    body: HLS_FIXTURE_PLAYLIST,
+    contentType: "application/vnd.apple.mpegurl",
+  }));
+  await page.route("**/api/hls/90014/segment-000000.mpegts*", (route) => route.fulfill({
+    body: HLS_FIXTURE_SEGMENT,
+    contentType: "video/mp2t",
+  }));
+}
+
+async function openCarlaFixture(page: Page) {
+  await serveCarlaHlsFixture(page);
+  await page.route("**/api/roboflow/**", () => new Promise(() => {}));
+  await page.route("**/api/calibration/**", (route) => route.fulfill({
+    json: JSON.parse(readFileSync(CARLA_CALIBRATION_FALLBACK, "utf8")),
+  }));
+  await page.goto("/realtime/90014?onboarding=off");
+  await expect(page.locator(".realtime-feed-status")).toHaveText(
+    "FEED LIVE // CARLA TOWN10 @ XWALK 14",
+    { timeout: 15_000 },
+  );
+}
+
 test.describe("Realtime operator tools", () => {
   test("registers the CARLA page while unknown camera IDs stay 404", async ({ page }) => {
     await page.route("**/api/hls/**", () => new Promise(() => {}));
@@ -100,6 +134,97 @@ test.describe("Realtime operator tools", () => {
     const panel = page.locator(".realtime-debug-panel");
     await expect(panel).toBeVisible();
     await expect(panel.getByRole("button", { name: "RECALIBRATE" })).toBeVisible();
+  });
+});
+
+test.describe("CARLA offline HLS lifecycle", () => {
+  test("starts from the 352 x 240 fixture and cleans up the player on route change", async ({ page }) => {
+    await openCarlaFixture(page);
+
+    const video = page.locator(".realtime-viewport video");
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => [
+      element.videoWidth,
+      element.videoHeight,
+    ])).toEqual([352, 240]);
+
+    await video.evaluate((element: HTMLVideoElement) => {
+      const state = { load: 0, pause: 0 };
+      const host = window as typeof window & { __hlsCleanup?: typeof state };
+      host.__hlsCleanup = state;
+      const load = element.load.bind(element);
+      const pause = element.pause.bind(element);
+      element.load = () => { state.load += 1; load(); };
+      element.pause = () => { state.pause += 1; pause(); };
+    });
+
+    await page.getByRole("link", { name: "ABOUT" }).first().click();
+    await expect(page).toHaveURL(/\/about$/);
+    await expect.poll(() => page.evaluate(() => {
+      const host = window as typeof window & { __hlsCleanup?: { load: number; pause: number } };
+      return Boolean(host.__hlsCleanup && host.__hlsCleanup.load >= 1 && host.__hlsCleanup.pause >= 1);
+    })).toBe(true);
+  });
+
+  test("supports and exits pseudo-fullscreen while the fixture is playing", async ({ page }) => {
+    await openCarlaFixture(page);
+
+    const viewport = page.locator(".realtime-viewport");
+    const button = page.locator(".realtime-controls--overlay .realtime-fullscreen-button");
+    await page.keyboard.press("Control+Shift+D");
+    const panel = page.locator(".realtime-debug-panel");
+    await panel.getByRole("button", { name: "FORCE INFERENCE READY" }).click();
+    await panel.getByRole("button", { name: "✕" }).click();
+    await expect(button).toBeEnabled();
+
+    // Force the WebKit/iOS fallback while leaving the production click handler
+    // and its state transitions intact.
+    await viewport.evaluate((element: HTMLDivElement) => {
+      Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => false });
+      element.requestFullscreen = () => Promise.reject(new Error("fixture uses pseudo-fullscreen"));
+    });
+    await button.click();
+
+    await expect(viewport).toHaveClass(/realtime-viewport--pseudo-fullscreen/);
+    await expect(button).toHaveText("EXIT FULLSCREEN");
+    await expect(page.locator(".realtime-fullscreen-exit-layer")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
+
+    await page.keyboard.press("Escape");
+    await expect(viewport).not.toHaveClass(/realtime-viewport--pseudo-fullscreen/);
+    await expect(button).toHaveText("FULLSCREEN");
+    await expect(page.locator(".realtime-fullscreen-exit-layer")).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("");
+  });
+
+  test("pauses inference after five minutes without stopping the feed", async ({ page }) => {
+    await openCarlaFixture(page);
+    await page.clock.install();
+    await page.keyboard.press("Control+Shift+D");
+    const panel = page.locator(".realtime-debug-panel");
+    await panel.getByRole("button", { name: "FORCE INFERENCE READY" }).click();
+    await expect(page.locator(".realtime-inference-status")).toHaveText("STATUS: KEYBOARD READY!");
+    await panel.getByRole("button", { name: "✕" }).click();
+
+    await page.clock.fastForward(5 * 60 * 1000);
+
+    await expect(page.locator(".realtime-pause-modal")).toBeVisible();
+    await expect(page.locator(".realtime-pause-modal__subtitle")).toContainText("after five minutes");
+    await expect(page.locator(".realtime-feed-status")).toContainText("FEED LIVE");
+    await expect(page.locator(".realtime-viewport video")).toHaveJSProperty("paused", false);
+
+    await page.getByRole("button", { name: "CONTINUE" }).click();
+    await expect(page.locator(".realtime-pause-modal")).toHaveCount(0);
+    await expect(page.locator(".realtime-inference-status")).toContainText("WARMING UP");
+
+    await page.keyboard.press("Control+Shift+D");
+    await panel.getByRole("button", { name: "FORCE INFERENCE READY" }).click();
+    await panel.getByRole("button", { name: "✕" }).click();
+    await page.clock.fastForward(5 * 60 * 1000);
+    await page.getByRole("button", { name: "CLOSE" }).click();
+    await expect(page.locator(".realtime-inference-status")).toHaveText(
+      "XWALK KEYBOARD PAUSED: RELOAD TO CONTINUE",
+    );
+    await expect(page.locator(".realtime-feed-status")).toContainText("FEED LIVE");
   });
 });
 
