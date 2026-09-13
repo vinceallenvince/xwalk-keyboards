@@ -62,6 +62,33 @@ async function driveCameraLive(page: Page) {
 }
 
 test.describe("Realtime operator tools", () => {
+  test("registers the CARLA page while unknown camera IDs stay 404", async ({ page }) => {
+    await page.route("**/api/hls/**", () => new Promise(() => {}));
+    await page.route("**/api/roboflow/**", () => new Promise(() => {}));
+    await page.route("**/api/calibration/**", () => new Promise(() => {}));
+
+    const carlaResponse = await page.goto("/realtime/90014?onboarding=off");
+    expect(carlaResponse?.status()).toBe(200);
+    await expect(page.locator(".realtime-feed-status")).toContainText(
+      "CARLA TOWN10 @ XWALK 14",
+    );
+
+    const unknownResponse = await page.goto("/realtime/99999");
+    expect(unknownResponse?.status()).toBe(404);
+  });
+
+  test("CARLA origin failures use the existing feed-reconnecting state", async ({ page }) => {
+    await page.route("**/api/hls/90014/**", (route) => route.fulfill({ status: 502 }));
+    await page.route("**/api/roboflow/**", () => new Promise(() => {}));
+    await page.route("**/api/calibration/**", () => new Promise(() => {}));
+
+    await page.goto("/realtime/90014?onboarding=off");
+
+    await expect(page.locator(".realtime-feed-status")).toHaveText(
+      "FEED RECONNECTING // CARLA TOWN10 @ XWALK 14",
+    );
+  });
+
   test("RECALIBRATE lives in the debug panel, not the status bar", async ({ page }) => {
     await openRealtime(page);
     await driveCameraLive(page);
@@ -97,8 +124,8 @@ test.describe("Realtime onboarding", () => {
     // the other, and the controls sit visibly inactive. No spinner exists.
     await expect(page.locator(".realtime-feed-status")).toHaveText("CONNECTING // WEST STREET @ W34 ST");
     await expect(page.locator(".realtime-inference-status")).toHaveText("STATUS: KEYBOARD WARMING UP...");
-    await expect(page.locator(".realtime-controls--idle")).toBeVisible();
-    await expect(page.locator(".realtime-sound-button")).toBeDisabled();
+    await expect(page.locator(".realtime-controls--idle:visible")).toBeVisible();
+    await expect(page.locator(".realtime-sound-button:visible")).toBeDisabled();
 
     // The camera going live changes the feed line behind the overlay without
     // touching the sequence.

@@ -24,20 +24,24 @@ test.describe("About", () => {
     // Feed status indicator is present.
     const feedStatus = page.locator(".about-feed-status");
     await expect(feedStatus).toBeVisible();
-    await expect(feedStatus).toContainText("WEST STREET @ W34 ST");
+    await expect(feedStatus).toContainText("WEST STREET @ CHAMBERS ST");
 
     // Dark viewport panel with the project description.
     const viewport = page.locator(".about-viewport");
     await expect(viewport).toBeVisible();
-    const body = viewport.locator("p");
-    await expect(body).toContainText("transform crosswalks into piano keyboards");
+    await expect(viewport).toContainText("transform crosswalks into piano keyboards");
 
     // Video wash overlay is rendered.
     await expect(page.locator(".about-video-wash")).toBeAttached();
 
     // Footer shows ABOUT as plain text (no self-link) on this page.
     const footer = page.locator(".site-footer");
-    await expect(footer).toContainText("SOURCE: 511NY // ABOUT");
+    await expect(footer).toContainText("ABOUT");
+    await expect(footer).toContainText("CAM SOURCE:");
+    await expect(footer.getByRole("link", { name: "511NY" })).toHaveAttribute(
+      "href",
+      "https://511ny.org",
+    );
     await expect(footer.getByRole("link", { name: "ABOUT" })).toHaveCount(0);
 
     await page.screenshot({ fullPage: true, path: join(SHOTS, "about-page.png") });

@@ -6,7 +6,6 @@ export type CameraRecord = {
   cameraId: number;
   cameraKey: string;
   displayLabel: string;
-  hlsUrl?: string;
   location: string;
   role: CameraRole;
   slot?: number;
@@ -68,13 +67,13 @@ export const FALLBACK_CAMERAS = createStaticCameras(fallbackCameraSeeds, "fallba
 
 /**
  * A camera the Realtime study can play. On top of the registry record it
- * carries everything the study needs to be camera-agnostic: the upstream
- * stream URL, the status-bar label, the pitch its keyboard starts from, and
- * the baked-in reference calibration used when the agent has never published
- * for this camera.
+ * carries everything the browser needs to be camera-agnostic: the source kind,
+ * status-bar label, the pitch its keyboard starts from, and the baked-in
+ * reference calibration used when the agent has never published for this
+ * camera. Upstream locations deliberately live in a server-only module.
  */
 export type LiveCameraRecord = CameraRecord & {
-  hlsUrl: string;
+  sourceKind: "511ny" | "carla";
   statusLabel: string;
   /**
    * The note the crossing's first stripe plays. Every stripe after it climbs
@@ -92,7 +91,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     cameraId: 5056,
     cameraKey: "camera_5056",
     displayLabel: "Live Feed · View 5056",
-    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_272/playlist.m3u8",
+    sourceKind: "511ny",
     location: "West Street at W. 34 St",
     role: "live",
     sourceId: "16090",
@@ -109,7 +108,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     cameraId: 5059,
     cameraKey: "camera_5059",
     displayLabel: "Live Feed · View 5059",
-    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_275/playlist.m3u8",
+    sourceKind: "511ny",
     location: "West Street at W. 23 St",
     role: "live",
     // 511NY map site id (the /tooltip/Cameras/<id> key for this view).
@@ -129,7 +128,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     cameraId: 5062,
     cameraKey: "camera_5062",
     displayLabel: "Live Feed · View 5062",
-    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_278/playlist.m3u8",
+    sourceKind: "511ny",
     location: "West Street at Spring St",
     role: "live",
     sourceId: "16096",
@@ -146,7 +145,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     cameraId: 5072,
     cameraKey: "camera_5072",
     displayLabel: "Live Feed · View 5072",
-    hlsUrl: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_279/playlist.m3u8",
+    sourceKind: "511ny",
     location: "West Street at Chambers St",
     role: "live",
     // 511NY map site id (the /tooltip/Cameras/<id> key for this view).
@@ -157,6 +156,26 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     // No baked-in reference geometry: the keyboard has no keys until the
     // agent's first publish (or the local fallback JSON) provides stripes.
     // Video and inference run either way — silence here is honest, not broken.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
+    cameraId: 90014,
+    cameraKey: "camera_90014",
+    displayLabel: "Live Feed · CARLA 90014",
+    location: "Town10 - Crosswalk 14",
+    role: "live",
+    sourceId: "carla-town10-crosswalk-14",
+    sourceKind: "carla",
+    statusLabel: "CARLA TOWN10 @ XWALK 14",
+    viewUrl: "/realtime/90014",
+    baseAnchor: "C4",
+    // The reviewed static calibration lives in
+    // public/calibration-fallback-90014.json. Keep this embedded reference
+    // empty so the client never carries a second copy of that geometry.
     calibration: {
       boundaries: {},
       referenceFrame: { height: 240, width: 352 },

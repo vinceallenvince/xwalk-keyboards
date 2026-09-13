@@ -17,6 +17,13 @@
 #       --role "$ROLE"
 #   done
 #
+#   # Allow deployments to retain Direct VPC egress on this subnet
+#   gcloud compute networks subnets add-iam-policy-binding default \
+#     --project $PROJECT_ID \
+#     --region us-central1 \
+#     --member "serviceAccount:${SERVICE_ACCOUNT}" \
+#     --role roles/compute.networkUser
+#
 #   # 3. Create a Workload Identity Pool
 #   gcloud iam workload-identity-pools create github-pool \
 #     --project $PROJECT_ID \
@@ -76,6 +83,46 @@ jobs:
           service: xwalk-keyboards
           region: us-central1
           source: .
+          flags: >-
+            --network=default
+            --subnet=default
+            --network-tags=xwalk-cloud-run
+            --vpc-egress=private-ranges-only
+
+      - name: Verify Direct VPC egress and CARLA origin config
+        run: |
+          SERVICE_JSON="$(gcloud run services describe xwalk-keyboards \
+            --project=xwalk-keyboards-01 \
+            --region=us-central1 \
+            --format=json)"
+          python3 - "$SERVICE_JSON" <<'PY'
+          import json
+          import sys
+
+          service = json.loads(sys.argv[1])
+          annotations = service["spec"]["template"]["metadata"]["annotations"]
+          interfaces = json.loads(
+              annotations.get("run.googleapis.com/network-interfaces", "[]")
+          )
+          expected = [{
+              "network": "default",
+              "subnetwork": "default",
+              "tags": ["xwalk-cloud-run"],
+          }]
+          if interfaces != expected:
+              raise SystemExit(f"Unexpected Direct VPC interface: {interfaces!r}")
+          egress = annotations.get("run.googleapis.com/vpc-access-egress")
+          if egress != "private-ranges-only":
+              raise SystemExit(f"Unexpected VPC egress mode: {egress!r}")
+          containers = service["spec"]["template"]["spec"]["containers"]
+          environment = {
+              item["name"]: item
+              for item in containers[0].get("env", [])
+          }
+          carla_origin = environment.get("CARLA_HLS_BASE_URL", {}).get("value")
+          if not isinstance(carla_origin, str) or not carla_origin:
+              raise SystemExit("CARLA_HLS_BASE_URL is not configured")
+          PY
 
       - name: Smoke test
         run: |

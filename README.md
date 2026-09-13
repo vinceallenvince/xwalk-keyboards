@@ -11,8 +11,9 @@ chromatic scale from left to right.
 
 ## How it works
 
-A live [511NY](https://511ny.org) traffic-camera feed streams to the browser
-over HLS. The browser captures frames and sends them to a
+A registered traffic-camera feed streams to the browser over same-origin HLS.
+Production sources include [511NY](https://511ny.org) cameras and a temporary
+private CARLA Town10 simulation. The browser captures frames and sends them to a
 [Roboflow](https://roboflow.com) workflow over WebRTC for person detection. The
 app maps each detected pedestrian's position to the crosswalk stripe they are
 standing on and plays the corresponding note through the Web Audio API. Occupied
@@ -30,7 +31,7 @@ them to notes. The agent owns geometry; the app owns the musical contract.
 ```
 Browser                         Next.js (Cloud Run)              External
 ─────────────────────────       ─────────────────────────        ─────────────────────
-HLS video playback         ──▶  HLS proxy (identity enc.)   ──▶  511NY camera CDN
+HLS video playback         ──▶  HLS proxy (identity enc.)   ──▶  511NY / private CARLA
 WebRTC frame capture       ──▶  Roboflow WebRTC proxy       ──▶  Roboflow GPU workers
 Stripe overlay (canvas)         Calibration proxy (GCS)     ──▶  Calibration agent
 Web Audio (oscillators)         Snapshot proxy                    (VLM → GCS)

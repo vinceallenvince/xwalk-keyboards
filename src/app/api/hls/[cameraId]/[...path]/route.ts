@@ -1,9 +1,19 @@
 import { liveCameraById } from "@/data/cameras";
+import { hlsSourceBaseUrl } from "@/server/hls-sources";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const SAFE_PATH_SEGMENT = /^[a-zA-Z0-9._-]+$/;
+
+function isSafeHlsPath(path: string[]) {
+  return path.length > 0 && path.every((segment) => (
+    segment !== "."
+    && segment !== ".."
+    && segment.length <= 255
+    && SAFE_PATH_SEGMENT.test(segment)
+  ));
+}
 
 type RouteContext = { params: Promise<{ cameraId: string; path: string[] }> };
 
@@ -16,13 +26,16 @@ export async function GET(request: Request, context: RouteContext) {
     return new Response("Unknown camera", { status: 404 });
   }
 
-  if (path.length === 0 || path.some((segment) => !SAFE_PATH_SEGMENT.test(segment))) {
+  if (!isSafeHlsPath(path)) {
     return new Response("Invalid HLS path", { status: 400 });
   }
 
-  const upstreamUrl = new URL(camera.hlsUrl);
-  const upstreamDirectory = upstreamUrl.pathname.slice(0, upstreamUrl.pathname.lastIndexOf("/") + 1);
-  upstreamUrl.pathname = `${upstreamDirectory}${path.join("/")}`;
+  const upstreamBaseUrl = hlsSourceBaseUrl(camera.cameraId);
+  if (!upstreamBaseUrl) {
+    return new Response("Camera stream is not configured", { status: 503 });
+  }
+
+  const upstreamUrl = new URL(path.join("/"), upstreamBaseUrl);
   upstreamUrl.search = new URL(request.url).search;
 
   const isManifest = path.at(-1)?.endsWith(".m3u8") ?? false;

@@ -32,11 +32,16 @@ The pipeline is `.github/workflows/deploy.yml`:
 | Trigger | Every push to `main` (i.e. every merged PR) |
 | Serialization | `deploy-production` concurrency group — deploys queue, never overlap |
 | Auth | Workload Identity Federation; impersonates `github-deploy@xwalk-keyboards-01.iam.gserviceaccount.com` (repo secrets `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`) |
-| Build + deploy | `google-github-actions/deploy-cloudrun@v2`, source deploy of service `xwalk-keyboards` in `us-central1` |
+| Build + deploy | `google-github-actions/deploy-cloudrun@v2`, source deploy of service `xwalk-keyboards` in `us-central1`, with Direct VPC egress through the `default` subnet for private ranges |
+| Network verification | Confirms every deployed revision retains the expected network, subnet, network tag, `private-ranges-only` egress mode, and server-only CARLA origin configuration |
 | Smoke test | `/`, `/realtime`, `/realtime/5056`, `/about`, `/camera-registry` must all return < 400 or the run fails |
 
 The one-time GCP setup (service account, roles, identity pool/provider) is
 documented as commands in the workflow file's header comment.
+
+The GitHub deploy service account has `roles/compute.networkUser` on only the
+`us-central1/default` subnet. That subnet-level binding lets deployments retain
+Direct VPC egress without granting project-wide network use.
 
 **Manual `gcloud run deploy` is deprecated.** Use it only as a break-glass path
 when Actions itself is down, and confirm the active account and project first.
@@ -46,8 +51,10 @@ revision list — they are the deployment record.
 ## Service configuration (env vars and secrets)
 
 The CI deploy passes no env or secret flags, so the existing Cloud Run service
-configuration carries forward on every revision. Change bindings in the service
-configuration, not in the deploy pipeline.
+configuration carries forward on every revision. It does explicitly pass the
+Direct VPC flags and verifies them after deployment so the private CARLA origin
+route cannot be dropped silently. Change environment and secret bindings in the
+service configuration, not in the deploy pipeline.
 
 Server-only variables (never `NEXT_PUBLIC_`; see `.env.example`):
 
@@ -57,6 +64,7 @@ Server-only variables (never `NEXT_PUBLIC_`; see `.env.example`):
 | `ROBOFLOW_WORKSPACE`, `ROBOFLOW_REALTIME_WORKFLOW_ID` | Env | Selects the Realtime detection workflow |
 | `ROBOFLOW_IMAGE_INPUT`, `ROBOFLOW_DATA_OUTPUT`, `ROBOFLOW_CLASSES` | Env | Workflow input/output bindings; class filter (default `person`) |
 | `ROBOFLOW_WEBRTC_PLAN`, `ROBOFLOW_WEBRTC_REGION` | Env | WebRTC worker sizing (defaults `webrtc-gpu-medium`, `us`) |
+| `CARLA_HLS_BASE_URL` | Env | Private HLS directory for registered CARLA camera 90014; resolved only by the server-side proxy |
 | `CALIBRATION_BUCKET`, `CALIBRATION_GCS_PREFIX` | Env (defaults `xwalk-keyboards-01`, `calibration`) | Where published calibrations are read from |
 | `CALIBRATION_AGENT_URL` | Env (defaults to the agent's Cloud Run URL) | Recalibrate proxy target |
 | `CALIBRATION_AGENT_API_KEY` | Local dev only | On Cloud Run the web app uses identity tokens instead |
