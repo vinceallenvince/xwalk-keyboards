@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { LIVE_CAMERAS } from "@/data/cameras";
+import { hlsAvailabilityForCamera } from "@/server/hls-availability";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -65,6 +66,15 @@ export async function GET() {
 
   const results: CameraStatus[] = await Promise.all(
     LIVE_CAMERAS.map(async (camera): Promise<CameraStatus> => {
+      const availability = await hlsAvailabilityForCamera(camera.cameraId);
+      if (availability === "feed_down") {
+        return {
+          cameraId: camera.cameraId,
+          status: "feed_down",
+          crosswalkRank: DEFAULT_RANK,
+        };
+      }
+
       const objectPath = `${PREFIX}/current/camera_${camera.cameraId}.json`;
       const url = `https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(objectPath)}?alt=media`;
 
