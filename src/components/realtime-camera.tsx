@@ -20,6 +20,7 @@ import type { FrameSize } from "@/lib/realtime-calibration";
 type CameraStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
 const INFERENCE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_CAMERA_FAILURES = 3;
 
 // The location suffix is a separate span so the mobile layout can drop it —
 // "FEED LIVE" and the STATUS line share one row on small screens.
@@ -47,6 +48,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cameraFailureCountRef = useRef(0);
   // Audio is owned here, not in RealtimeInference, so the sound control can be
   // rendered (inactive) alongside FULLSCREEN before inference has started.
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -214,6 +216,14 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
 
     const scheduleRetry = () => {
       if (cancelled || retryRef.current) return;
+      cameraFailureCountRef.current += 1;
+      if (cameraFailureCountRef.current >= MAX_CAMERA_FAILURES) {
+        hls?.stopLoad();
+        video.pause();
+        setCameraStatus("unavailable");
+        setInferenceStatus("unavailable");
+        return;
+      }
       setCameraStatus("reconnecting");
       setInferenceStatus("reconnecting");
       retryRef.current = setTimeout(() => {
@@ -266,7 +276,12 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
       }
     };
 
-    const onPlaying = () => setCameraStatus("live");
+    const onPlaying = () => {
+      cameraFailureCountRef.current = 0;
+      if (retryRef.current) clearTimeout(retryRef.current);
+      retryRef.current = null;
+      setCameraStatus("live");
+    };
     video.addEventListener("playing", onPlaying);
     video.addEventListener("error", scheduleRetry);
     void load();
@@ -592,7 +607,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             )}
           </div>
         )}
-        {!noCrosswalk && (
+        {!noCrosswalk && effectiveCamera !== "unavailable" && (
           <RealtimeOnboardingOverlay calibration={calibration} keyboardReady={inferenceStatus === "active"} />
         )}
         {showPauseModal && !noCrosswalk && (

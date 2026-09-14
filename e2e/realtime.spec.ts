@@ -111,7 +111,7 @@ test.describe("Realtime operator tools", () => {
     expect(unknownResponse?.status()).toBe(404);
   });
 
-  test("CARLA origin failures use the existing feed-reconnecting state", async ({ page }) => {
+  test("CARLA origin failures become a visible feed-down state after bounded retries", async ({ page }) => {
     await page.route("**/api/hls/90014/**", (route) => route.fulfill({ status: 502 }));
     await page.route("**/api/roboflow/**", () => new Promise(() => {}));
     await page.route("**/api/calibration/**", () => new Promise(() => {}));
@@ -121,6 +121,12 @@ test.describe("Realtime operator tools", () => {
     await expect(page.locator(".realtime-feed-status")).toHaveText(
       "FEED RECONNECTING // CARLA TOWN10 @ XWALK 14",
     );
+    await expect(page.locator(".realtime-feed-status")).toHaveText(
+      "FEED DOWN // CARLA TOWN10 @ XWALK 14",
+      { timeout: 10_000 },
+    );
+    await expect(page.getByText("VIDEO FEED UNAVAILABLE", { exact: true })).toBeVisible();
+    await expect(page.getByText("HOW TO HEAR XWALK KEYBOARDS", { exact: true })).toHaveCount(0);
   });
 
   test("RECALIBRATE lives in the debug panel, not the status bar", async ({ page }) => {

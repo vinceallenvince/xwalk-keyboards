@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { LIVE_CAMERAS } from "@/data/cameras";
 
-type CameraLink = {
+export type CameraLink = {
   cameraId: number;
   status: string;
   crosswalkRank: number;
@@ -16,6 +16,17 @@ const DEFAULT_RANK = 3;
 /** Sort by crosswalk_rank ascending (best first), then camera ID descending. */
 function byRankThenId(a: CameraLink, b: CameraLink): number {
   return a.crosswalkRank - b.crosswalkRank || b.cameraId - a.cameraId;
+}
+
+/** Keep unavailable feeds out of navigation, even if their old calibration is usable. */
+export function selectableCameraLinks(statuses: CameraLink[]): CameraLink[] {
+  const available = statuses.filter((camera) => camera.status !== "feed_down");
+  const sorted = [...available].sort(byRankThenId);
+  const withCrosswalks = sorted.filter((camera) => camera.status !== "no_crosswalk");
+
+  // If every available camera is rotated, keep those cameras visible so the
+  // visitor still has somewhere to go. A feed_down camera is never restored.
+  return withCrosswalks.length > 0 ? withCrosswalks : sorted;
 }
 
 /**
@@ -69,11 +80,5 @@ export function useCameraLinks(): {
     };
   }
 
-  const sorted = [...statuses].sort(byRankThenId);
-  const withCrosswalks = sorted.filter((c) => c.status !== "no_crosswalk");
-
-  // If all cameras are rotated, show all anyway.
-  const visible = withCrosswalks.length > 0 ? withCrosswalks : sorted;
-
-  return { cameras: visible, loading: false };
+  return { cameras: selectableCameraLinks(statuses), loading: false };
 }

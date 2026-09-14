@@ -68,7 +68,18 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
   });
 
-  test("camera selector includes the registered CARLA camera", async ({ page }) => {
+  test("camera selector includes the registered CARLA camera while its feed is available", async ({ page }) => {
+    await page.route("**/api/calibration/status", (route) => route.fulfill({
+      json: {
+        cameras: [
+          { cameraId: 5056, status: "ok", crosswalkRank: 3 },
+          { cameraId: 5059, status: "ok", crosswalkRank: 3 },
+          { cameraId: 5062, status: "ok", crosswalkRank: 3 },
+          { cameraId: 5072, status: "ok", crosswalkRank: 3 },
+          { cameraId: 90014, status: "ok", crosswalkRank: 3 },
+        ],
+      },
+    }));
     await openLiveHomepage(page);
     await showSelector(page);
     const cameraLinks = page.locator(".study-selector a");
@@ -76,5 +87,24 @@ test.describe("Homepage", () => {
     await expect(cameraLinks.first()).toHaveText("CAM 90014");
     await expect(page.getByRole("link", { name: "CAM 90014" }))
       .toHaveAttribute("href", "/realtime/90014");
+  });
+
+  test("camera selector excludes CARLA while its feed is down", async ({ page }) => {
+    await page.route("**/api/calibration/status", (route) => route.fulfill({
+      json: {
+        cameras: [
+          { cameraId: 5056, status: "ok", crosswalkRank: 3 },
+          { cameraId: 5059, status: "ok", crosswalkRank: 3 },
+          { cameraId: 5062, status: "ok", crosswalkRank: 3 },
+          { cameraId: 5072, status: "ok", crosswalkRank: 3 },
+          { cameraId: 90014, status: "feed_down", crosswalkRank: 3 },
+        ],
+      },
+    }));
+    await openLiveHomepage(page);
+    await showSelector(page);
+
+    await expect(page.locator(".study-selector a")).toHaveCount(4);
+    await expect(page.getByRole("link", { name: "CAM 90014" })).toHaveCount(0);
   });
 });
