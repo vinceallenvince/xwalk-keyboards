@@ -624,6 +624,11 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
             setPauseModal(true);
             void disableAudio();
           }}
+          onForceReady={() => {
+            setInferenceStatus("active");
+            setInferenceMessage(null);
+            handleInferenceActive();
+          }}
           onRecalibrate={() => void handleRecalibrate()}
           recalibrating={recalibrating}
           startupSummary={startupSummary}

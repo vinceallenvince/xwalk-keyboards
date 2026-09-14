@@ -54,36 +54,27 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-initial.png") });
   });
 
-  test("study selector, neither mode previewed", async ({ page }) => {
+  test("camera selector, no link previewed", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
     await page.mouse.move(0, 0);
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-inactive.png") });
   });
 
-  test("study selector, Realtime previewed", async ({ page }) => {
+  test("camera selector, 5059 previewed", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
-    await page.getByRole("link", { name: "REALTIME" }).hover();
+    await page.getByRole("link", { name: "CAM 5059" }).hover();
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
   });
 
-  test("study selector, Sequence is disabled with in-progress label", async ({ page }) => {
+  test("camera selector includes the registered CARLA camera", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
-    // Sequence is deliberately not yet a live study from the homepage: no
-    // link role, no rollover highlight, and clicking it must not navigate.
-    await expect(page.getByRole("link", { name: "SEQUENCE" })).toHaveCount(0);
-    // The label nests its "[ In progress ]" status inside the same span, so
-    // the span's exact text is "SEQUENCE[ In progress ]" — locate the disabled
-    // span and assert the label and status within it.
-    const sequenceContainer = page.locator(".study-selector [aria-disabled='true']");
-    await expect(sequenceContainer).toBeVisible();
-    await expect(sequenceContainer).toContainText("SEQUENCE");
-    await expect(page.locator(".study-selector__status")).toContainText("In progress");
-    await sequenceContainer.hover();
-    await expect(sequenceContainer).toHaveCSS("color", "rgba(255, 255, 255, 0.31)");
-    await sequenceContainer.click({ force: true });
-    await expect(page).toHaveURL(/\/#studies$|\/$/);
+    const cameraLinks = page.locator(".study-selector a");
+    await expect(cameraLinks).toHaveCount(5);
+    await expect(cameraLinks.first()).toHaveText("CAM 90014");
+    await expect(page.getByRole("link", { name: "CAM 90014" }))
+      .toHaveAttribute("href", "/realtime/90014");
   });
 });

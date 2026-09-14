@@ -20,8 +20,8 @@ describe("camera registry", () => {
     expect(liveCameraById(9999)).toBeUndefined();
   });
 
-  it("orders the live cameras north to south without dethroning the default", () => {
-    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072]);
+  it("keeps 511NY cameras north to south, appends CARLA, and preserves the default", () => {
+    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072, 90014]);
     expect(liveCameraById(5059)).toMatchObject({
       cameraId: 5059,
       location: "West Street at W. 23 St",
@@ -32,25 +32,36 @@ describe("camera registry", () => {
       location: "West Street at Chambers St",
       statusLabel: "WEST STREET @ CHAMBERS ST",
     });
+    expect(liveCameraById(90014)).toMatchObject({
+      baseAnchor: "C4",
+      cameraKey: "camera_90014",
+      location: "Town10 - Crosswalk 14",
+      sourceId: "carla-town10-crosswalk-14",
+      sourceKind: "carla",
+      statusLabel: "CARLA TOWN10 @ XWALK 14",
+      viewUrl: "/realtime/90014",
+    });
   });
 
   it("ships 5059 and 5072 without baked-in geometry", () => {
     // Both ship with an empty reference on purpose: no keys until the
     // calibration agent first publishes for them (VIN-39).
-    for (const cameraId of [5059, 5062, 5072]) {
+    for (const cameraId of [5059, 5062, 5072, 90014]) {
       expect(liveCameraById(cameraId)?.calibration.stripes).toHaveLength(0);
       expect(liveCameraById(cameraId)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
     }
   });
 
-  it("gives every live camera a distinct stream", () => {
-    const streams = LIVE_CAMERAS.map((camera) => camera.hlsUrl);
-    expect(new Set(streams).size).toBe(LIVE_CAMERAS.length);
+  it("keeps upstream stream configuration out of client-importable metadata", () => {
+    const serialized = JSON.stringify(LIVE_CAMERAS);
+    expect(serialized).not.toContain("CARLA_HLS_BASE_URL");
+    expect(serialized).not.toContain("10.150.0.2");
+    expect(LIVE_CAMERAS.every((camera) => !("hlsUrl" in camera))).toBe(true);
   });
 
   it("equips every live camera to drive the realtime study on its own", () => {
     for (const camera of LIVE_CAMERAS) {
-      expect(camera.hlsUrl).toMatch(/^https:/);
+      expect(["511ny", "carla"]).toContain(camera.sourceKind);
       expect(camera.statusLabel.length).toBeGreaterThan(0);
       expect(camera.baseAnchor).toBeTruthy();
       expect(midiForNote(camera.baseAnchor)).not.toBeNull();

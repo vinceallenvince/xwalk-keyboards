@@ -39,11 +39,10 @@ When the visitor scrolls down past the initial hero position
 Then the "XWALK KEYBOARDS" title scrolls upward and exits the top of the viewport
 And the live traffic-camera background remains fixed in place behind the experience
 And the homepage status indicators and footer remain positioned over the fixed background
-And the study selector animates upward into the vertical center of the viewport
-And the selector presents "REALTIME" and "SEQUENCE" as the available study modes
-And "SEQUENCE" displays the subtext "[ In progress ]" beneath the label
-And a mint vertical divider separates the two study modes
-And "REALTIME" and "SEQUENCE" are rendered in their inactive gray states
+And the camera selector animates upward into the vertical center of the viewport
+And the selector presents one link for each registered live camera
+And a mint vertical divider separates each pair of camera links
+And all camera links are rendered in their inactive gray states
 ```
 
 ### As a visitor, I can preview a camera link before choosing it
@@ -71,11 +70,11 @@ left to right in descending order by camera ID.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all three registered live cameras (e.g. 5072, 5059, 5056) have a calibration status other than "no_crosswalk"
+And all five registered live cameras (90014, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk"
 When the homepage finishes loading and calibration statuses have been fetched
-And three camera links are displayed in descending order by camera ID (e.g. CAM 5072 | CAM 5059 | CAM 5056)
+And five camera links are displayed in descending order by camera ID (CAM 90014 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
 And a mint vertical divider separates each pair of camera links
-And each link navigates to that camera's Realtime page (e.g. /realtime/5072, /realtime/5059, /realtime/5056)
+And each link navigates to that camera's Realtime page
 ```
 
 ```gherkin
@@ -95,9 +94,9 @@ crosswalk, only one link appears.
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 And camera 5059 has calibration status "no_crosswalk"
-And cameras 5072 and 5056 have calibration status other than "no_crosswalk"
+And cameras 90014, 5072, 5062, and 5056 have calibration status other than "no_crosswalk"
 When the homepage finishes loading
-Then the camera links section displays two links: "CAM 5072 | CAM 5056"
+Then the camera links section displays four links: "CAM 90014 | CAM 5072 | CAM 5062 | CAM 5056"
 And no link for camera 5059 is shown
 And the remaining links are still ordered in descending order by camera ID
 ```
@@ -112,7 +111,7 @@ renders all cameras rather than showing an empty selector.
 Given a visitor opens the XWALK KEYBOARDS homepage
 And all registered live cameras have calibration status "no_crosswalk"
 When the homepage finishes loading
-Then the camera links section displays all links (e.g. "CAM 5072 | CAM 5059 | CAM 5056")
+Then the camera links section displays all links ("CAM 90014 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056")
 And the visitor always has somewhere to go
 And selecting a camera link navigates to that camera's Realtime page
 And the visitor sees that camera's "NO CROSSWALK DETECTED" notice on arrival

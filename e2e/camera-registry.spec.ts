@@ -28,6 +28,10 @@ test.describe("Camera Registry", () => {
     await page.goto("/camera-registry");
     await expect(page.locator(".camera-card")).toHaveCount(16);
     await expect(page.locator(".camera-card img")).toHaveCount(16);
+    await expect(page.locator(".live-feed-card")).toHaveCount(5);
+    await expect(page.locator(".live-feed-card").last()).toContainText("Town10 - Crosswalk 14");
+    await expect(page.getByRole("link", { name: "Open Town10 - Crosswalk 14 Realtime study" }))
+      .toHaveAttribute("href", "/realtime/90014");
 
     await page.addStyleTag({
       content: "*, *::before, *::after { animation: none !important; transition: none !important; }",

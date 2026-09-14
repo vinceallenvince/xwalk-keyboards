@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { CameraRecord } from "@/data/cameras";
+import type { CameraRecord, LiveCameraRecord } from "@/data/cameras";
 import { RegistryLivePreview } from "./registry-live-preview";
 
 type SnapshotState = {
@@ -13,7 +13,8 @@ type SnapshotState = {
 
 type RegistryCamera = Pick<CameraRecord, "cameraId" | "cameraKey" | "displayLabel" | "location" | "viewUrl">;
 
-type RegistryLiveCamera = Pick<CameraRecord, "cameraId" | "location" | "viewUrl">;
+type RegistryLiveCamera = Pick<CameraRecord, "cameraId" | "location" | "viewUrl">
+  & Pick<LiveCameraRecord, "sourceKind">;
 
 function CameraCard({ camera, state }: { camera: RegistryCamera; state: SnapshotState | undefined }) {
   const snapshot = state ?? { status: "loading" as const };
@@ -129,7 +130,16 @@ export function CameraRegistry({ fallbackCameras, liveCameras, priorityCameras }
           <article className="live-feed-card" key={camera.cameraId}>
             <RegistryLivePreview cameraId={camera.cameraId} />
             <p>{`Feed ${String(index + 1).padStart(2, "0")} // ${camera.location}`}</p>
-            <a href={camera.viewUrl} target="_blank" rel="noreferrer" aria-label={`Open View ${camera.cameraId} on 511NY`}>OPEN 511NY ↗</a>
+            <a
+              href={camera.viewUrl}
+              target={camera.sourceKind === "511ny" ? "_blank" : undefined}
+              rel={camera.sourceKind === "511ny" ? "noreferrer" : undefined}
+              aria-label={camera.sourceKind === "511ny"
+                ? `Open View ${camera.cameraId} on 511NY`
+                : `Open ${camera.location} Realtime study`}
+            >
+              {camera.sourceKind === "511ny" ? "OPEN 511NY ↗" : "OPEN STUDY →"}
+            </a>
           </article>
         ))}
         <p className="aside-note">One snapshot per static source. No polling or Roboflow inference occurs here.</p>

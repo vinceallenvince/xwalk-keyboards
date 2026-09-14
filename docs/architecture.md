@@ -10,7 +10,7 @@ The app has one study:
 
 | Study | Source | Vision path | Audio path | Timing model |
 | --- | --- | --- | --- | --- |
-| Realtime | One live 511NY HLS camera | Roboflow Workflow over WebRTC | Browser Web Audio API | Event-driven, current frame only |
+| Realtime | One registered live HLS camera (511NY or CARLA) | Roboflow Workflow over WebRTC | Browser Web Audio API | Event-driven, current frame only |
 
 Two earlier scored-snapshot studies (Orchestration and its successor design,
 Sequence) were removed in 2026-08; see VIN-18/VIN-20.
@@ -21,8 +21,9 @@ never runs Roboflow or the scoring agent.
 
 The architecture is designed around three non-negotiable properties:
 
-1. **No secrets in the browser.** 511NY, Roboflow, and agent credentials stay
-   in server-side environment variables or Secret Manager.
+1. **No secrets or private origins in the browser.** Upstream media locations,
+   Roboflow credentials, and agent credentials stay in server-only modules,
+   environment variables, or Secret Manager.
 2. **A visual frame and its sound must be attributable to the same source.**
    Realtime only uses current prediction data.
 3. **Media work stops when its route is left.** Navigation disposes of HLS,
@@ -57,9 +58,9 @@ The architecture is designed around three non-negotiable properties:
           |                       | workflow calls
           v                       v
 +--------------------+  +----------------------+
-| 511NY / NYSDOT     |  | Roboflow Workflows   |
-| HLS View 5056      |  | Realtime predictions |
-| static snapshots   |  | (person detections)  |
+| Registered HLS     |  | Roboflow Workflows   |
+| 511NY or private   |  | Realtime predictions |
+| CARLA origin       |  | (person detections)  |
 +--------------------+  +----------------------+
 
 Interfaces
@@ -75,10 +76,12 @@ flowchart LR
   Browser["Browser / Next.js UI"]
   App["Next.js server routes\nCloud Run web service"]
   NY["511NY camera sources"]
+  CARLA["CARLA Town10 HLS\nprivate VPC origin"]
   RF["Roboflow Workflows\nserverless + WebRTC GPU"]
 
   Browser -->|"HLS via same-origin proxy"| App
   App -->|"HLS playlists and segments"| NY
+  App -->|"private HLS via Direct VPC"| CARLA
   Browser -->|"snapshot requests"| App
   App -->|"known static camera URLs"| NY
   Browser -->|"WebRTC offer via server proxy"| App
@@ -116,7 +119,7 @@ The client is responsible for:
 The web server is responsible for:
 
 - validating all browser inputs and limiting payload sizes/timeouts;
-- proxying HLS and static-image requests;
+- resolving registered HLS origins server-side and proxying media requests;
 - detecting known 511NY maintenance/unavailable images;
 - calling Roboflow with secret keys and validated runtime parameters;
 - returning only the data the browser needs.
@@ -159,16 +162,20 @@ Each camera record needs at least:
 
 ```ts
 type CameraRecord = {
-  cameraId: number;                 // stable 511NY view ID, for example 3259
+  cameraId: number;                 // stable source ID, for example 3259 or 90014
   role: "priority" | "fallback" | "live";
   slot?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-  viewUrl: string;                  // https://511ny.org/map/Cctv/<cameraId>
+  viewUrl: string;                  // public source page or same-origin study
   snapshotUrl?: string;             // curated static source
-  hlsUrl?: string;                  // curated live source
   displayLabel: string;             // Camera 06 · View 3259
   crosswalkCalibrationKey?: string;
 };
 ```
+
+Client-importable camera records never contain upstream HLS URLs. The server
+maps the four 511NY live IDs to their public CDN directories and resolves
+camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always request the same
+allowlisted `/api/hls/:cameraId/:path*` route.
 
 The production registry contains exactly twelve priority snapshot cameras,
 the configured fallback group, and the live Realtime source (View `5056`). A fallback is
@@ -246,13 +253,13 @@ slower.
 sequenceDiagram
   participant UI as Realtime browser UI
   participant HLS as Next.js HLS proxy
-  participant NY as 511NY HLS CDN
+  participant Source as Registered HLS source
   participant RFRoute as Next.js WebRTC route
   participant RF as Roboflow WebRTC workflow
 
   UI->>HLS: request playlist / segments
-  HLS->>NY: fetch identity-encoded media
-  NY-->>HLS: HLS content
+  HLS->>Source: fetch allowlisted upstream media
+  Source-->>HLS: HLS content
   HLS-->>UI: local HLS video
   UI->>UI: video.captureStream()
   UI->>RFRoute: WebRTC offer + frame size
@@ -336,6 +343,7 @@ ROBOFLOW_API_KEY
 ROBOFLOW_WORKSPACE
 ROBOFLOW_REALTIME_WORKFLOW_ID
 ROBOFLOW_IMAGE_INPUT / ROBOFLOW_DATA_OUTPUT parameter-name bindings
+CARLA_HLS_BASE_URL (private HLS directory for camera 90014)
 ```
 
 Keep all keys in Secret Manager for Cloud Run deployments. Use small body-size

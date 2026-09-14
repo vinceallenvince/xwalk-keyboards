@@ -22,6 +22,8 @@ type RealtimeDebugProps = {
   forcedUnavailable: boolean;
   /** Force the 5-minute inference pause modal for testing. */
   onForcePause: () => void;
+  /** Mark inference ready so gated controls and timers can be tested offline. */
+  onForceReady: () => void;
   /** Capture the current frame and run the calibration agent against it. */
   onRecalibrate: () => void;
   /** Whether a recalibration request is in flight. */
@@ -50,7 +52,7 @@ function formatMs(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onRecalibrate, recalibrating, startupSummary, viewportRef }: RealtimeDebugProps) {
+export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onForceReady, onRecalibrate, recalibrating, startupSummary, viewportRef }: RealtimeDebugProps) {
   const [open, setOpen] = useState(false);
   const [showPolygons, setShowPolygons] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -285,6 +287,13 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
             onClick={onForcePause}
           >
             FORCE PAUSE MODAL
+          </button>
+          <button
+            type="button"
+            className="realtime-debug-toggle"
+            onClick={onForceReady}
+          >
+            FORCE INFERENCE READY
           </button>
           <button
             type="button"
