@@ -90,10 +90,10 @@ rank; cameras with equal rank are ordered by descending camera ID.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all six registered live cameras (90014, 80007, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk" or "feed_down"
-And all six share the same crosswalk rank
+And all nine registered live cameras (90014, 80027, 80009, 80007, 80003, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk" or "feed_down"
+And all nine share the same crosswalk rank
 When the homepage finishes loading and calibration statuses have been fetched
-Then six camera links are displayed in descending order by camera ID (CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
+Then nine camera links are displayed in descending order by camera ID (CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
 And a mint vertical divider separates each pair of camera links
 And each link navigates to that camera's Realtime page
 ```
@@ -124,7 +124,7 @@ And the rest of the homepage renders normally, including the background video, s
 Given calibration statuses have not yet been fetched
 And cameras 5072, 5062, 5059, and 5056 will report status "feed_down"
 When the calibration statuses arrive
-Then the camera links appear: "CAM 90014 | CAM 80007"
+Then the camera links appear: "CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003"
 And no link for a camera whose feed is down was displayed at any point
 And the page layout does not shift when the links appear
 ```
@@ -154,9 +154,9 @@ crosswalk, only one link appears.
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 And camera 5059 has calibration status "no_crosswalk"
-And cameras 90014, 80007, 5072, 5062, and 5056 have calibration status "ok" and equal crosswalk rank
+And cameras 90014, 80027, 80009, 80007, 80003, 5072, 5062, and 5056 have calibration status "ok" and equal crosswalk rank
 When the homepage finishes loading
-Then the camera links section displays five links: "CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5056"
+Then the camera links section displays eight links: "CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003 | CAM 5072 | CAM 5062 | CAM 5056"
 And no link for camera 5059 is shown
 And the remaining links keep their crosswalk-rank, then camera-ID order
 ```
@@ -171,9 +171,9 @@ with no video, even when that leaves only one link.
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 And cameras 5072, 5062, 5059, and 5056 have status "feed_down"
-And cameras 90014 and 80007 have calibration status "ok" and equal crosswalk rank
+And cameras 90014, 80027, 80009, 80007, and 80003 have calibration status "ok" and equal crosswalk rank
 When the homepage finishes loading
-Then the camera links section displays two links: "CAM 90014 | CAM 80007"
+Then the camera links section displays five links: "CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003"
 And no link is shown for any camera whose feed is down
 ```
 
