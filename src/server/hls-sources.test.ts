@@ -20,6 +20,12 @@ describe("HLS source resolution", () => {
     );
   });
 
+  it("resolves the Bellevue CCTV007 stream from server-owned configuration", () => {
+    expect(hlsSourceBaseUrl(80007, {})?.toString()).toBe(
+      "https://trafficcams.bellevuewa.gov/traffic-edge/CCTV007L.stream/",
+    );
+  });
+
   it("resolves CARLA only from its server environment", () => {
     expect(hlsSourceBaseUrl(90014, {})).toBeNull();
     expect(hlsSourceBaseUrl(90014, {

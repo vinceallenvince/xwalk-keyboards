@@ -2,27 +2,46 @@
 
 ## Feature: Discover and choose an XWALK KEYBOARDS study
 
-The homepage introduces XWALK KEYBOARDS over a fixed, darkened West Street at
-W. 34 St traffic-camera feed, then invites the visitor to choose a study mode.
+The homepage introduces XWALK KEYBOARDS over a fixed, darkened live
+traffic-camera feed, then invites the visitor to choose a camera.
+
+### Camera placeholders
+
+Live cameras come from more than one public provider (511NY in New York,
+the City of Bellevue in Washington, and a private CARLA simulation), so
+scenarios that apply to every camera use a placeholder rather than one
+intersection's copy:
+
+- `<CAMERA STATUS LABEL>` — the camera's short status-bar name, for example
+  `BELLEVUE WAY @ NE 8TH ST` (CAM 80007, Bellevue, WA) or
+  `WEST STREET @ W23 ST` (CAM 5059, New York).
+
+Visitor-facing copy does not credit a camera provider. The status line names
+the intersection; the footer credits only the tools that power the site.
+
+The homepage and About backgrounds use the City of Bellevue's Bellevue Way NE
+& NE 8th St camera (CAM 80007). 511NY stops publishing public video at its
+2026-09-30 cutover; its cameras stay registered and drop out of navigation
+when their feeds go down.
 
 ## Homepage
 
 ### As a visitor, I arrive at an immersive XWALK KEYBOARDS homepage
 
-The homepage uses the live West Street at W. 34 St camera as a darkened,
-full-viewport canvas. The title and the quiet technical metadata establish the
-study before asking the visitor to scroll.
+The homepage uses the live Bellevue Way NE & NE 8th St camera (CAM 80007) as a
+darkened, full-viewport canvas. The title and the quiet technical metadata
+establish the study before asking the visitor to scroll.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 When the homepage finishes loading
-Then a live West Street at W34 Street video feed fills the viewport background
+Then a live Bellevue Way NE & NE 8th St video feed fills the viewport background
 And the video feed remains darkened so foreground content is legible
-And the upper-left status indicator reads "FEED LIVE // WEST STREET @ W34 ST"
+And the upper-left status indicator reads "FEED LIVE // BELLEVUE WAY @ NE 8TH ST"
 And the centered hero title displays "XWALK KEYBOARDS"
 And the hero title includes the three-line mint visual mark at its left
 And a "SCROLL" down-arrow indicator appears below the title
-And the lower-left footer reads "NYC DOT // CROSSWALK KEYBOARD STUDY"
+And the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
 And the lower-right footer displays the pattern and study identifiers
 ```
 
@@ -53,12 +72,12 @@ selection clear before the visitor commits.
 
 ```gherkin
 Given the camera links section is centered in the viewport
-When the visitor rolls over "CAM 5059"
-Then "CAM 5059" changes to the active mint highlight color
+When the visitor rolls over "CAM 80007"
+Then "CAM 80007" changes to the active mint highlight color
 And the other camera links remain in their inactive gray state
 When the visitor rolls over a different camera link
 Then that link receives the mint highlight
-And "CAM 5059" returns to its inactive gray state
+And "CAM 80007" returns to its inactive gray state
 ```
 
 ### As a visitor, I see dynamic camera links on the homepage
@@ -66,22 +85,24 @@ And "CAM 5059" returns to its inactive gray state
 The homepage fetches
 calibration data for all registered live cameras on load and shows a link
 for each camera whose crosswalk is currently visible. Links are ordered
-left to right in descending order by camera ID.
+left to right best crosswalk first, by the calibration agent's crosswalk
+rank; cameras with equal rank are ordered by descending camera ID.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all five registered live cameras (90014, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk"
+And all six registered live cameras (90014, 80007, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk" or "feed_down"
+And all six share the same crosswalk rank
 When the homepage finishes loading and calibration statuses have been fetched
-And five camera links are displayed in descending order by camera ID (CAM 90014 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
+Then six camera links are displayed in descending order by camera ID (CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
 And a mint vertical divider separates each pair of camera links
 And each link navigates to that camera's Realtime page
 ```
 
 ```gherkin
 Given the camera links section is visible
-When the visitor selects "CAM 5059"
-Then the visitor navigates to /realtime/5059
-And the Realtime study opens with its normal onboarding sequence for camera 5059
+When the visitor selects "CAM 80007"
+Then the visitor navigates to /realtime/80007
+And the Realtime study opens with its normal onboarding sequence for camera 80007
 ```
 
 ### As a visitor, cameras with no crosswalk are hidden from the homepage links
@@ -94,25 +115,44 @@ crosswalk, only one link appears.
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 And camera 5059 has calibration status "no_crosswalk"
-And cameras 90014, 5072, 5062, and 5056 have calibration status other than "no_crosswalk"
+And cameras 90014, 80007, 5072, 5062, and 5056 have calibration status "ok" and equal crosswalk rank
 When the homepage finishes loading
-Then the camera links section displays four links: "CAM 90014 | CAM 5072 | CAM 5062 | CAM 5056"
+Then the camera links section displays five links: "CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5056"
 And no link for camera 5059 is shown
-And the remaining links are still ordered in descending order by camera ID
+And the remaining links keep their crosswalk-rank, then camera-ID order
 ```
 
-### As a visitor, I still see all camera links when every camera is rotated
+### As a visitor, cameras whose feed is down are hidden from the homepage links
 
-The homepage always gives the visitor somewhere to go. When every
-registered camera has rotated away from its crosswalk, the link section
-renders all cameras rather than showing an empty selector.
+A camera whose live stream cannot be reached reports `feed_down`. This is
+the expected state for every 511NY camera once 511NY stops publishing
+public video. The homepage never links to a camera with no video, even
+when that leaves only one link.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all registered live cameras have calibration status "no_crosswalk"
+And cameras 5072, 5062, 5059, and 5056 have status "feed_down"
+And cameras 90014 and 80007 have calibration status "ok" and equal crosswalk rank
 When the homepage finishes loading
-Then the camera links section displays all links ("CAM 90014 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056")
-And the visitor always has somewhere to go
+Then the camera links section displays two links: "CAM 90014 | CAM 80007"
+And no link is shown for any camera whose feed is down
+```
+
+### As a visitor, I still see camera links when every camera is rotated
+
+The homepage always gives the visitor somewhere to go. When every
+camera with a working feed has rotated away from its crosswalk, the link
+section renders those cameras rather than showing an empty selector.
+A camera whose feed is down is never restored this way: a rotated camera
+still has video to show, but a down camera has nothing.
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+And every registered live camera whose feed is up has calibration status "no_crosswalk"
+When the homepage finishes loading
+Then the camera links section displays a link for every camera whose feed is up
+And no link is shown for a camera whose feed is down
+And the visitor always has somewhere to go while any feed is up
 And selecting a camera link navigates to that camera's Realtime page
 And the visitor sees that camera's "NO CROSSWALK DETECTED" notice on arrival
 ```
@@ -132,7 +172,7 @@ Then the camera links section does not change
 And camera 5072's link does not appear until the visitor refreshes or returns to the homepage
 
 Given the visitor is viewing the homepage
-And all three cameras had available crosswalks at page load
+And all registered cameras had available crosswalks at page load
 When camera 5056 rotates away while the visitor is still on the homepage
 Then the camera links section does not change
 And camera 5056's link remains visible until the visitor refreshes or returns to the homepage
@@ -140,19 +180,19 @@ And camera 5056's link remains visible until the visitor refreshes or returns to
 
 ### As a visitor, the background video stream is independent of crosswalk availability
 
-The homepage background video is ambient — it plays camera 5059's live
+The homepage background video is ambient — it plays camera 80007's live
 feed for visual atmosphere, not for inference. The background stream
-continues regardless of whether camera 5059's crosswalk is available.
+continues regardless of whether camera 80007's crosswalk is available.
 
 ```gherkin
-Given camera 5059 has calibration status "no_crosswalk"
+Given camera 80007 has calibration status "no_crosswalk"
 When the homepage loads
-Then the West Street at W. 23 St background video stream plays normally
+Then the Bellevue Way NE & NE 8th St background video stream plays normally
 And the background video remains darkened as ambient visual atmosphere
 And no inference, stripe highlights, or audio are started on the homepage
-And the feed status still reads the camera's connection state (e.g., "FEED LIVE // WEST STREET @ W23 ST")
+And the feed status still reads the camera's connection state (e.g., "FEED LIVE // BELLEVUE WAY @ NE 8TH ST")
 
-Given camera 5059 has calibration status "ok"
+Given camera 80007 has calibration status "ok"
 When the homepage loads
 Then the background video stream behaves identically
 And the background stream is always ambient, regardless of calibration status
@@ -183,6 +223,28 @@ Given I am viewing the XWALK KEYBOARDS homepage or a study subpage
 Then the footer includes an "ABOUT" link
 When I select the "ABOUT" link
 Then I am taken to the About page
+```
+
+### As a visitor, the footer credits the tools that power the site
+
+Live cameras come from more than one provider, so the footer names none of
+them. It carries the About link and the tools the instrument runs on, and it
+reads the same on every page and at every viewport width.
+
+```gherkin
+Given I am viewing the homepage, a Realtime study page, or the About page
+Then the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
+And "ABOUT", "Roboflow", and "Google Cloud Run" are mint links
+And "//", "POWERED BY:", and "+" are gray
+And "Roboflow" and "Google Cloud Run" open their sites in a new tab
+And the footer names no camera provider (no "CAM SOURCE", "511NY", or "BELLEVUE")
+
+Given I am viewing the footer on a mobile viewport
+Then it reads the same "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
+And the "POWERED BY" credits are not hidden
+
+Given I am viewing the About page
+Then "ABOUT" is plain text rather than a link
 ```
 
 ### As a visitor, I leave a study without its media or audio continuing off-page
@@ -221,6 +283,17 @@ The one exception is a camera outage. When the feed itself is down the
 instrument line defers to the real cause and reads `FEED UNAVAILABLE` rather
 than blaming the keyboard for a failure upstream of it.
 
+The feed line always names the camera being played with its
+`<CAMERA STATUS LABEL>` (see [Camera placeholders](#camera-placeholders)).
+A visitor who opens `/realtime` without a camera ID gets the default camera,
+Bellevue Way NE & NE 8th St (CAM 80007).
+
+```gherkin
+Given a visitor opens /realtime with no camera ID
+Then the Realtime study opens for camera 80007
+And the feed status begins at "CONNECTING // BELLEVUE WAY @ NE 8TH ST"
+```
+
 ### As a visitor, I am told how to hear the crosswalk and receive an update on the crosswalk's current environmental conditions
 
 The Realtime study is silent and still until a pedestrian steps onto the
@@ -247,7 +320,7 @@ Given a visitor opens the Realtime study
 When the page loads
 Then the page header reads "XWALK KEYBOARDS | REALTIME"
 And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
-And the feed status begins at "CONNECTING // WEST STREET @ W34 ST"
+And the feed status begins at "CONNECTING // <CAMERA STATUS LABEL>"
 And the inference status begins at "STATUS: KEYBOARD WARMING UP..."
 And the camera connection and keyboard startup continue independently behind the overlay
 And the onboarding overlay appears over the dimmed camera viewport
@@ -256,7 +329,7 @@ And it explains that each white stripe is a key played by pedestrians crossing
 And it explains that the keyboard takes a few seconds to warm up
 And it offers a single "NEXT" control
 And the "FULLSCREEN" and sound controls are visible but visually inactive
-And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
+And the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
 And no spinner or unrelated loading indicator is shown
 And the feed and keyboard statuses remain visible and truthful behind the overlay
 And the live camera video appears dimmed behind the overlay as soon as the feed is live
@@ -344,16 +417,16 @@ and quiet technical metadata so the moving image remains the focus.
 
 ```gherkin
 Given I am on the Realtime study page
-And the West Street at W. 34 St camera feed is active
+And the camera feed is active
 And Roboflow inference is active
 When both active states are available at the same time
 Then the page header reads "XWALK KEYBOARDS | REALTIME"
-And the feed status reads "FEED LIVE // WEST STREET @ W34 ST"
+And the feed status reads "FEED LIVE // <CAMERA STATUS LABEL>"
 And the inference status reads "STATUS: KEYBOARD READY!"
 And the live camera video fills the reserved central viewport
 And the "FULLSCREEN" control is available at the lower-right of the viewport
 And the sound control is available beside it and indicates its current sound state
-And the source footer reads "NYC DOT CCTV FEED SOURCE // CAMERA ID: 910"
+And the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
 ```
 
 ### As a visitor, I can see and hear pedestrians play the Realtime crosswalk
@@ -371,7 +444,7 @@ nothing.
 
 ```gherkin
 Given I am viewing an active Realtime study
-And the West Street at W. 34 St camera feed and Roboflow inference are active
+And the camera feed and Roboflow inference are active
 When a pedestrian is detected inside the calibrated crosswalk
 Then the app maps the pedestrian's position to the corresponding crosswalk stripe
 And the left-most white stripe maps to the piano note "C4"
@@ -444,7 +517,7 @@ viewport or pretending the instrument is available.
 ```gherkin
 Given I am viewing the Realtime study
 When the camera feed is unavailable due to a source outage or network failure
-Then the feed status reads "FEED DOWN // WEST STREET @ W34 ST" in its inactive state
+Then the feed status reads "FEED DOWN // <CAMERA STATUS LABEL>" in its inactive state
 And the inference status reads "FEED UNAVAILABLE" in red
 And the viewport displays the last received frame darkened to 35% opacity
 And a centered overlay reads "VIDEO FEED UNAVAILABLE" in bold 18px white
@@ -459,7 +532,7 @@ And the unavailable overlay is removed
 
 ### As a visitor, if the camera has rotated away from the crosswalk, I am redirected to another camera
 
-511NY cameras rotate through preset views on an unknown schedule. When a
+Traffic cameras rotate through preset views on an unknown schedule. When a
 camera rotates away from the crosswalk, the calibration agent publishes a
 zero-stripe calibration (`stripes: []`, `status: no_crosswalk`). The live
 video feed still works — the camera is up — but there is no crosswalk in
@@ -481,8 +554,8 @@ And a centered notice appears over the viewport
 And the notice title reads "NO CROSSWALK DETECTED"
 And the notice explains that this camera is not currently showing a crosswalk
 And the notice presents links to the other registered realtime cameras, excluding the current one
-And each camera link is labeled with the camera ID (e.g., "CAM 5059")
-And each camera link navigates to that camera's realtime page (e.g., /realtime/5059)
+And each camera link is labeled with the camera ID (e.g., "CAM 80007")
+And each camera link navigates to that camera's realtime page (e.g., /realtime/80007)
 And the "FULLSCREEN" and sound controls remain visible but visually inactive
 And no onboarding sequence runs because there is no keyboard to warm up
 And no crosswalk stripe highlights or notes are produced
@@ -669,31 +742,37 @@ And the visitor understands this is a resource limit, not a broken feature
 
 ### As a visitor, I can learn about XWALK KEYBOARDS
 
-The About page is the project's public-facing description. The live West Street
-at W. 34 St camera feed fills the page background — the same feed the homepage
-uses — making the About page feel like part of the instrument rather than a
+The About page is the project's public-facing description. The live Bellevue
+Way NE & NE 8th St camera feed (CAM 80007) fills the page background — the same feed
+the homepage uses — making the About page feel like part of the instrument rather than a
 static informational document. The project description sits inside a dark
 viewport panel that preserves legibility over the moving video.
 
-The copy is a single paragraph. It explains what the crosswalk piano does
-without naming vendors, models, or inference technology.
+The copy opens with a short introduction, followed by "HOW IT STARTED",
+"HOW IT WORKS", and "MORE DETAILS" sections. It never attributes the live
+cameras to a provider or city, because they come from more than one
+provider. It may name the project's tools (Roboflow, Google Cloud Run) and
+the hackathon it came from.
 
 ```gherkin
 Given I open the XWALK KEYBOARDS About page
 When the page loads
 Then the header reads "XWALK KEYBOARDS | ABOUT"
 And the ABOUT label is rendered as plain text, not underlined, because I am already on the About page
-And a feed status reads "CONNECTING // WEST STREET @ W34 ST" with an inactive status dot
+And a feed status reads "CONNECTING // BELLEVUE WAY @ NE 8TH ST" with an inactive status dot
 And a dark viewport panel is visible below the feed status
-And the viewport contains a single paragraph explaining that XWalk Keyboards transforms crosswalks into piano keyboards
+And the viewport opens with a paragraph explaining that XWalk Keyboards uses traffic camera video feeds to transform crosswalks into piano keyboards
 And the paragraph mentions that pedestrians step on white stripes and the app plays the corresponding notes
-And the paragraph is set in 12px monospace
-And no section headings, study links, or eyebrow labels are shown
-And the footer reads "SOURCE: 511NY // ABOUT" with ABOUT as plain text, not a self-link
+And "HOW IT STARTED", "HOW IT WORKS", and "MORE DETAILS" sections follow
+And "HOW IT WORKS" says the web app uses Roboflow to detect pedestrians in a traffic cam video in real time
+And no copy attributes the live cameras to a provider or city (no "511NY" or "Bellevue"; the NYC hackathon history in "HOW IT STARTED" is not a camera attribution)
+And body copy is set in 12px monospace
+And no study links or eyebrow labels are shown
+And the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run" with ABOUT as plain text, not a self-link
 And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
 
 When the camera feed becomes active
-Then the feed status reads "FEED LIVE // WEST STREET @ W34 ST" with a live mint dot
+Then the feed status reads "FEED LIVE // BELLEVUE WAY @ NE 8TH ST" with a live mint dot
 And the live camera video fills the page background at reduced opacity
 And the viewport panel remains dark and legible over the moving video
 And the camera feed is visible around the viewport edges and behind the footer
@@ -723,7 +802,7 @@ When I select the "ABOUT" link
 Then I am taken to the About page
 
 Given I am viewing the About page
-Then the footer reads "SOURCE: 511NY // ABOUT"
+Then the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
 And "ABOUT" is plain text, not a link
 ```
 

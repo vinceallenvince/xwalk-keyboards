@@ -168,18 +168,93 @@ Key differences from the legacy feed:
     consume the XML feed at runtime (for camera discovery or health checks).
     Today we hardcode cameras and do not call the feed at runtime.
 
+## Production feed results (2026-09-24)
+
+### Critical: no HLS video in production feed
+
+The production feed at `https://nysdot.carsprogram.org/hub/data/cctv.xml`
+(HTTP Basic auth) contains **zero `<video-url>` entries** across all ~2,700
+cameras. NYSDOT has confirmed: "Live streaming video is intentionally not
+provided by NYSDOT at this time."
+
+This is not a staging-vs-production gap — NYSDOT has chosen not to include
+HLS streaming URLs in the Castle Rock feed.
+
+### Still images: mostly working
+
+Still images from `public.carsprogram.org` work for three of four cameras:
+
+| Our ID | Stream ID | Still image | Size |
+| --- | --- | --- | --- |
+| 5056 | R11_272 | ❌ Maintenance placeholder | 15 KB (540×330) |
+| 5059 | R11_275 | ✅ Working | ~117 KB |
+| 5062 | R11_278 | ✅ Working | ~142 KB |
+| 5072 | R11_279 | ✅ Working | ~130 KB |
+
+Camera 5056's still image is the "No live camera feed at this time"
+maintenance graphic from both the legacy and new sources.
+
+### HLS CDN streams: legacy still running (except 5056)
+
+Direct checks against the `s9.nysdot.skyvdn.com` CDN (bypassing the feed):
+
+| Camera | Stream | HTTP status | Note |
+| --- | --- | --- | --- |
+| 5056 | R11_272 | **504 Gateway Timeout** | Already shut down |
+| 5059 | R11_275 | 200 | Legacy still serving |
+| 5062 | R11_278 | 200 | Legacy still serving |
+| 5072 | R11_279 | 200 | Legacy still serving |
+
+The three working streams are served by the legacy CDN infrastructure that
+predates Castle Rock. There is no guarantee these survive the September 30
+cutover.
+
+### Revised impact assessment
+
+| Component | Risk | Note |
+| --- | --- | --- |
+| **Live HLS streams** | 🔴 Critical | Feed omits all HLS URLs; CDN may shut down at cutover |
+| **Realtime study** | 🔴 Critical | Depends entirely on live HLS video |
+| **Camera 5056** | 🔴 Down now | HLS 504, still image is maintenance placeholder |
+| **Still images** (5059, 5062, 5072) | ✅ Working | `public.carsprogram.org` serves real frames |
+| **Calibration agent** | ⚠️ Partial | Can switch to new stills for 3 of 4 cameras |
+
+### Mitigation options
+
+1. **Contact NYSDOT** about HLS availability. The staging feed included all
+   HLS URLs — was the omission in production intentional for launch, or is
+   streaming planned for a later phase?
+
+2. **Monitor the `skyvdn.com` CDN** through and after September 30. If the
+   CDN continues serving independently of the feed, the Realtime study
+   survives even without feed-provided URLs.
+
+3. **Hardcode CDN URLs.** We already hardcode HLS URLs in
+   `src/data/cameras.ts`. If the CDN stays up but the feed never lists the
+   URLs, our hardcoded approach still works — we just can't discover new
+   streams from the feed.
+
+4. **Prepare for camera loss.** Camera 5056 is already down. The app's
+   unavailable-feed handling (added in `fix/camera-feed-unavailable`) will
+   gracefully show an unavailable state for any camera whose stream drops.
+
 ## Open questions
+
+- **Will NYSDOT add HLS streaming to the production feed?** The staging feed
+  included all HLS URLs. Mary's email says streaming is "intentionally not
+  provided at this time," which implies it may come later. This is the most
+  important open question for the project.
+
+- **Will the `skyvdn.com` CDN survive the cutover?** Three of four streams
+  still serve from the legacy CDN as of 2026-09-24. Camera 5056 is already
+  504. If the CDN shuts down on September 30 and the feed never adds HLS
+  URLs, the Realtime study loses all video sources.
 
 - **Will `511ny.org/map/Cctv/<viewId>` survive?** This is the 511NY web app's
   snapshot route, not a data feed endpoint. It may survive the vendor change
   since the web app is a consumer of the feed, not the feed itself. If it
   survives, static registry cameras need no immediate change.
 
-- **Will the HLS CDN (`skyvdn.com`) change?** The test feed carries the same
-  CDN URLs we use today. If the production feed carries different URLs, we need
-  to update `LIVE_CAMERAS[].hlsUrl`.
-
 - **Do we need the feed at runtime?** Today we hardcode everything and never
-  call the feed. If cameras move or get new stream IDs, consuming the feed
-  would let us discover that. This is a future consideration, not a cutover
-  requirement.
+  call the feed. Since the feed doesn't include HLS URLs anyway, runtime
+  consumption adds no value for the Realtime study currently.

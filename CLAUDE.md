@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-XWALK KEYBOARDS turns live NYC traffic-camera crosswalks into playable piano keyboards. Pedestrians inside a crosswalk trigger notes mapped chromatically by stripe position. Deployed to Google Cloud Run (project `xwalk-keyboards-01`).
+XWALK KEYBOARDS turns live traffic-camera crosswalks into playable piano keyboards. Pedestrians inside a crosswalk trigger notes mapped chromatically by stripe position. Deployed to Google Cloud Run (project `xwalk-keyboards-01`).
 
 ## Commands
 
@@ -21,7 +21,7 @@ Package manager is **pnpm** (v8.15.3 via `packageManager` field). The Dockerfile
 
 ### One study: Realtime (`/realtime`)
 
-- **Source**: three live HLS cameras — 5056 (West Street @ W 34 St), 5059 (West Street @ W 23 St), 5072 (West Street @ Chambers St). The homepage background streams 5059, the About page streams 5072, and the homepage REALTIME link opens `/realtime/5059`. `/realtime` (no param) falls back to `DEFAULT_LIVE_CAMERA` (5056).
+- **Source**: live HLS cameras registered in `LIVE_CAMERAS` (`src/data/cameras.ts`), with upstream URLs server-only in `src/server/hls-sources.ts`: 80007 (City of Bellevue CCTV007, Bellevue Way NE & NE 8th St — made-up numeric ID), 511NY 5056/5059/5062/5072 (West Street, NYC), and private CARLA 90014. 511NY stops publishing public video at its 2026-09-30 cutover (VIN-78); its cameras stay registered, and the homepage hides any camera whose playlist probe fails (`hls-availability.ts`). `DEFAULT_LIVE_CAMERA` is 80007: it backs `/realtime` (no param) and the homepage and About backgrounds (VIN-79).
 - **Vision**: Roboflow WebRTC — the browser streams decoded frames, the workflow returns person detections for the current frame
 - **Audio**: browser Web Audio API (`AudioContext`), one oscillator voice per occupied stripe — event-driven, no scoring
 - **Visual**: mint stripe glow on a canvas overlay, keyed by stripe identity (`segment:stripeIndex`)

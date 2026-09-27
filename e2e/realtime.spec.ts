@@ -34,7 +34,9 @@ async function openRealtime(page: Page, { onboarding = false } = {}) {
     route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/png" }),
   );
 
-  await page.goto(onboarding ? "/realtime" : "/realtime?onboarding=off");
+  // Pinned to View 5056: its fixtures (poster still, calibration fallback)
+  // are what these tests are built on. /realtime itself defaults to 80007.
+  await page.goto(onboarding ? "/realtime/5056" : "/realtime/5056?onboarding=off");
   await page.addStyleTag({
     content: "*, *::before, *::after { animation: none !important; transition: none !important; }",
   });
@@ -109,6 +111,21 @@ test.describe("Realtime operator tools", () => {
 
     const unknownResponse = await page.goto("/realtime/99999");
     expect(unknownResponse?.status()).toBe(404);
+  });
+
+  test("/realtime with no camera ID opens Bellevue CCTV007", async ({ page }) => {
+    await page.route("**/api/hls/**", () => new Promise(() => {}));
+    await page.route("**/api/roboflow/**", () => new Promise(() => {}));
+    await page.route("**/api/calibration/**", () => new Promise(() => {}));
+
+    const response = await page.goto("/realtime?onboarding=off");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".realtime-feed-status")).toHaveText(
+      "CONNECTING // BELLEVUE WAY @ NE 8TH ST",
+    );
+    await expect(page.locator(".site-footer")).toHaveText(
+      "ABOUT // POWERED BY: Roboflow + Google Cloud Run",
+    );
   });
 
   test("CARLA origin failures become a visible feed-down state after bounded retries", async ({ page }) => {
@@ -297,14 +314,14 @@ test.describe("Realtime onboarding", () => {
     await page.route("**/api/hls/**", () => new Promise(() => {}));
     await page.route("**/api/roboflow/**", () => new Promise(() => {}));
 
-    await page.goto("/realtime?conditions=bad");
+    await page.goto("/realtime/5056?conditions=bad");
     await nextButton(page).click();
     await expect(panel(page)).toContainText("Your keyboard conditions: BAD");
     await expect(page.locator(".realtime-onboarding__value--bad")).toBeVisible();
     await expect(panel(page)).toContainText("Bad weather, shadows or obstructions may affect");
 
     // GOOD is the one level that carries no caveat.
-    await page.goto("/realtime?conditions=good");
+    await page.goto("/realtime/5056?conditions=good");
     await nextButton(page).click();
     await expect(panel(page)).toContainText("Your keyboard conditions: GOOD");
     await expect(page.locator(".realtime-onboarding__value--good")).toBeVisible();

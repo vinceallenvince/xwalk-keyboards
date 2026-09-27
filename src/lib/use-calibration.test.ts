@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIVE_CAMERA, LIVE_CAMERAS } from "@/data/cameras";
+import { LIVE_CAMERAS, liveCameraById } from "@/data/cameras";
 import { REALTIME_CALIBRATION } from "./realtime-calibration";
 import { noteForOrdinal } from "./realtime-scale";
 import { gcsAuthenticatedUrl, toBoundaries, toStripes } from "./use-calibration";
 
-const CAMERA = DEFAULT_LIVE_CAMERA;
+// 5056 is the one camera with baked-in reference stripes to fall back to.
+const CAMERA = liveCameraById(5056)!;
 const BASE = CAMERA.baseAnchor;
 const QUAD = [[10, 120], [20, 120], [20, 130], [10, 130]];
 
