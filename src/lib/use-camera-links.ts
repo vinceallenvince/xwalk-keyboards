@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { LIVE_CAMERAS } from "@/data/cameras";
+import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 
 export type CameraLink = {
   cameraId: number;
@@ -18,6 +18,16 @@ function byRankThenId(a: CameraLink, b: CameraLink): number {
   return a.crosswalkRank - b.crosswalkRank || b.cameraId - a.cameraId;
 }
 
+/**
+ * The link shown when there is nothing better to offer: the default camera,
+ * whose feed already plays behind the homepage. Used when the statuses can't
+ * be fetched and when every feed is down.
+ */
+export function defaultCameraLinks(statuses: CameraLink[] = []): CameraLink[] {
+  const known = statuses.find((camera) => camera.cameraId === DEFAULT_LIVE_CAMERA.cameraId);
+  return [known ?? { cameraId: DEFAULT_LIVE_CAMERA.cameraId, status: "unknown", crosswalkRank: DEFAULT_RANK }];
+}
+
 /** Keep unavailable feeds out of navigation, even if their old calibration is usable. */
 export function selectableCameraLinks(statuses: CameraLink[]): CameraLink[] {
   const available = statuses.filter((camera) => camera.status !== "feed_down");
@@ -25,8 +35,11 @@ export function selectableCameraLinks(statuses: CameraLink[]): CameraLink[] {
   const withCrosswalks = sorted.filter((camera) => camera.status !== "no_crosswalk");
 
   // If every available camera is rotated, keep those cameras visible so the
-  // visitor still has somewhere to go. A feed_down camera is never restored.
-  return withCrosswalks.length > 0 ? withCrosswalks : sorted;
+  // visitor still has somewhere to go. A feed_down camera is never restored,
+  // except that when every feed is down the default camera stands in.
+  if (withCrosswalks.length > 0) return withCrosswalks;
+  if (sorted.length > 0) return sorted;
+  return defaultCameraLinks(statuses);
 }
 
 /**
@@ -36,6 +49,10 @@ export function selectableCameraLinks(statuses: CameraLink[]): CameraLink[] {
  * to go). Links are sorted by `crosswalk_rank` ascending (best first), with
  * ties broken by camera ID descending.
  *
+ * No links are returned until availability is known, so the homepage never
+ * shows a camera it is about to hide (VIN-82). If the fetch fails, the
+ * default camera is the only link.
+ *
  * The homepage fetches once on load — no polling. A camera that recovers or
  * rotates while the visitor is on the page is reflected on the next visit or
  * browser refresh.
@@ -44,20 +61,23 @@ export function useCameraLinks(): {
   cameras: CameraLink[];
   loading: boolean;
 } {
-  const [statuses, setStatuses] = useState<CameraLink[] | null>(null);
+  const [cameras, setCameras] = useState<CameraLink[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      let resolved: CameraLink[];
       try {
         const response = await fetch("/api/calibration/status", { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as { cameras: CameraLink[] };
-        if (!cancelled) setStatuses(data.cameras);
+        if (!response.ok) throw new Error(`status ${response.status}`);
+        const data = (await response.json()) as { cameras?: unknown };
+        if (!Array.isArray(data.cameras)) throw new Error("malformed status payload");
+        resolved = selectableCameraLinks(data.cameras as CameraLink[]);
       } catch {
-        // Network error — keep showing all cameras as fallback.
+        resolved = defaultCameraLinks();
       }
+      if (!cancelled) setCameras(resolved);
     }
 
     void load();
@@ -66,19 +86,5 @@ export function useCameraLinks(): {
     };
   }, []);
 
-  // While loading or on error, show all cameras with a default rank.
-  // Ties broken by camera ID descending — the visitor always has
-  // somewhere to go.
-  if (!statuses) {
-    return {
-      cameras: LIVE_CAMERAS.map((c) => ({
-        cameraId: c.cameraId,
-        status: "ok",
-        crosswalkRank: DEFAULT_RANK,
-      })).sort(byRankThenId),
-      loading: true,
-    };
-  }
-
-  return { cameras: selectableCameraLinks(statuses), loading: false };
+  return cameras ? { cameras, loading: false } : { cameras: [], loading: true };
 }

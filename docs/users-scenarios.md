@@ -105,6 +105,45 @@ Then the visitor navigates to /realtime/80007
 And the Realtime study opens with its normal onboarding sequence for camera 80007
 ```
 
+### As a visitor, camera links appear only once availability is known
+
+The homepage doesn't show a camera link until it knows whether that camera
+is available. While the calibration statuses are loading, the selector stays
+empty but keeps its space, so the page doesn't shift when the links arrive.
+The links then appear once, already filtered and in their final order. A
+visitor never sees, or clicks, a camera that is about to be hidden.
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+And calibration statuses have not yet been fetched
+When the visitor scrolls to the camera selector
+Then no camera links are displayed
+And the camera selector keeps its space in the layout
+And the rest of the homepage renders normally, including the background video, status line, and footer
+
+Given calibration statuses have not yet been fetched
+And cameras 5072, 5062, 5059, and 5056 will report status "feed_down"
+When the calibration statuses arrive
+Then the camera links appear: "CAM 90014 | CAM 80007"
+And no link for a camera whose feed is down was displayed at any point
+And the page layout does not shift when the links appear
+```
+
+If the statuses can't be fetched (a network error, a non-OK response, or
+unreadable data), the homepage falls back to the default camera, CAM 80007.
+Its feed is the one already playing behind the homepage, so the visitor
+still has somewhere to go. The homepage uses the same fallback when the
+statuses arrive but every feed is down (see "cameras whose feed is down are
+hidden from the homepage links").
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+When the calibration status request fails
+Then the camera links section displays one link: "CAM 80007"
+And no other camera link is shown
+And selecting "CAM 80007" navigates to /realtime/80007
+```
+
 ### As a visitor, cameras with no crosswalk are hidden from the homepage links
 
 When a camera has rotated away from its crosswalk, its calibration status
@@ -126,8 +165,8 @@ And the remaining links keep their crosswalk-rank, then camera-ID order
 
 A camera whose live stream cannot be reached reports `feed_down`. This is
 the expected state for every 511NY camera once 511NY stops publishing
-public video. The homepage never links to a camera with no video, even
-when that leaves only one link.
+public video. While any feed is up, the homepage never links to a camera
+with no video, even when that leaves only one link.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
@@ -138,13 +177,31 @@ Then the camera links section displays two links: "CAM 90014 | CAM 80007"
 And no link is shown for any camera whose feed is down
 ```
 
+If every feed is down, the homepage doesn't show an empty selector. It
+falls back to the default camera, CAM 80007, the same fallback it uses when
+the statuses can't be fetched. Its Realtime page then tells the visitor
+honestly that the feed is offline.
+
+```gherkin
+Given a visitor opens the XWALK KEYBOARDS homepage
+And every registered live camera has status "feed_down"
+When the homepage finishes loading
+Then the camera links section displays one link: "CAM 80007"
+And no other camera link is shown
+When the visitor selects "CAM 80007"
+Then the visitor navigates to /realtime/80007
+And the visitor sees the "VIDEO FEED UNAVAILABLE" notice on arrival
+```
+
 ### As a visitor, I still see camera links when every camera is rotated
 
 The homepage always gives the visitor somewhere to go. When every
 camera with a working feed has rotated away from its crosswalk, the link
 section renders those cameras rather than showing an empty selector.
 A camera whose feed is down is never restored this way: a rotated camera
-still has video to show, but a down camera has nothing.
+still has video to show, but a down camera has nothing. Only when every
+feed is down does the homepage fall back to CAM 80007 (see the previous
+story).
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage

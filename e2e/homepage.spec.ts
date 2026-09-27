@@ -27,8 +27,12 @@ const ALL_CAMERAS_OK: CameraStatus[] = [5056, 5059, 5062, 5072, 80007, 90014]
  * Camera statuses are stubbed too: the real route probes every upstream
  * playlist, so its answer would depend on which feeds are up today.
  */
-async function openLiveHomepage(page: Page, statuses: CameraStatus[] = ALL_CAMERAS_OK) {
-  await page.route("**/api/calibration/status", (route) => route.fulfill({ json: { cameras: statuses } }));
+type StatusHandler = Parameters<Page["route"]>[1];
+
+async function openLiveHomepage(page: Page, statuses: CameraStatus[] | StatusHandler = ALL_CAMERAS_OK) {
+  await page.route("**/api/calibration/status", typeof statuses === "function"
+    ? statuses
+    : (route) => route.fulfill({ json: { cameras: statuses } }));
   await page.route("**/api/hls/**", () => new Promise(() => {}));
   await page.route("**/__fixture/camera-still.png", (route) =>
     route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/jpeg" }),
@@ -104,6 +108,42 @@ test.describe("Homepage", () => {
     await showSelector(page);
 
     await expect(page.locator(".study-selector a")).toHaveText(["CAM 90014", "CAM 80007"]);
+  });
+
+  test("camera selector shows no links until availability is known", async ({ page }) => {
+    let releaseStatuses = () => {};
+    await openLiveHomepage(page, (route) => new Promise<void>((resolve) => {
+      releaseStatuses = () => resolve(route.fulfill({ json: { cameras: ALL_CAMERAS_OK.map((camera) => (
+        camera.cameraId < 10000 ? { ...camera, status: "feed_down" } : camera
+      )) } }));
+    }));
+    await showSelector(page);
+
+    const selector = page.locator(".study-selector");
+    await expect(selector).toHaveAttribute("aria-busy", "true");
+    await expect(selector.locator("a")).toHaveCount(0);
+    const pendingBox = await selector.boundingBox();
+
+    releaseStatuses();
+    await expect(selector.locator("a")).toHaveText(["CAM 90014", "CAM 80007"]);
+    await expect(selector).toHaveAttribute("aria-busy", "false");
+    expect(await selector.boundingBox()).toEqual(pendingBox);
+  });
+
+  test("camera selector falls back to CAM 80007 when statuses can't be fetched", async ({ page }) => {
+    await openLiveHomepage(page, (route) => route.fulfill({ status: 500, body: "" }));
+    await showSelector(page);
+
+    await expect(page.locator(".study-selector a")).toHaveText(["CAM 80007"]);
+    await expect(page.getByRole("link", { name: "CAM 80007" }))
+      .toHaveAttribute("href", "/realtime/80007");
+  });
+
+  test("camera selector falls back to CAM 80007 when every feed is down", async ({ page }) => {
+    await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => ({ ...camera, status: "feed_down" })));
+    await showSelector(page);
+
+    await expect(page.locator(".study-selector a")).toHaveText(["CAM 80007"]);
   });
 
   test("footer credits the tools, not a camera provider", async ({ page }) => {

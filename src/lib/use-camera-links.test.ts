@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { selectableCameraLinks, type CameraLink } from "./use-camera-links";
+import { defaultCameraLinks, selectableCameraLinks, type CameraLink } from "./use-camera-links";
 
 const camera = (cameraId: number, status: string, crosswalkRank = 3): CameraLink => ({
   cameraId,
@@ -32,10 +32,21 @@ describe("selectable camera links", () => {
     ]);
   });
 
-  it("returns no links when every feed is down", () => {
+  it("falls back to the default camera when every feed is down", () => {
     expect(selectableCameraLinks([
       camera(5056, "feed_down"),
+      camera(80007, "feed_down", 2),
       camera(90014, "feed_down"),
-    ])).toEqual([]);
+    ])).toEqual([camera(80007, "feed_down", 2)]);
+  });
+
+  it("falls back to the default camera when no statuses are reported", () => {
+    expect(selectableCameraLinks([])).toEqual([camera(80007, "unknown")]);
+  });
+});
+
+describe("default camera links", () => {
+  it("offers only the default camera when statuses are unavailable", () => {
+    expect(defaultCameraLinks()).toEqual([camera(80007, "unknown")]);
   });
 });

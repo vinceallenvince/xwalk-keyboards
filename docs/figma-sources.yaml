@@ -60,6 +60,9 @@ epics:
           - { node: "384-30", shot: null }                                # scrolled selector: CAM 5059 hover
           - { node: "384-58", shot: null }                                # scrolled selector: CAM 5072 hover
           - { node: null, shot: null }                                    # scrolled selector: one camera excluded (2 links)
+      # "Camera links appear only once availability is known" (VIN-82) has no
+      # frame of its own. While statuses load, the selector is an empty space
+      # in the scrolled layout, and the resolved states are the frames above.
 
   - epic: "Realtime Study"
     page: "57-23"
