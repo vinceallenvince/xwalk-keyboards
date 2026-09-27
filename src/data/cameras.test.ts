@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { midiForNote } from "@/lib/realtime-scale";
 
-import { DEFAULT_LIVE_CAMERA, FALLBACK_CAMERAS, LIVE_CAMERAS, liveCameraById, PRIORITY_CAMERAS } from "./cameras";
+import { DEFAULT_LIVE_CAMERA, FALLBACK_CAMERAS, LISTED_LIVE_CAMERAS, LIVE_CAMERAS, liveCameraById, PRIORITY_CAMERAS } from "./cameras";
 
 describe("camera registry", () => {
   it("keeps the canonical twelve priority cameras in stable order", () => {
@@ -37,6 +37,15 @@ describe("camera registry", () => {
         viewUrl: `/realtime/${cameraId}`,
       });
     }
+  });
+
+  it("keeps the new Bellevue cameras unlisted until 511NY is confirmed down", () => {
+    expect(LIVE_CAMERAS.filter((camera) => !camera.listed).map((camera) => camera.cameraId))
+      .toEqual([80003, 80009, 80027]);
+    expect(LISTED_LIVE_CAMERAS.map((camera) => camera.cameraId))
+      .toEqual([5056, 5059, 5062, 5072, 80007, 90014]);
+    // The default camera backs the homepage fallback, so it must stay listed.
+    expect(DEFAULT_LIVE_CAMERA.listed).toBe(true);
   });
 
   it("never registers two live cameras under one ID", () => {

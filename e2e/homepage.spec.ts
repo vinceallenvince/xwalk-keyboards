@@ -8,6 +8,8 @@ const CAMERA_STILL = join(__dirname, "fixtures", "bellevue-cctv007-frame.jpg");
 
 type CameraStatus = { cameraId: number; status: string; crosswalkRank: number };
 
+// Includes the unlisted Bellevue cameras (80003, 80009, 80027): the status
+// route reports them, and the selector must still leave them out (VIN-86).
 const ALL_CAMERAS_OK: CameraStatus[] = [5056, 5059, 5062, 5072, 80003, 80007, 80009, 80027, 90014]
   .map((cameraId) => ({ cameraId, status: "ok", crosswalkRank: 3 }));
 
@@ -81,12 +83,11 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
   });
 
-  test("camera selector lists every available camera, ties by descending ID", async ({ page }) => {
+  test("camera selector lists every available listed camera, ties by descending ID", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
     await expect(page.locator(".study-selector a")).toHaveText([
-      "CAM 90014", "CAM 80027", "CAM 80009", "CAM 80007", "CAM 80003",
-      "CAM 5072", "CAM 5062", "CAM 5059", "CAM 5056",
+      "CAM 90014", "CAM 80007", "CAM 5072", "CAM 5062", "CAM 5059", "CAM 5056",
     ]);
     await expect(page.getByRole("link", { name: "CAM 80007" }))
       .toHaveAttribute("href", "/realtime/80007");
@@ -98,7 +99,7 @@ test.describe("Homepage", () => {
     )));
     await showSelector(page);
 
-    await expect(page.locator(".study-selector a")).toHaveCount(8);
+    await expect(page.locator(".study-selector a")).toHaveCount(5);
     await expect(page.getByRole("link", { name: "CAM 90014" })).toHaveCount(0);
   });
 
@@ -108,7 +109,7 @@ test.describe("Homepage", () => {
     )));
     await showSelector(page);
 
-    await expect(page.locator(".study-selector a")).toHaveText(["CAM 90014", "CAM 80027", "CAM 80009", "CAM 80007", "CAM 80003"]);
+    await expect(page.locator(".study-selector a")).toHaveText(["CAM 90014", "CAM 80007"]);
   });
 
   test("camera selector shows no links until availability is known", async ({ page }) => {
@@ -126,7 +127,7 @@ test.describe("Homepage", () => {
     const pendingBox = await selector.boundingBox();
 
     releaseStatuses();
-    await expect(selector.locator("a")).toHaveText(["CAM 90014", "CAM 80027", "CAM 80009", "CAM 80007", "CAM 80003"]);
+    await expect(selector.locator("a")).toHaveText(["CAM 90014", "CAM 80007"]);
     await expect(selector).toHaveAttribute("aria-busy", "false");
     expect(await selector.boundingBox()).toEqual(pendingBox);
   });

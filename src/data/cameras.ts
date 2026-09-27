@@ -83,6 +83,13 @@ export type LiveCameraRecord = CameraRecord & {
    * into two), so anything keyed to a specific cluster would be guessing.
    */
   baseAnchor: string;
+  /**
+   * Whether navigation offers this camera: the homepage links and the
+   * "try one of these" list on a camera with no crosswalk. An unlisted camera
+   * still has its /realtime page, stream, and calibration — it just isn't
+   * suggested to visitors. Flipped by hand, not by a date or a feed probe.
+   */
+  listed: boolean;
   calibration: ReferenceCalibration;
 };
 
@@ -102,6 +109,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     // the two crosswalks were always one continuous chromatic run, and global
     // numbering is just that run stated directly.
     baseAnchor: "C4",
+    listed: true,
     calibration: REALTIME_CALIBRATION,
   },
   {
@@ -116,6 +124,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "WEST STREET @ W23 ST",
     viewUrl: snapshotUrl(5059),
     baseAnchor: "C4",
+    listed: true,
     // Empty reference for the same reason as 5072: no keys until the agent
     // publishes for this camera.
     calibration: {
@@ -135,6 +144,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "WEST STREET @ SPRING ST",
     viewUrl: snapshotUrl(5062),
     baseAnchor: "C4",
+    listed: true,
     calibration: {
       boundaries: {},
       referenceFrame: { height: 240, width: 352 },
@@ -153,6 +163,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "WEST STREET @ CHAMBERS ST",
     viewUrl: snapshotUrl(5072),
     baseAnchor: "C4",
+    listed: true,
     // No baked-in reference geometry: the keyboard has no keys until the
     // agent's first publish (or the local fallback JSON) provides stripes.
     // Video and inference run either way — silence here is honest, not broken.
@@ -177,6 +188,8 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "100TH AVE @ NE 8TH ST",
     viewUrl: "/realtime/80003",
     baseAnchor: "C4",
+    // Unlisted until 511NY is confirmed down (VIN-86).
+    listed: false,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80003.json lands.
     calibration: {
@@ -196,6 +209,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "BELLEVUE WAY @ NE 8TH ST",
     viewUrl: "/realtime/80007",
     baseAnchor: "C4",
+    listed: true,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80007.json lands.
     calibration: {
@@ -215,6 +229,8 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "BELLEVUE WAY @ MAIN ST",
     viewUrl: "/realtime/80009",
     baseAnchor: "C4",
+    // Unlisted until 511NY is confirmed down (VIN-86).
+    listed: false,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80009.json lands.
     calibration: {
@@ -234,6 +250,8 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "110TH AVE @ NE 8TH ST",
     viewUrl: "/realtime/80027",
     baseAnchor: "C4",
+    // Unlisted until 511NY is confirmed down (VIN-86).
+    listed: false,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80027.json lands.
     calibration: {
@@ -253,6 +271,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "CARLA TOWN10 @ XWALK 14",
     viewUrl: "/realtime/90014",
     baseAnchor: "C4",
+    listed: true,
     // The reviewed static calibration lives in
     // public/calibration-fallback-90014.json. Keep this embedded reference
     // empty so the client never carries a second copy of that geometry.
@@ -263,6 +282,9 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     },
   },
 ];
+
+/** The live cameras navigation may suggest to visitors. */
+export const LISTED_LIVE_CAMERAS = LIVE_CAMERAS.filter((camera) => camera.listed);
 
 export function liveCameraById(cameraId: number) {
   return LIVE_CAMERAS.find((camera) => camera.cameraId === cameraId);

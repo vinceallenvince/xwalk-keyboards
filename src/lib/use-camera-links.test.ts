@@ -40,6 +40,23 @@ describe("selectable camera links", () => {
     ])).toEqual([camera(80007, "feed_down", 2)]);
   });
 
+  it("never links to an unlisted camera, whatever its status", () => {
+    expect(selectableCameraLinks([
+      camera(80003, "ok", 1),
+      camera(80009, "ok", 1),
+      camera(80027, "ok", 1),
+      camera(80007, "ok", 3),
+      camera(99999, "ok", 1),
+    ])).toEqual([camera(80007, "ok", 3)]);
+  });
+
+  it("keeps unlisted cameras out of the rotated-camera fallback too", () => {
+    expect(selectableCameraLinks([
+      camera(80003, "no_crosswalk", 1),
+      camera(80007, "no_crosswalk", 2),
+    ])).toEqual([camera(80007, "no_crosswalk", 2)]);
+  });
+
   it("falls back to the default camera when no statuses are reported", () => {
     expect(selectableCameraLinks([])).toEqual([camera(80007, "unknown")]);
   });

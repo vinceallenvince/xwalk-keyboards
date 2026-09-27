@@ -90,10 +90,10 @@ rank; cameras with equal rank are ordered by descending camera ID.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
-And all nine registered live cameras (90014, 80027, 80009, 80007, 80003, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk" or "feed_down"
-And all nine share the same crosswalk rank
+And all six listed live cameras (90014, 80007, 5072, 5062, 5059, 5056) have a calibration status other than "no_crosswalk" or "feed_down"
+And all six share the same crosswalk rank
 When the homepage finishes loading and calibration statuses have been fetched
-Then nine camera links are displayed in descending order by camera ID (CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
+Then six camera links are displayed in descending order by camera ID (CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056)
 And a mint vertical divider separates each pair of camera links
 And each link navigates to that camera's Realtime page
 ```
@@ -103,6 +103,27 @@ Given the camera links section is visible
 When the visitor selects "CAM 80007"
 Then the visitor navigates to /realtime/80007
 And the Realtime study opens with its normal onboarding sequence for camera 80007
+```
+
+### As a visitor, I'm never offered an unlisted camera
+
+A registered camera can be unlisted: it has a working Realtime page, stream,
+and calibration, but navigation doesn't suggest it. Bellevue cameras 80003,
+80009, and 80027 ship unlisted and are listed by hand once 511NY is
+confirmed to have stopped publishing video (VIN-86). Unlisted cameras never
+appear in the homepage camera links or in the "NO CROSSWALK DETECTED"
+notice's links, whatever their status. Their pages stay reachable by URL.
+
+```gherkin
+Given cameras 80003, 80009, and 80027 are unlisted
+And every registered live camera, listed or not, has calibration status "ok" and equal crosswalk rank
+When the homepage finishes loading
+Then the camera links section displays six links: "CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5059 | CAM 5056"
+And no link for camera 80003, 80009, or 80027 is shown
+
+Given camera 80003 is unlisted
+When a visitor opens /realtime/80003 directly
+Then the Realtime study opens for camera 80003 as it would for any listed camera
 ```
 
 ### As a visitor, camera links appear only once availability is known
@@ -124,7 +145,7 @@ And the rest of the homepage renders normally, including the background video, s
 Given calibration statuses have not yet been fetched
 And cameras 5072, 5062, 5059, and 5056 will report status "feed_down"
 When the calibration statuses arrive
-Then the camera links appear: "CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003"
+Then the camera links appear: "CAM 90014 | CAM 80007"
 And no link for a camera whose feed is down was displayed at any point
 And the page layout does not shift when the links appear
 ```
@@ -154,9 +175,9 @@ crosswalk, only one link appears.
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 And camera 5059 has calibration status "no_crosswalk"
-And cameras 90014, 80027, 80009, 80007, 80003, 5072, 5062, and 5056 have calibration status "ok" and equal crosswalk rank
+And cameras 90014, 80007, 5072, 5062, and 5056 have calibration status "ok" and equal crosswalk rank
 When the homepage finishes loading
-Then the camera links section displays eight links: "CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003 | CAM 5072 | CAM 5062 | CAM 5056"
+Then the camera links section displays five links: "CAM 90014 | CAM 80007 | CAM 5072 | CAM 5062 | CAM 5056"
 And no link for camera 5059 is shown
 And the remaining links keep their crosswalk-rank, then camera-ID order
 ```
@@ -171,9 +192,9 @@ with no video, even when that leaves only one link.
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 And cameras 5072, 5062, 5059, and 5056 have status "feed_down"
-And cameras 90014, 80027, 80009, 80007, and 80003 have calibration status "ok" and equal crosswalk rank
+And cameras 90014 and 80007 have calibration status "ok" and equal crosswalk rank
 When the homepage finishes loading
-Then the camera links section displays five links: "CAM 90014 | CAM 80027 | CAM 80009 | CAM 80007 | CAM 80003"
+Then the camera links section displays two links: "CAM 90014 | CAM 80007"
 And no link is shown for any camera whose feed is down
 ```
 
@@ -610,7 +631,7 @@ And the live camera video is visible at reduced opacity behind the notice
 And a centered notice appears over the viewport
 And the notice title reads "NO CROSSWALK DETECTED"
 And the notice explains that this camera is not currently showing a crosswalk
-And the notice presents links to the other registered realtime cameras, excluding the current one
+And the notice presents links to the other listed realtime cameras, excluding the current one and any unlisted camera
 And each camera link is labeled with the camera ID (e.g., "CAM 80007")
 And each camera link navigates to that camera's realtime page (e.g., /realtime/80007)
 And the "FULLSCREEN" and sound controls remain visible but visually inactive
