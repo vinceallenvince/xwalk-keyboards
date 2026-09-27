@@ -13,15 +13,26 @@ describe("camera registry", () => {
     expect(PRIORITY_CAMERAS[11].displayLabel).toBe("Camera 12 · View 3395");
   });
 
-  it("keeps fallbacks ordered and View 5056 as the default live camera", () => {
+  it("keeps fallbacks ordered and Bellevue 80007 as the default live camera", () => {
     expect(FALLBACK_CAMERAS.map((camera) => camera.cameraId)).toEqual([3107, 3231, 3257, 3245]);
-    expect(DEFAULT_LIVE_CAMERA).toMatchObject({ cameraId: 5056, location: "West Street at W. 34 St" });
-    expect(liveCameraById(5056)).toBe(DEFAULT_LIVE_CAMERA);
+    expect(DEFAULT_LIVE_CAMERA).toMatchObject({ cameraId: 80007, location: "Bellevue Way NE & NE 8th St" });
+    expect(liveCameraById(80007)).toBe(DEFAULT_LIVE_CAMERA);
     expect(liveCameraById(9999)).toBeUndefined();
   });
 
-  it("keeps 511NY cameras north to south, appends CARLA, and preserves the default", () => {
-    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072, 90014]);
+  it("registers Bellevue CCTV007 as a live camera", () => {
+    expect(liveCameraById(80007)).toMatchObject({
+      baseAnchor: "C4",
+      cameraKey: "camera_80007",
+      sourceId: "CCTV007",
+      sourceKind: "bellevue",
+      statusLabel: "BELLEVUE WAY @ NE 8TH ST",
+      viewUrl: "/realtime/80007",
+    });
+  });
+
+  it("keeps 511NY cameras north to south, then Bellevue, then CARLA", () => {
+    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072, 80007, 90014]);
     expect(liveCameraById(5059)).toMatchObject({
       cameraId: 5059,
       location: "West Street at W. 23 St",
@@ -43,10 +54,10 @@ describe("camera registry", () => {
     });
   });
 
-  it("ships 5059 and 5072 without baked-in geometry", () => {
-    // Both ship with an empty reference on purpose: no keys until the
+  it("ships every camera but 5056 without baked-in geometry", () => {
+    // They ship with an empty reference on purpose: no keys until the
     // calibration agent first publishes for them (VIN-39).
-    for (const cameraId of [5059, 5062, 5072, 90014]) {
+    for (const cameraId of [5059, 5062, 5072, 80007, 90014]) {
       expect(liveCameraById(cameraId)?.calibration.stripes).toHaveLength(0);
       expect(liveCameraById(cameraId)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
     }
@@ -61,7 +72,7 @@ describe("camera registry", () => {
 
   it("equips every live camera to drive the realtime study on its own", () => {
     for (const camera of LIVE_CAMERAS) {
-      expect(["511ny", "carla"]).toContain(camera.sourceKind);
+      expect(["511ny", "bellevue", "carla"]).toContain(camera.sourceKind);
       expect(camera.statusLabel.length).toBeGreaterThan(0);
       expect(camera.baseAnchor).toBeTruthy();
       expect(midiForNote(camera.baseAnchor)).not.toBeNull();

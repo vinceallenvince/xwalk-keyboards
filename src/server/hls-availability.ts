@@ -2,23 +2,21 @@ import "server-only";
 
 import { hlsSourceBaseUrl } from "@/server/hls-sources";
 
-const PROBED_CAMERA_IDS = new Set([90014]);
 const PROBE_TIMEOUT_MS = 2_000;
 
-export type HlsAvailability = "available" | "feed_down" | "not_probed";
+export type HlsAvailability = "available" | "feed_down";
 
 /**
- * Probe sources whose availability cannot be inferred from the calibration
- * record. The temporary CARLA origin is intentionally offline between test
- * windows, so a stale successful calibration must not keep it selectable.
+ * Probe a camera's playlist, since availability cannot be inferred from the
+ * calibration record. A stale successful calibration must not keep a dead
+ * stream selectable: the CARLA origin is intentionally offline between test
+ * windows, and 511NY streams disappear after its 2026-09-30 cutover.
  */
 export async function hlsAvailabilityForCamera(
   cameraId: number,
   environment: Record<string, string | undefined> = process.env,
   fetcher: typeof fetch = fetch,
 ): Promise<HlsAvailability> {
-  if (!PROBED_CAMERA_IDS.has(cameraId)) return "not_probed";
-
   const baseUrl = hlsSourceBaseUrl(cameraId, environment);
   if (!baseUrl) return "feed_down";
 

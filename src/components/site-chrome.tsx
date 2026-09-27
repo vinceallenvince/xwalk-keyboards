@@ -28,24 +28,27 @@ export function SiteHeader({ accessory, section }: { accessory?: ReactNode; sect
   );
 }
 
+/**
+ * "ABOUT // POWERED BY: Roboflow + Google Cloud Run" — identical at every
+ * width. It deliberately credits no camera provider: live cameras come from
+ * more than one, and the status line already names the intersection.
+ */
+export function FooterCredits({ onAboutPage }: { onAboutPage?: boolean }) {
+  return (
+    <span>
+      {onAboutPage ? "ABOUT" : <Link href="/about">ABOUT</Link>}
+      {" // POWERED BY: "}
+      <a href="https://roboflow.com" target="_blank" rel="noopener noreferrer">Roboflow</a>
+      {" + "}
+      <a href="https://cloud.google.com/run" target="_blank" rel="noopener noreferrer">Google Cloud Run</a>
+    </span>
+  );
+}
+
 export function SiteFooter({ onAboutPage }: { onAboutPage?: boolean }) {
-  const aboutEl = onAboutPage ? "ABOUT" : <Link href="/about">ABOUT</Link>;
   return (
     <footer className="site-footer">
-      <span>
-        {aboutEl}
-        <span className="footer-sep footer-sep--double">{" // "}</span>
-        <span className="footer-sep footer-sep--single"> / </span>
-        <span className="footer-label footer-label--desktop">CAM SOURCE: </span>
-        <span className="footer-label footer-label--mobile">CAMS: </span>
-        <a href="https://511ny.org" target="_blank" rel="noopener noreferrer">511NY</a>
-        <span className="footer-desktop-only">
-          {" // POWERED BY: "}
-          <a href="https://roboflow.com" target="_blank" rel="noopener noreferrer">Roboflow</a>
-          {" + "}
-          <a href="https://cloud.google.com/run" target="_blank" rel="noopener noreferrer">Google Cloud Run</a>
-        </span>
-      </span>
+      <FooterCredits onAboutPage={onAboutPage} />
     </footer>
   );
 }

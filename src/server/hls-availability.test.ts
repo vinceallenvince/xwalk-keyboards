@@ -5,10 +5,30 @@ vi.mock("server-only", () => ({}));
 import { hlsAvailabilityForCamera } from "./hls-availability";
 
 describe("HLS source availability", () => {
-  it("does not probe ordinary 511NY cameras", async () => {
+  it("probes public cameras too, so a retired 511NY stream drops out of navigation", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 504 }));
+
+    await expect(hlsAvailabilityForCamera(5056, {}, fetcher)).resolves.toBe("feed_down");
+    expect(fetcher).toHaveBeenCalledWith(
+      new URL("https://s9.nysdot.skyvdn.com/rtplive/R11_272/playlist.m3u8"),
+      expect.objectContaining({ cache: "no-store" }),
+    );
+  });
+
+  it("reports a live Bellevue playlist as available", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response("#EXTM3U", { status: 200 }));
+
+    await expect(hlsAvailabilityForCamera(80007, {}, fetcher)).resolves.toBe("available");
+    expect(fetcher).toHaveBeenCalledWith(
+      new URL("https://trafficcams.bellevuewa.gov/traffic-edge/CCTV007L.stream/playlist.m3u8"),
+      expect.objectContaining({ cache: "no-store" }),
+    );
+  });
+
+  it("marks an unregistered camera down without fetching", async () => {
     const fetcher = vi.fn();
 
-    await expect(hlsAvailabilityForCamera(5056, {}, fetcher)).resolves.toBe("not_probed");
+    await expect(hlsAvailabilityForCamera(99999, {}, fetcher)).resolves.toBe("feed_down");
     expect(fetcher).not.toHaveBeenCalled();
   });
 

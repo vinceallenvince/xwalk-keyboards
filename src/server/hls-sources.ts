@@ -7,6 +7,9 @@ const PUBLIC_HLS_BASE_URLS: Readonly<Record<number, string>> = {
   5059: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_275/",
   5062: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_278/",
   5072: "https://s9.nysdot.skyvdn.com:443/rtplive/R11_279/",
+  // City of Bellevue CCTV007, Bellevue Way NE & NE 8th St. The city's own
+  // player builds this from its public config.js; there is no key.
+  80007: "https://trafficcams.bellevuewa.gov:443/traffic-edge/CCTV007L.stream/",
 };
 
 const CARLA_CAMERA_ID = 90014;

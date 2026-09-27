@@ -4,25 +4,34 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const SHOTS = join(__dirname, "__screens__", "homepage");
-const CAMERA_STILL = join(__dirname, "..", "docs", "images", "videoframe_104668.png");
+const CAMERA_STILL = join(__dirname, "fixtures", "bellevue-cctv007-frame.jpg");
+
+type CameraStatus = { cameraId: number; status: string; crosswalkRank: number };
+
+const ALL_CAMERAS_OK: CameraStatus[] = [5056, 5059, 5062, 5072, 80007, 90014]
+  .map((cameraId) => ({ cameraId, status: "ok", crosswalkRank: 3 }));
 
 /**
- * The homepage background is a live 511NY HLS stream, which is neither
+ * The homepage background is a live Bellevue HLS stream, which is neither
  * available nor stable in a test run. Rather than screenshot a black viewport,
  * stand in a real frame from the same camera and drive the component into the
  * "live" state it reaches in production:
  *
  *  - the HLS route is left hanging, so hls.js neither succeeds nor trips its
  *    error/retry path within the life of the test;
- *  - a still from View 5056 is served as the video poster, so the darkened
- *    traffic background is present and identical on every run;
+ *  - a still from Bellevue CCTV007 is served as the video poster, so the
+ *    darkened traffic background is present and identical on every run;
  *  - the `playing` event the component already listens for is dispatched, so
  *    the real status-to-label mapping produces "FEED LIVE // ...".
+ *
+ * Camera statuses are stubbed too: the real route probes every upstream
+ * playlist, so its answer would depend on which feeds are up today.
  */
-async function openLiveHomepage(page: Page) {
+async function openLiveHomepage(page: Page, statuses: CameraStatus[] = ALL_CAMERAS_OK) {
+  await page.route("**/api/calibration/status", (route) => route.fulfill({ json: { cameras: statuses } }));
   await page.route("**/api/hls/**", () => new Promise(() => {}));
   await page.route("**/__fixture/camera-still.png", (route) =>
-    route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/png" }),
+    route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/jpeg" }),
   );
 
   await page.goto("/");
@@ -39,7 +48,7 @@ async function openLiveHomepage(page: Page) {
   await page.addStyleTag({
     content: "*, *::before, *::after { animation: none !important; transition: none !important; } html { scroll-behavior: auto !important; }",
   });
-  await expect(page.locator(".home-feed-status")).toContainText("FEED LIVE");
+  await expect(page.locator(".home-feed-status")).toHaveText("FEED LIVE // BELLEVUE WAY @ NE 8TH ST");
 }
 
 async function showSelector(page: Page) {
@@ -68,43 +77,47 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
   });
 
-  test("camera selector includes the registered CARLA camera while its feed is available", async ({ page }) => {
-    await page.route("**/api/calibration/status", (route) => route.fulfill({
-      json: {
-        cameras: [
-          { cameraId: 5056, status: "ok", crosswalkRank: 3 },
-          { cameraId: 5059, status: "ok", crosswalkRank: 3 },
-          { cameraId: 5062, status: "ok", crosswalkRank: 3 },
-          { cameraId: 5072, status: "ok", crosswalkRank: 3 },
-          { cameraId: 90014, status: "ok", crosswalkRank: 3 },
-        ],
-      },
-    }));
+  test("camera selector lists every available camera, ties by descending ID", async ({ page }) => {
     await openLiveHomepage(page);
     await showSelector(page);
-    const cameraLinks = page.locator(".study-selector a");
-    await expect(cameraLinks).toHaveCount(5);
-    await expect(cameraLinks.first()).toHaveText("CAM 90014");
-    await expect(page.getByRole("link", { name: "CAM 90014" }))
-      .toHaveAttribute("href", "/realtime/90014");
+    await expect(page.locator(".study-selector a")).toHaveText([
+      "CAM 90014", "CAM 80007", "CAM 5072", "CAM 5062", "CAM 5059", "CAM 5056",
+    ]);
+    await expect(page.getByRole("link", { name: "CAM 80007" }))
+      .toHaveAttribute("href", "/realtime/80007");
   });
 
   test("camera selector excludes CARLA while its feed is down", async ({ page }) => {
-    await page.route("**/api/calibration/status", (route) => route.fulfill({
-      json: {
-        cameras: [
-          { cameraId: 5056, status: "ok", crosswalkRank: 3 },
-          { cameraId: 5059, status: "ok", crosswalkRank: 3 },
-          { cameraId: 5062, status: "ok", crosswalkRank: 3 },
-          { cameraId: 5072, status: "ok", crosswalkRank: 3 },
-          { cameraId: 90014, status: "feed_down", crosswalkRank: 3 },
-        ],
-      },
-    }));
-    await openLiveHomepage(page);
+    await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => (
+      camera.cameraId === 90014 ? { ...camera, status: "feed_down" } : camera
+    )));
     await showSelector(page);
 
-    await expect(page.locator(".study-selector a")).toHaveCount(4);
+    await expect(page.locator(".study-selector a")).toHaveCount(5);
     await expect(page.getByRole("link", { name: "CAM 90014" })).toHaveCount(0);
+  });
+
+  test("camera selector drops every 511NY camera once their feeds are down", async ({ page }) => {
+    await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => (
+      camera.cameraId < 10000 ? { ...camera, status: "feed_down" } : camera
+    )));
+    await showSelector(page);
+
+    await expect(page.locator(".study-selector a")).toHaveText(["CAM 90014", "CAM 80007"]);
+  });
+
+  test("footer credits the tools, not a camera provider", async ({ page }) => {
+    await openLiveHomepage(page);
+    const footer = page.locator(".home-footer");
+    await expect(footer).toHaveText("ABOUT // POWERED BY: Roboflow + Google Cloud Run");
+    await expect(footer).not.toContainText("CAM SOURCE");
+  });
+
+  test("footer reads the same on a phone, POWERED BY included", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openLiveHomepage(page);
+    const footer = page.locator(".home-footer");
+    await expect(footer).toHaveText("ABOUT // POWERED BY: Roboflow + Google Cloud Run");
+    await expect(footer.getByRole("link", { name: "Google Cloud Run" })).toBeVisible();
   });
 });

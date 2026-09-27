@@ -24,24 +24,25 @@ test.describe("About", () => {
     // Feed status indicator is present.
     const feedStatus = page.locator(".about-feed-status");
     await expect(feedStatus).toBeVisible();
-    await expect(feedStatus).toContainText("WEST STREET @ CHAMBERS ST");
+    await expect(feedStatus).toContainText("BELLEVUE WAY @ NE 8TH ST");
 
     // Dark viewport panel with the project description.
     const viewport = page.locator(".about-viewport");
     await expect(viewport).toBeVisible();
-    await expect(viewport).toContainText("transform crosswalks into piano keyboards");
+    await expect(viewport).toContainText("uses traffic camera video feeds to transform crosswalks into piano keyboards");
+    await expect(viewport).toContainText("detect pedestrians in a traffic cam video in real time");
+    // Cameras come from more than one provider, so none is named.
+    await expect(viewport).not.toContainText("511NY");
+    await expect(viewport).not.toContainText("NYC's network");
 
     // Video wash overlay is rendered.
     await expect(page.locator(".about-video-wash")).toBeAttached();
 
     // Footer shows ABOUT as plain text (no self-link) on this page.
     const footer = page.locator(".site-footer");
-    await expect(footer).toContainText("ABOUT");
-    await expect(footer).toContainText("CAM SOURCE:");
-    await expect(footer.getByRole("link", { name: "511NY" })).toHaveAttribute(
-      "href",
-      "https://511ny.org",
-    );
+    await expect(footer).toHaveText("ABOUT // POWERED BY: Roboflow + Google Cloud Run");
+    await expect(footer).not.toContainText("CAM SOURCE");
+    await expect(footer.getByRole("link", { name: "Roboflow" })).toHaveAttribute("href", "https://roboflow.com");
     await expect(footer.getByRole("link", { name: "ABOUT" })).toHaveCount(0);
 
     await page.screenshot({ fullPage: true, path: join(SHOTS, "about-page.png") });

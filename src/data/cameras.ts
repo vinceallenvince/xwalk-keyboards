@@ -73,7 +73,7 @@ export const FALLBACK_CAMERAS = createStaticCameras(fallbackCameraSeeds, "fallba
  * camera. Upstream locations deliberately live in a server-only module.
  */
 export type LiveCameraRecord = CameraRecord & {
-  sourceKind: "511ny" | "carla";
+  sourceKind: "511ny" | "bellevue" | "carla";
   statusLabel: string;
   /**
    * The note the crossing's first stripe plays. Every stripe after it climbs
@@ -163,6 +163,27 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     },
   },
   {
+    // Made-up ID in the 8xxxx range (after CARLA's 90014 convention):
+    // Bellevue's own ID, CCTV007, is not numeric.
+    cameraId: 80007,
+    cameraKey: "camera_80007",
+    displayLabel: "Live Feed · Bellevue CCTV007",
+    location: "Bellevue Way NE & NE 8th St",
+    role: "live",
+    sourceId: "CCTV007",
+    sourceKind: "bellevue",
+    statusLabel: "BELLEVUE WAY @ NE 8TH ST",
+    viewUrl: "/realtime/80007",
+    baseAnchor: "C4",
+    // No baked-in geometry: no keys until the calibration agent publishes for
+    // this camera or a reviewed public/calibration-fallback-80007.json lands.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
     cameraId: 90014,
     cameraKey: "camera_90014",
     displayLabel: "Live Feed · CARLA 90014",
@@ -184,11 +205,16 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
   },
 ];
 
-export const DEFAULT_LIVE_CAMERA = LIVE_CAMERAS[0];
-
 export function liveCameraById(cameraId: number) {
   return LIVE_CAMERAS.find((camera) => camera.cameraId === cameraId);
 }
+
+/**
+ * The camera behind `/realtime` with no ID, and the ambient background on the
+ * homepage and About page. Bellevue since 511NY stopped publishing public
+ * video at its 2026-09-30 cutover (VIN-79).
+ */
+export const DEFAULT_LIVE_CAMERA = liveCameraById(80007)!;
 
 export const STATIC_CAMERAS = [...PRIORITY_CAMERAS, ...FALLBACK_CAMERAS] as const;
 

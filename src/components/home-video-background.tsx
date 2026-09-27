@@ -6,6 +6,18 @@ import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
 
 export type HomeFeedStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
+const feedStatusPrefixes: Record<HomeFeedStatus, string> = {
+  connecting: "CONNECTING",
+  live: "FEED LIVE",
+  reconnecting: "RECONNECTING",
+  unavailable: "CAMERA UNAVAILABLE",
+};
+
+/** Status line for an ambient background feed, e.g. "FEED LIVE // BELLEVUE WAY @ NE 8TH ST". */
+export function homeFeedLabel(status: HomeFeedStatus, statusLabel: string) {
+  return `${feedStatusPrefixes[status]} // ${statusLabel}`;
+}
+
 export function HomeVideoBackground({ cameraId, onStatusChange }: { cameraId?: number; onStatusChange: (status: HomeFeedStatus) => void }) {
   const streamUrl = `/api/hls/${cameraId ?? DEFAULT_LIVE_CAMERA.cameraId}/playlist.m3u8`;
   const videoRef = useRef<HTMLVideoElement>(null);
