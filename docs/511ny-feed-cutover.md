@@ -1,5 +1,12 @@
 # 511NY Feed Cutover Plan
 
+> **Superseded in part (2026-09-27).** 511NY's production feed carries no
+> live video, so the Realtime study moved to the City of Bellevue's camera
+> 80007 (VIN-79). The calibration-agent steps below (switching to
+> `public.carsprogram.org` still images) no longer apply. The agent now
+> calibrates 80007 from HLS video frames (VIN-80). The feed findings and the
+> 511NY impact notes remain accurate as a record.
+
 ## Context
 
 511NY is switching to a new vendor, **Castle Rock Associates**, on
