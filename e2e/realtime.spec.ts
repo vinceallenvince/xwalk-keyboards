@@ -128,7 +128,7 @@ test.describe("Realtime operator tools", () => {
     );
   });
 
-  test("each Bellevue camera opens its own Realtime page", async ({ page }) => {
+  test("each Bellevue camera, listed or not, opens its own Realtime page", async ({ page }) => {
     await page.route("**/api/hls/**", () => new Promise(() => {}));
     await page.route("**/api/roboflow/**", () => new Promise(() => {}));
     await page.route("**/api/calibration/**", () => new Promise(() => {}));

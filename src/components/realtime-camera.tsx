@@ -13,7 +13,7 @@ import {
   useResetOnboarding,
   useSetOnboardingBlocked,
 } from "@/components/realtime-onboarding";
-import { LIVE_CAMERAS, type LiveCameraRecord } from "@/data/cameras";
+import { LISTED_LIVE_CAMERAS, type LiveCameraRecord } from "@/data/cameras";
 import { useCalibration } from "@/lib/use-calibration";
 import type { FrameSize } from "@/lib/realtime-calibration";
 
@@ -400,7 +400,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
     && calibration.stripes.length === 0;
   const inferenceAllowed = isLive && !inferenceTimedOut && !inferenceClosed && !noCrosswalk;
   const soundReady = inferenceStatus === "active" && !forcedUnavailable && !inferenceTimedOut && !inferenceClosed;
-  const otherCameras = LIVE_CAMERAS.filter((c) => c.cameraId !== camera.cameraId);
+  const otherCameras = LISTED_LIVE_CAMERAS.filter((c) => c.cameraId !== camera.cameraId);
   const [recalibrating, setRecalibrating] = useState(false);
 
   const handleRecalibrate = useCallback(async () => {

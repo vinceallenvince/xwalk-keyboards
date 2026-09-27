@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
+import { DEFAULT_LIVE_CAMERA, liveCameraById } from "@/data/cameras";
 
 export type CameraLink = {
   cameraId: number;
@@ -28,9 +28,13 @@ export function defaultCameraLinks(statuses: CameraLink[] = []): CameraLink[] {
   return [known ?? { cameraId: DEFAULT_LIVE_CAMERA.cameraId, status: "unknown", crosswalkRank: DEFAULT_RANK }];
 }
 
-/** Keep unavailable feeds out of navigation, even if their old calibration is usable. */
+/**
+ * Keep unavailable feeds out of navigation, even if their old calibration is
+ * usable. Unlisted cameras (VIN-86) never appear, whatever their status.
+ */
 export function selectableCameraLinks(statuses: CameraLink[]): CameraLink[] {
-  const available = statuses.filter((camera) => camera.status !== "feed_down");
+  const listed = statuses.filter((camera) => liveCameraById(camera.cameraId)?.listed);
+  const available = listed.filter((camera) => camera.status !== "feed_down");
   const sorted = [...available].sort(byRankThenId);
   const withCrosswalks = sorted.filter((camera) => camera.status !== "no_crosswalk");
 
