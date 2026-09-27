@@ -887,6 +887,15 @@ Chromium capability, so other browsers show the control disabled.
 Recording carries on with the debug panel closed, which keeps the panel out of
 the video. The browser's own sharing controls stop it as well as the panel.
 
+Takes are saved as WebM (VP9 video, Opus audio) even where the browser offers
+MP4. Chrome's MP4 recordings of a shared tab can drop the bottom rows of every
+frame after the first, which leaves QuickTime showing a single frozen frame over
+live audio. Convert a take to MP4 afterwards:
+
+```bash
+ffmpeg -i xwalk-<cameraId>-<date>-<time>.webm -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac xwalk.mp4
+```
+
 ```gherkin
 Given the debug panel is open in a Chromium browser
 Then a RECORD TAB button is shown
@@ -900,7 +909,7 @@ And the button reads "STOP RECORDING" followed by the elapsed time
 And recording continues when I close the debug panel
 When I select STOP RECORDING, or stop sharing from the browser's own controls
 Then the recording ends
-And it downloads as "xwalk-<cameraId>-<date>-<time>" with an .mp4 extension when the browser can write MP4, otherwise .webm
+And it downloads as "xwalk-<cameraId>-<date>-<time>.webm"
 And the file contains the tab's video, the stripe overlay, and the piano notes
 And the button returns to RECORD TAB
 

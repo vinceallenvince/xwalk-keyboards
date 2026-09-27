@@ -1,13 +1,16 @@
-// Container/codec preference for MediaRecorder, best first. MP4 saves a
-// conversion step when the browser can write it; WebM is the fallback every
-// Chromium browser supports.
+// Container/codec preference for MediaRecorder, best first. WebM leads even
+// though Chrome can write MP4: its H.264 MP4 of a shared tab dropped the bottom
+// macroblock rows of every frame after the first, so Apple's hardware decoder
+// rejected them and QuickTime froze on frame one over live audio (VIN-81).
+// Takes are converted to MP4 with ffmpeg afterwards. MP4 remains a fallback
+// for a browser that cannot write WebM.
 export const RECORDING_MIME_TYPES = [
-  "video/mp4;codecs=avc1.640028,mp4a.40.2",
-  "video/mp4;codecs=avc1,mp4a.40.2",
-  "video/mp4",
   "video/webm;codecs=vp9,opus",
   "video/webm;codecs=vp8,opus",
   "video/webm",
+  "video/mp4;codecs=avc1.640028,mp4a.40.2",
+  "video/mp4;codecs=avc1,mp4a.40.2",
+  "video/mp4",
 ] as const;
 
 /** First supported MIME type, or null to let the browser choose its default. */

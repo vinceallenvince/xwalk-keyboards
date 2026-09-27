@@ -9,13 +9,14 @@ import {
 } from "./tab-recording";
 
 describe("pickRecordingMimeType", () => {
-  it("prefers MP4 when the browser can write it", () => {
-    expect(pickRecordingMimeType(() => true)).toBe(RECORDING_MIME_TYPES[0]);
+  it("prefers VP9/Opus WebM even when the browser can write MP4", () => {
+    expect(RECORDING_MIME_TYPES[0]).toBe("video/webm;codecs=vp9,opus");
+    expect(pickRecordingMimeType(() => true)).toBe("video/webm;codecs=vp9,opus");
   });
 
-  it("falls back to WebM when MP4 is unsupported", () => {
-    const supported = (type: string) => type.startsWith("video/webm");
-    expect(pickRecordingMimeType(supported)).toBe("video/webm;codecs=vp9,opus");
+  it("falls back to MP4 only when WebM is unsupported", () => {
+    const supported = (type: string) => type.startsWith("video/mp4");
+    expect(pickRecordingMimeType(supported)).toBe("video/mp4;codecs=avc1.640028,mp4a.40.2");
   });
 
   it("returns null when nothing in the ladder is supported", () => {
