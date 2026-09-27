@@ -627,6 +627,7 @@ export function RealtimeCamera({ camera }: { camera: LiveCameraRecord }) {
         )}
         <RealtimeDebug
           calibration={calibration}
+          cameraId={camera.cameraId}
           detectionPoints={detectionPoints}
           forcedUnavailable={forcedUnavailable}
           frame={frameSize}

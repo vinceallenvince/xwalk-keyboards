@@ -875,6 +875,52 @@ Then the debug panel closes
 And the polygon overlay is retained independently if it was toggled on
 ```
 
+### As an operator, I can record the Realtime study with its sound
+
+Demo videos of the study are only honest with the piano in them, and the
+macOS screen recorder captures the microphone, not the sound a browser tab
+plays. The debug panel records the tab itself, so one take holds the live
+video, the stripe glow, and the notes, in sync. The file is saved on the
+operator's machine; nothing is uploaded. Tab recording with audio is a
+Chromium capability, so other browsers show the control disabled.
+
+Recording carries on with the debug panel closed, which keeps the panel out of
+the video. The browser's own sharing controls stop it as well as the panel.
+
+```gherkin
+Given the debug panel is open in a Chromium browser
+Then a RECORD TAB button is shown
+When I select RECORD TAB
+Then the browser asks to share a tab and offers the current tab first
+And the button reads "WAITING FOR SHARE..." until I answer
+
+When I share the current tab with its audio
+Then recording starts
+And the button reads "STOP RECORDING" followed by the elapsed time
+And recording continues when I close the debug panel
+When I select STOP RECORDING, or stop sharing from the browser's own controls
+Then the recording ends
+And it downloads as "xwalk-<cameraId>-<date>-<time>" with an .mp4 extension when the browser can write MP4, otherwise .webm
+And the file contains the tab's video, the stripe overlay, and the piano notes
+And the button returns to RECORD TAB
+
+Given I share the tab without its audio
+Then no recording starts
+And the panel explains that the tab must be shared again with its audio on
+
+Given I dismiss the share prompt
+Then no recording starts
+And the button returns to RECORD TAB with no error
+
+Given a recording is in progress
+When I leave the Realtime study
+Then the recording stops and the tab is no longer shared
+And the partial recording is discarded rather than downloaded
+
+Given the browser cannot record a tab
+Then the button reads "RECORD TAB (CHROME ONLY)" and is disabled
+```
+
 ### As an operator, I can review GPU startup timing from the debug panel
 
 The debug panel includes a STARTUP TIMING section that shows the latency

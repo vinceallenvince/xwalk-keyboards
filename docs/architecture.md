@@ -380,7 +380,7 @@ Every study component must cancel its own work on unmount:
 
 | Leaving route | Required cleanup |
 | --- | --- |
-| Realtime | Destroy `hls.js`, pause and unload video, stop captured media tracks, clean up WebRTC worker, clear canvas state, suspend/close `AudioContext`, clear note occupancy |
+| Realtime | Destroy `hls.js`, pause and unload video, stop captured media tracks, clean up WebRTC worker, clear canvas state, suspend/close `AudioContext`, clear note occupancy, stop and discard any debug-panel tab recording |
 | Camera Registry | Abort snapshot/live-preview loads and release preview players |
 
 Use `AbortController`, generation IDs, and `cancelled` guards so that a late
