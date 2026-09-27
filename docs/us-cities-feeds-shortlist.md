@@ -10,6 +10,17 @@ Researched and directly tested September 25, 2026. Recommendation: begin with Se
 > - The inventory lists the camera as `360/PTZ`, so it may be pointed away from the crosswalk at times.
 >
 > Continuous third-party streaming still runs against the city's stated intent for that limit. Confirm with Bellevue Transportation before relying on it long-term.
+>
+> **Added (2026-09-27, VIN-85): three more Bellevue cameras.** Five candidates were each sampled for 60 s on Sunday around 12:35 PDT. All five streams played with no key and held a fixed view. They're registered as 8 + the CCTV number, the same made-up scheme as 80007, because the calibration agent's BigQuery `camera_id` column is an integer. The three chosen:
+>
+> - `CCTV003` → `80003`, 100th Ave NE & NE 8th St: 640×360 @ 20 fps, the sharpest image. Four crosswalks. A pedestrian and cyclists appeared. A signal head covers the lower right.
+> - `CCTV009` → `80009`, Bellevue Way NE & Main St: 480×270 @ 30 fps. Old Bellevue, the busiest for pedestrians. Four crosswalks. Green bike-lane squares sit between the left crosswalk's stripes.
+> - `CCTV027` → `80027`, 110th Ave NE & NE 8th St: 480×270 @ 30 fps. Downtown core by the Transit Center. Three crosswalks, a hard building shadow, and a timestamp band.
+>
+> Rejected:
+>
+> - `CCTV017`, 106th Ave NE & NE 4th St: no stripes in the foreground, small distant crosswalks, and no pedestrians.
+> - `cctv052`, 148th Ave SE & SE 16th St: clean stripes, but a suburban street with no pedestrians.
 
 ## Scope and evidence
 

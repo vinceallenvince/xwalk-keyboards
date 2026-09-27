@@ -163,8 +163,29 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     },
   },
   {
-    // Made-up ID in the 8xxxx range (after CARLA's 90014 convention):
-    // Bellevue's own ID, CCTV007, is not numeric.
+    // Bellevue cameras use made-up IDs: 8 then the city's CCTV number,
+    // zero-padded (CCTV007 -> 80007), in CARLA's 90014 style. The city's own
+    // IDs aren't numeric, and the calibration agent's BigQuery schema stores
+    // camera_id as an integer.
+    cameraId: 80003,
+    cameraKey: "camera_80003",
+    displayLabel: "Live Feed · Bellevue CCTV003",
+    location: "100th Ave NE & NE 8th St",
+    role: "live",
+    sourceId: "CCTV003",
+    sourceKind: "bellevue",
+    statusLabel: "100TH AVE @ NE 8TH ST",
+    viewUrl: "/realtime/80003",
+    baseAnchor: "C4",
+    // No baked-in geometry: no keys until the calibration agent publishes for
+    // this camera or a reviewed public/calibration-fallback-80003.json lands.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
     cameraId: 80007,
     cameraKey: "camera_80007",
     displayLabel: "Live Feed · Bellevue CCTV007",
@@ -177,6 +198,44 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     baseAnchor: "C4",
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80007.json lands.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
+    cameraId: 80009,
+    cameraKey: "camera_80009",
+    displayLabel: "Live Feed · Bellevue CCTV009",
+    location: "Bellevue Way NE & Main St",
+    role: "live",
+    sourceId: "CCTV009",
+    sourceKind: "bellevue",
+    statusLabel: "BELLEVUE WAY @ MAIN ST",
+    viewUrl: "/realtime/80009",
+    baseAnchor: "C4",
+    // No baked-in geometry: no keys until the calibration agent publishes for
+    // this camera or a reviewed public/calibration-fallback-80009.json lands.
+    calibration: {
+      boundaries: {},
+      referenceFrame: { height: 240, width: 352 },
+      stripes: [],
+    },
+  },
+  {
+    cameraId: 80027,
+    cameraKey: "camera_80027",
+    displayLabel: "Live Feed · Bellevue CCTV027",
+    location: "110th Ave NE & NE 8th St",
+    role: "live",
+    sourceId: "CCTV027",
+    sourceKind: "bellevue",
+    statusLabel: "110TH AVE @ NE 8TH ST",
+    viewUrl: "/realtime/80027",
+    baseAnchor: "C4",
+    // No baked-in geometry: no keys until the calibration agent publishes for
+    // this camera or a reviewed public/calibration-fallback-80027.json lands.
     calibration: {
       boundaries: {},
       referenceFrame: { height: 240, width: 352 },

@@ -34,7 +34,7 @@ The pipeline is `.github/workflows/deploy.yml`:
 | Auth | Workload Identity Federation; impersonates `github-deploy@xwalk-keyboards-01.iam.gserviceaccount.com` (repo secrets `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`) |
 | Build + deploy | `google-github-actions/deploy-cloudrun@v2`, source deploy of service `xwalk-keyboards` in `us-central1`, with Direct VPC egress through the `default` subnet for private ranges |
 | Network verification | Confirms every deployed revision retains the expected network, subnet, network tag, `private-ranges-only` egress mode, and server-only CARLA origin configuration |
-| Smoke test | `/`, `/realtime`, `/realtime/80007`, `/realtime/5056`, `/realtime/5072`, `/about`, `/camera-registry` must all return < 400 or the run fails |
+| Smoke test | `/`, `/realtime`, `/realtime/80003`, `/realtime/80007`, `/realtime/80009`, `/realtime/80027`, `/realtime/5056`, `/realtime/5072`, `/about`, `/camera-registry` must all return < 400 or the run fails |
 
 The one-time GCP setup (service account, roles, identity pool/provider) is
 documented as commands in the workflow file's header comment.

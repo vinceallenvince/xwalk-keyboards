@@ -128,6 +128,22 @@ test.describe("Realtime operator tools", () => {
     );
   });
 
+  test("each Bellevue camera opens its own Realtime page", async ({ page }) => {
+    await page.route("**/api/hls/**", () => new Promise(() => {}));
+    await page.route("**/api/roboflow/**", () => new Promise(() => {}));
+    await page.route("**/api/calibration/**", () => new Promise(() => {}));
+
+    for (const [cameraId, statusLabel] of [
+      [80003, "100TH AVE @ NE 8TH ST"],
+      [80009, "BELLEVUE WAY @ MAIN ST"],
+      [80027, "110TH AVE @ NE 8TH ST"],
+    ] as const) {
+      const response = await page.goto(`/realtime/${cameraId}?onboarding=off`);
+      expect(response?.status()).toBe(200);
+      await expect(page.locator(".realtime-feed-status")).toHaveText(`CONNECTING // ${statusLabel}`);
+    }
+  });
+
   test("CARLA origin failures become a visible feed-down state after bounded retries", async ({ page }) => {
     await page.route("**/api/hls/90014/**", (route) => route.fulfill({ status: 502 }));
     await page.route("**/api/roboflow/**", () => new Promise(() => {}));
