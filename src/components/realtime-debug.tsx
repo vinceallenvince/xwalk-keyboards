@@ -7,9 +7,13 @@ import type { FrameSize, Stripe } from "@/lib/realtime-calibration";
 import { scalePolygon } from "@/lib/realtime-calibration";
 import { compareSegments } from "@/lib/realtime-scale";
 import type { StartupSummary } from "@/lib/startup-timing";
+import { formatElapsed, isTabRecordingSupported } from "@/lib/tab-recording";
+import { useTabRecorder } from "@/lib/use-tab-recorder";
 
 type RealtimeDebugProps = {
   calibration: LiveCalibration;
+  /** Names recordings made from the panel. */
+  cameraId: number;
   /** Foot-points of all detected pedestrians, in source-frame coordinates. */
   detectionPoints: [number, number][];
   /** The current video frame dimensions, needed to map polygons onto the overlay. */
@@ -45,6 +49,10 @@ type RealtimeDebugProps = {
  * to run the calibration agent against the current frame. Recalibration is an
  * operator tool, not part of the study — it lives here rather than in the
  * status bar, where it sat beside copy written for visitors.
+ *
+ * RECORD TAB captures the tab's video and audio into one downloaded file, for
+ * demo takes with the piano in them. The recorder lives outside the open
+ * check, so closing the panel keeps it out of the video without stopping it.
  */
 function formatMs(ms: number | null): string {
   if (ms == null) return "—";
@@ -52,10 +60,11 @@ function formatMs(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onForceReady, onRecalibrate, recalibrating, startupSummary, viewportRef }: RealtimeDebugProps) {
+export function RealtimeDebug({ calibration, cameraId, detectionPoints, frame, onForceUnavailable, onClearUnavailable, forcedUnavailable, onForcePause, onForceReady, onRecalibrate, recalibrating, startupSummary, viewportRef }: RealtimeDebugProps) {
   const [open, setOpen] = useState(false);
   const [showPolygons, setShowPolygons] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const recorder = useTabRecorder(cameraId);
 
   // Toggle on Ctrl+Shift+D
   useEffect(() => {
@@ -184,6 +193,11 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
   }
 
   const { stripes } = calibration;
+  const recordingSupported = isTabRecordingSupported();
+  const recordLabel = !recordingSupported ? "RECORD TAB (CHROME ONLY)"
+    : recorder.phase === "requesting" ? "WAITING FOR SHARE..."
+    : recorder.phase === "recording" ? `STOP RECORDING ${formatElapsed(recorder.elapsedMs)}`
+    : "RECORD TAB";
   const visible = stripes.filter((s) => "visible" in s ? (s as Stripe & { visible?: boolean }).visible !== false : true);
 
   // Stripe count per cluster, in the same positional order the keyboard is
@@ -303,6 +317,15 @@ export function RealtimeDebug({ calibration, detectionPoints, frame, onForceUnav
           >
             {recalibrating ? "CALIBRATING..." : "RECALIBRATE"}
           </button>
+          <button
+            type="button"
+            className={`realtime-debug-toggle${recorder.phase === "recording" ? " realtime-debug-toggle--recording" : ""}`}
+            onClick={recorder.phase === "recording" ? recorder.stop : () => void recorder.start()}
+            disabled={!recordingSupported || recorder.phase === "requesting"}
+          >
+            {recordLabel}
+          </button>
+          {recorder.message && <p className="realtime-debug-note" role="status">{recorder.message}</p>}
         </div>
       </div>
     </>
