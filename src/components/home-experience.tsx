@@ -11,7 +11,7 @@ import { useCameraLinks } from "@/lib/use-camera-links";
 export function HomeExperience() {
   const [feedStatus, setFeedStatus] = useState<HomeFeedStatus>("connecting");
   const reportFeedStatus = useCallback((status: HomeFeedStatus) => setFeedStatus(status), []);
-  const { cameras } = useCameraLinks();
+  const { cameras, loading } = useCameraLinks();
 
   return (
     <main className="home-shell">
@@ -32,11 +32,11 @@ export function HomeExperience() {
         </div>
       </section>
       <section className="home-studies" id="studies" aria-label="Choose a camera">
-        <nav className="study-selector">
+        <nav className="study-selector" aria-busy={loading}>
           {cameras.map((cam, i) => (
             <Fragment key={cam.cameraId}>
               {i > 0 && <i aria-hidden="true" />}
-              <Link href={`/realtime/${cam.cameraId}`}>CAM {cam.cameraId}</Link>
+              <Link className="study-selector__link" href={`/realtime/${cam.cameraId}`}>CAM {cam.cameraId}</Link>
             </Fragment>
           ))}
         </nav>
