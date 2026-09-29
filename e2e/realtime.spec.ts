@@ -35,7 +35,7 @@ async function openRealtime(page: Page, { onboarding = false } = {}) {
   );
 
   // Pinned to View 5056: its fixtures (poster still, calibration fallback)
-  // are what these tests are built on. /realtime itself defaults to 80007.
+  // are what these tests are built on. /realtime itself defaults to 5059.
   await page.goto(onboarding ? "/realtime/5056" : "/realtime/5056?onboarding=off");
   await page.addStyleTag({
     content: "*, *::before, *::after { animation: none !important; transition: none !important; }",
@@ -113,7 +113,7 @@ test.describe("Realtime operator tools", () => {
     expect(unknownResponse?.status()).toBe(404);
   });
 
-  test("/realtime with no camera ID opens Bellevue CCTV007", async ({ page }) => {
+  test("/realtime with no camera ID opens View 5059", async ({ page }) => {
     await page.route("**/api/hls/**", () => new Promise(() => {}));
     await page.route("**/api/roboflow/**", () => new Promise(() => {}));
     await page.route("**/api/calibration/**", () => new Promise(() => {}));
@@ -121,7 +121,7 @@ test.describe("Realtime operator tools", () => {
     const response = await page.goto("/realtime?onboarding=off");
     expect(response?.status()).toBe(200);
     await expect(page.locator(".realtime-feed-status")).toHaveText(
-      "CONNECTING // BELLEVUE WAY @ NE 8TH ST",
+      "CONNECTING // WEST STREET @ W23 ST",
     );
     await expect(page.locator(".site-footer")).toHaveText(
       "ABOUT // POWERED BY: Roboflow + Google Cloud Run",

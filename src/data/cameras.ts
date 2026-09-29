@@ -188,7 +188,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "100TH AVE @ NE 8TH ST",
     viewUrl: "/realtime/80003",
     baseAnchor: "C4",
-    // Unlisted until 511NY is confirmed down (VIN-86).
+    // Unlisted (VIN-86): reachable by URL, kept out of navigation by hand.
     listed: false,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80003.json lands.
@@ -229,7 +229,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "BELLEVUE WAY @ MAIN ST",
     viewUrl: "/realtime/80009",
     baseAnchor: "C4",
-    // Unlisted until 511NY is confirmed down (VIN-86).
+    // Unlisted (VIN-86): reachable by URL, kept out of navigation by hand.
     listed: false,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80009.json lands.
@@ -250,7 +250,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     statusLabel: "110TH AVE @ NE 8TH ST",
     viewUrl: "/realtime/80027",
     baseAnchor: "C4",
-    // Unlisted until 511NY is confirmed down (VIN-86).
+    // Unlisted (VIN-86): reachable by URL, kept out of navigation by hand.
     listed: false,
     // No baked-in geometry: no keys until the calibration agent publishes for
     // this camera or a reviewed public/calibration-fallback-80027.json lands.
@@ -292,10 +292,10 @@ export function liveCameraById(cameraId: number) {
 
 /**
  * The camera behind `/realtime` with no ID, and the ambient background on the
- * homepage and About page. Bellevue since 511NY stopped publishing public
- * video at its 2026-09-30 cutover (VIN-79).
+ * homepage and About page. Briefly Bellevue 80007 (VIN-79) while 511NY
+ * planned to drop public video; back on 5059 once it kept video (VIN-87).
  */
-export const DEFAULT_LIVE_CAMERA = liveCameraById(80007)!;
+export const DEFAULT_LIVE_CAMERA = liveCameraById(5059)!;
 
 export const STATIC_CAMERAS = [...PRIORITY_CAMERAS, ...FALLBACK_CAMERAS] as const;
 

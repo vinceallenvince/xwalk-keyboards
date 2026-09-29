@@ -24,7 +24,7 @@ test.describe("About", () => {
     // Feed status indicator is present.
     const feedStatus = page.locator(".about-feed-status");
     await expect(feedStatus).toBeVisible();
-    await expect(feedStatus).toContainText("BELLEVUE WAY @ NE 8TH ST");
+    await expect(feedStatus).toContainText("WEST STREET @ W23 ST");
 
     // Dark viewport panel with the project description.
     const viewport = page.locator(".about-viewport");

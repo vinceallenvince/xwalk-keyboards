@@ -1,6 +1,11 @@
 # 511NY Feed Cutover Plan
 
-> **Superseded in part (2026-09-27).** 511NY's production feed carries no
+> **Update (2026-09-29).** 511NY reversed its decision and the production
+> feed carries live video again, with our HLS URLs unchanged. The Realtime
+> default is back on 5059 (VIN-87). See
+> [Production feed restores video](#production-feed-restores-video-2026-09-29).
+>
+> **Superseded in part (2026-09-27).** 511NY's production feed carried no
 > live video, so the Realtime study moved to the City of Bellevue's camera
 > 80007 (VIN-79). The calibration-agent steps below (switching to
 > `public.carsprogram.org` still images) no longer apply. The agent now
@@ -265,3 +270,33 @@ cutover.
 - **Do we need the feed at runtime?** Today we hardcode everything and never
   call the feed. Since the feed doesn't include HLS URLs anyway, runtime
   consumption adds no value for the Realtime study currently.
+
+## Production feed restores video (2026-09-29)
+
+On 2026-09-28, 511NY emailed API subscribers that it had reversed its
+decision to drop live video: the feed now includes streaming video for
+cameras that support it. We verified this on 2026-09-29.
+
+**Production feed.** `https://nysdot.carsprogram.org/hub/data/cctv.xml`
+returned HTTP 200 with 2,817 cameras, 1,748 of them with a `<video-url>`
+(0 on 2026-09-24). All four of our streams are listed at the same
+`s9.nysdot.skyvdn.com/rtplive/R11_27x/playlist.m3u8` URLs we hardcode in
+`src/server/hls-sources.ts`, so no URL change is needed. The staging
+credentials in the local `511ny` file also work for production.
+
+**Public stream checks** (playlist → chunklist → segment, no auth):
+
+| Camera | Stream | HLS | Still image |
+| --- | --- | --- | --- |
+| 5056 | R11_272 | ❌ Timed out (504 since at least 2026-09-24) | Maintenance placeholder |
+| 5059 | R11_275 | ✅ 200 / 200 / 200 | ✅ |
+| 5062 | R11_278 | ✅ 200 / 200 / 200 | ✅ |
+| 5072 | R11_279 | ✅ 200 / 200 / 200 | ✅ |
+
+**What changed in the app (VIN-87).** `DEFAULT_LIVE_CAMERA` is back to 5059,
+so `/realtime`, the homepage and About backgrounds, and the homepage
+selector's fallback link use West Street at W. 23 St again. Bellevue 80003,
+80009, and 80027 stay unlisted (VIN-86); 80007 stays listed. 5056 is still
+down and stays hidden from navigation by the availability probe.
+
+The Critical findings of 2026-09-24 above no longer hold.

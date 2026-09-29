@@ -13,31 +13,30 @@ scenarios that apply to every camera use a placeholder rather than one
 intersection's copy:
 
 - `<CAMERA STATUS LABEL>` — the camera's short status-bar name, for example
-  `BELLEVUE WAY @ NE 8TH ST` (CAM 80007, Bellevue, WA) or
-  `WEST STREET @ W23 ST` (CAM 5059, New York).
+  `WEST STREET @ W23 ST` (CAM 5059, New York) or
+  `BELLEVUE WAY @ NE 8TH ST` (CAM 80007, Bellevue, WA).
 
 Visitor-facing copy does not credit a camera provider. The status line names
 the intersection; the footer credits only the tools that power the site.
 
-The homepage and About backgrounds use the City of Bellevue's Bellevue Way NE
-& NE 8th St camera (CAM 80007). 511NY stops publishing public video at its
-2026-09-30 cutover; its cameras stay registered and drop out of navigation
-when their feeds go down.
+The homepage and About backgrounds use 511NY's West Street at W. 23 St camera
+(CAM 5059). Any camera whose feed goes down drops out of navigation until it
+comes back.
 
 ## Homepage
 
 ### As a visitor, I arrive at an immersive XWALK KEYBOARDS homepage
 
-The homepage uses the live Bellevue Way NE & NE 8th St camera (CAM 80007) as a
+The homepage uses the live West Street at W. 23 St camera (CAM 5059) as a
 darkened, full-viewport canvas. The title and the quiet technical metadata
 establish the study before asking the visitor to scroll.
 
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 When the homepage finishes loading
-Then a live Bellevue Way NE & NE 8th St video feed fills the viewport background
+Then a live West Street at W. 23 St video feed fills the viewport background
 And the video feed remains darkened so foreground content is legible
-And the upper-left status indicator reads "FEED LIVE // BELLEVUE WAY @ NE 8TH ST"
+And the upper-left status indicator reads "FEED LIVE // WEST STREET @ W23 ST"
 And the centered hero title displays "XWALK KEYBOARDS"
 And the hero title includes the three-line mint visual mark at its left
 And a "SCROLL" down-arrow indicator appears below the title
@@ -109,8 +108,8 @@ And the Realtime study opens with its normal onboarding sequence for camera 8000
 
 A registered camera can be unlisted: it has a working Realtime page, stream,
 and calibration, but navigation doesn't suggest it. Bellevue cameras 80003,
-80009, and 80027 ship unlisted and are listed by hand once 511NY is
-confirmed to have stopped publishing video (VIN-86). Unlisted cameras never
+80009, and 80027 are unlisted (VIN-86) and are listed by hand if and when
+they're wanted in navigation. Unlisted cameras never
 appear in the homepage camera links or in the "NO CROSSWALK DETECTED"
 notice's links, whatever their status. Their pages stay reachable by URL.
 
@@ -151,7 +150,7 @@ And the page layout does not shift when the links appear
 ```
 
 If the statuses can't be fetched (a network error, a non-OK response, or
-unreadable data), the homepage falls back to the default camera, CAM 80007.
+unreadable data), the homepage falls back to the default camera, CAM 5059.
 Its feed is the one already playing behind the homepage, so the visitor
 still has somewhere to go. The homepage uses the same fallback when the
 statuses arrive but every feed is down (see "cameras whose feed is down are
@@ -160,9 +159,9 @@ hidden from the homepage links").
 ```gherkin
 Given a visitor opens the XWALK KEYBOARDS homepage
 When the calibration status request fails
-Then the camera links section displays one link: "CAM 80007"
+Then the camera links section displays one link: "CAM 5059"
 And no other camera link is shown
-And selecting "CAM 80007" navigates to /realtime/80007
+And selecting "CAM 5059" navigates to /realtime/5059
 ```
 
 ### As a visitor, cameras with no crosswalk are hidden from the homepage links
@@ -185,8 +184,8 @@ And the remaining links keep their crosswalk-rank, then camera-ID order
 ### As a visitor, cameras whose feed is down are hidden from the homepage links
 
 A camera whose live stream cannot be reached reports `feed_down`. This is
-the expected state for every 511NY camera once 511NY stops publishing
-public video. While any feed is up, the homepage never links to a camera
+how an individual 511NY stream looks while it's offline, sometimes for
+days at a time. While any feed is up, the homepage never links to a camera
 with no video, even when that leaves only one link.
 
 ```gherkin
@@ -199,7 +198,7 @@ And no link is shown for any camera whose feed is down
 ```
 
 If every feed is down, the homepage doesn't show an empty selector. It
-falls back to the default camera, CAM 80007, the same fallback it uses when
+falls back to the default camera, CAM 5059, the same fallback it uses when
 the statuses can't be fetched. Its Realtime page then tells the visitor
 honestly that the feed is offline.
 
@@ -207,10 +206,10 @@ honestly that the feed is offline.
 Given a visitor opens the XWALK KEYBOARDS homepage
 And every registered live camera has status "feed_down"
 When the homepage finishes loading
-Then the camera links section displays one link: "CAM 80007"
+Then the camera links section displays one link: "CAM 5059"
 And no other camera link is shown
-When the visitor selects "CAM 80007"
-Then the visitor navigates to /realtime/80007
+When the visitor selects "CAM 5059"
+Then the visitor navigates to /realtime/5059
 And the visitor sees the "VIDEO FEED UNAVAILABLE" notice on arrival
 ```
 
@@ -221,7 +220,7 @@ camera with a working feed has rotated away from its crosswalk, the link
 section renders those cameras rather than showing an empty selector.
 A camera whose feed is down is never restored this way: a rotated camera
 still has video to show, but a down camera has nothing. Only when every
-feed is down does the homepage fall back to CAM 80007 (see the previous
+feed is down does the homepage fall back to CAM 5059 (see the previous
 story).
 
 ```gherkin
@@ -258,19 +257,19 @@ And camera 5056's link remains visible until the visitor refreshes or returns to
 
 ### As a visitor, the background video stream is independent of crosswalk availability
 
-The homepage background video is ambient — it plays camera 80007's live
+The homepage background video is ambient — it plays camera 5059's live
 feed for visual atmosphere, not for inference. The background stream
-continues regardless of whether camera 80007's crosswalk is available.
+continues regardless of whether camera 5059's crosswalk is available.
 
 ```gherkin
-Given camera 80007 has calibration status "no_crosswalk"
+Given camera 5059 has calibration status "no_crosswalk"
 When the homepage loads
-Then the Bellevue Way NE & NE 8th St background video stream plays normally
+Then the West Street at W. 23 St background video stream plays normally
 And the background video remains darkened as ambient visual atmosphere
 And no inference, stripe highlights, or audio are started on the homepage
-And the feed status still reads the camera's connection state (e.g., "FEED LIVE // BELLEVUE WAY @ NE 8TH ST")
+And the feed status still reads the camera's connection state (e.g., "FEED LIVE // WEST STREET @ W23 ST")
 
-Given camera 80007 has calibration status "ok"
+Given camera 5059 has calibration status "ok"
 When the homepage loads
 Then the background video stream behaves identically
 And the background stream is always ambient, regardless of calibration status
@@ -364,12 +363,12 @@ than blaming the keyboard for a failure upstream of it.
 The feed line always names the camera being played with its
 `<CAMERA STATUS LABEL>` (see [Camera placeholders](#camera-placeholders)).
 A visitor who opens `/realtime` without a camera ID gets the default camera,
-Bellevue Way NE & NE 8th St (CAM 80007).
+West Street at W. 23 St (CAM 5059).
 
 ```gherkin
 Given a visitor opens /realtime with no camera ID
-Then the Realtime study opens for camera 80007
-And the feed status begins at "CONNECTING // BELLEVUE WAY @ NE 8TH ST"
+Then the Realtime study opens for camera 5059
+And the feed status begins at "CONNECTING // WEST STREET @ W23 ST"
 ```
 
 ### As a visitor, I am told how to hear the crosswalk and receive an update on the crosswalk's current environmental conditions
@@ -820,8 +819,8 @@ And the visitor understands this is a resource limit, not a broken feature
 
 ### As a visitor, I can learn about XWALK KEYBOARDS
 
-The About page is the project's public-facing description. The live Bellevue
-Way NE & NE 8th St camera feed (CAM 80007) fills the page background — the same feed
+The About page is the project's public-facing description. The live West
+Street at W. 23 St camera feed (CAM 5059) fills the page background — the same feed
 the homepage uses — making the About page feel like part of the instrument rather than a
 static informational document. The project description sits inside a dark
 viewport panel that preserves legibility over the moving video.
@@ -837,7 +836,7 @@ Given I open the XWALK KEYBOARDS About page
 When the page loads
 Then the header reads "XWALK KEYBOARDS | ABOUT"
 And the ABOUT label is rendered as plain text, not underlined, because I am already on the About page
-And a feed status reads "CONNECTING // BELLEVUE WAY @ NE 8TH ST" with an inactive status dot
+And a feed status reads "CONNECTING // WEST STREET @ W23 ST" with an inactive status dot
 And a dark viewport panel is visible below the feed status
 And the viewport opens with a paragraph explaining that XWalk Keyboards uses traffic camera video feeds to transform crosswalks into piano keyboards
 And the paragraph mentions that pedestrians step on white stripes and the app plays the corresponding notes
@@ -850,7 +849,7 @@ And the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run" with ABO
 And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
 
 When the camera feed becomes active
-Then the feed status reads "FEED LIVE // BELLEVUE WAY @ NE 8TH ST" with a live mint dot
+Then the feed status reads "FEED LIVE // WEST STREET @ W23 ST" with a live mint dot
 And the live camera video fills the page background at reduced opacity
 And the viewport panel remains dark and legible over the moving video
 And the camera feed is visible around the viewport edges and behind the footer

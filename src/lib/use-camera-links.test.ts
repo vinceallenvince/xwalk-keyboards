@@ -35,9 +35,10 @@ describe("selectable camera links", () => {
   it("falls back to the default camera when every feed is down", () => {
     expect(selectableCameraLinks([
       camera(5056, "feed_down"),
-      camera(80007, "feed_down", 2),
+      camera(5059, "feed_down", 2),
+      camera(80007, "feed_down"),
       camera(90014, "feed_down"),
-    ])).toEqual([camera(80007, "feed_down", 2)]);
+    ])).toEqual([camera(5059, "feed_down", 2)]);
   });
 
   it("never links to an unlisted camera, whatever its status", () => {
@@ -58,12 +59,12 @@ describe("selectable camera links", () => {
   });
 
   it("falls back to the default camera when no statuses are reported", () => {
-    expect(selectableCameraLinks([])).toEqual([camera(80007, "unknown")]);
+    expect(selectableCameraLinks([])).toEqual([camera(5059, "unknown")]);
   });
 });
 
 describe("default camera links", () => {
   it("offers only the default camera when statuses are unavailable", () => {
-    expect(defaultCameraLinks()).toEqual([camera(80007, "unknown")]);
+    expect(defaultCameraLinks()).toEqual([camera(5059, "unknown")]);
   });
 });

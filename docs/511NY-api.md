@@ -34,6 +34,11 @@ versions, including the **Cameras (XML endpoint)** feed. Access to the new
 feeds is granted via a request form starting early September. We requested the
 Cameras feed, citing the snapshot and HLS endpoints above.
 
+The new production Cameras feed (`nysdot.carsprogram.org/hub/data/cctv.xml`,
+HTTP Basic auth) carries `<video-url>` HLS links again as of 2026-09-29, after
+511NY reversed its plan to drop live video. The URLs for our cameras are
+unchanged; see [511ny-feed-cutover.md](511ny-feed-cutover.md).
+
 ## Platform comparison
 
 | | 511NY | NYC DOT TMC (`webcams.nyctmc.org`) |
