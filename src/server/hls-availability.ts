@@ -10,7 +10,7 @@ export type HlsAvailability = "available" | "feed_down";
  * Probe a camera's playlist, since availability cannot be inferred from the
  * calibration record. A stale successful calibration must not keep a dead
  * stream selectable: the CARLA origin is intentionally offline between test
- * windows, and 511NY streams disappear after its 2026-09-30 cutover.
+ * windows, and individual 511NY streams go down for days at a time.
  */
 export async function hlsAvailabilityForCamera(
   cameraId: number,

@@ -13,10 +13,10 @@ describe("camera registry", () => {
     expect(PRIORITY_CAMERAS[11].displayLabel).toBe("Camera 12 · View 3395");
   });
 
-  it("keeps fallbacks ordered and Bellevue 80007 as the default live camera", () => {
+  it("keeps fallbacks ordered and 511NY 5059 as the default live camera", () => {
     expect(FALLBACK_CAMERAS.map((camera) => camera.cameraId)).toEqual([3107, 3231, 3257, 3245]);
-    expect(DEFAULT_LIVE_CAMERA).toMatchObject({ cameraId: 80007, location: "Bellevue Way NE & NE 8th St" });
-    expect(liveCameraById(80007)).toBe(DEFAULT_LIVE_CAMERA);
+    expect(DEFAULT_LIVE_CAMERA).toMatchObject({ cameraId: 5059, location: "West Street at W. 23 St" });
+    expect(liveCameraById(5059)).toBe(DEFAULT_LIVE_CAMERA);
     expect(liveCameraById(9999)).toBeUndefined();
   });
 
@@ -39,7 +39,7 @@ describe("camera registry", () => {
     }
   });
 
-  it("keeps the new Bellevue cameras unlisted until 511NY is confirmed down", () => {
+  it("keeps Bellevue 80003, 80009, and 80027 unlisted", () => {
     expect(LIVE_CAMERAS.filter((camera) => !camera.listed).map((camera) => camera.cameraId))
       .toEqual([80003, 80009, 80027]);
     expect(LISTED_LIVE_CAMERAS.map((camera) => camera.cameraId))

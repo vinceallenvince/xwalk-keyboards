@@ -27,15 +27,15 @@
 # Figma frames are authored after the desktop ones, so `node: null` marks a mobile
 # entry whose frame does not exist yet (its `shot` stem is still reserved).
 #
-# Camera copy (VIN-79): the scenarios now use the City of Bellevue's Bellevue Way
-# NE & NE 8th St camera (CAM 80007) for the homepage and About backgrounds and the default
+# Camera copy (VIN-79, VIN-87): the scenarios use 511NY's West Street at W. 23 St
+# camera (CAM 5059) for the homepage and About backgrounds and the default
 # /realtime camera, and a camera-agnostic `<CAMERA STATUS LABEL>` placeholder
-# everywhere else. The footer no longer credits a camera provider (frames 3-30
-# and 372-51: "ABOUT // POWERED BY: Roboflow + Google Cloud Run"). Frames
-# authored before that may still carry New York copy ("WEST STREET @ W34 ST" /
-# "W23 ST", "NYC DOT", "CAM SOURCE: 511NY", CAM 5059/5072 hover states). Treat
-# that as known copy drift, not a layout mismatch, until the frames are
-# refreshed.
+# everywhere else. VIN-79 briefly moved the default to Bellevue CAM 80007; VIN-87
+# moved it back. The footer no longer credits a camera provider (frames 3-30
+# and 372-51: "ABOUT // POWERED BY: Roboflow + Google Cloud Run"). Frames may
+# still carry older or Bellevue copy ("WEST STREET @ W34 ST", "NYC DOT",
+# "CAM SOURCE: 511NY", "BELLEVUE WAY @ NE 8TH ST"). Treat that as known copy
+# drift, not a layout mismatch, until the frames are refreshed.
 
 file_key: VgqJ1zX1eByz9c8Ui8otpY
 project_name: XWALK KEYBOARDS

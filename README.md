@@ -12,10 +12,10 @@ chromatic scale from left to right.
 ## How it works
 
 A registered traffic-camera feed streams to the browser over same-origin HLS.
-Production sources are the City of Bellevue, WA's public
-[traffic cameras](https://trafficmap.bellevuewa.gov) (the default camera),
-[511NY](https://511ny.org) cameras until 511NY retires public video at its
-2026-09-30 cutover, and a temporary private CARLA Town10 simulation. The
+Production sources are [511NY](https://511ny.org) cameras on West Street in
+New York (the default camera), the City of Bellevue, WA's public
+[traffic cameras](https://trafficmap.bellevuewa.gov), and a temporary private
+CARLA Town10 simulation. The
 browser captures frames and sends them to a [Roboflow](https://roboflow.com) workflow over WebRTC for person detection. The
 app maps each detected pedestrian's position to the crosswalk stripe they are
 standing on and plays the corresponding note through the Web Audio API. Occupied

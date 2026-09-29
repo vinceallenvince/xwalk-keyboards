@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const SHOTS = join(__dirname, "__screens__", "homepage");
-const CAMERA_STILL = join(__dirname, "fixtures", "bellevue-cctv007-frame.jpg");
+const CAMERA_STILL = join(__dirname, "fixtures", "511ny-5059-frame.png");
 
 type CameraStatus = { cameraId: number; status: string; crosswalkRank: number };
 
@@ -14,14 +14,14 @@ const ALL_CAMERAS_OK: CameraStatus[] = [5056, 5059, 5062, 5072, 80003, 80007, 80
   .map((cameraId) => ({ cameraId, status: "ok", crosswalkRank: 3 }));
 
 /**
- * The homepage background is a live Bellevue HLS stream, which is neither
+ * The homepage background is a live 511NY HLS stream, which is neither
  * available nor stable in a test run. Rather than screenshot a black viewport,
  * stand in a real frame from the same camera and drive the component into the
  * "live" state it reaches in production:
  *
  *  - the HLS route is left hanging, so hls.js neither succeeds nor trips its
  *    error/retry path within the life of the test;
- *  - a still from Bellevue CCTV007 is served as the video poster, so the
+ *  - a still from 511NY View 5059 is served as the video poster, so the
  *    darkened traffic background is present and identical on every run;
  *  - the `playing` event the component already listens for is dispatched, so
  *    the real status-to-label mapping produces "FEED LIVE // ...".
@@ -37,7 +37,7 @@ async function openLiveHomepage(page: Page, statuses: CameraStatus[] | StatusHan
     : (route) => route.fulfill({ json: { cameras: statuses } }));
   await page.route("**/api/hls/**", () => new Promise(() => {}));
   await page.route("**/__fixture/camera-still.png", (route) =>
-    route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/jpeg" }),
+    route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/png" }),
   );
 
   await page.goto("/");
@@ -54,7 +54,7 @@ async function openLiveHomepage(page: Page, statuses: CameraStatus[] | StatusHan
   await page.addStyleTag({
     content: "*, *::before, *::after { animation: none !important; transition: none !important; } html { scroll-behavior: auto !important; }",
   });
-  await expect(page.locator(".home-feed-status")).toHaveText("FEED LIVE // BELLEVUE WAY @ NE 8TH ST");
+  await expect(page.locator(".home-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W23 ST");
 }
 
 async function showSelector(page: Page) {
@@ -103,7 +103,7 @@ test.describe("Homepage", () => {
     await expect(page.getByRole("link", { name: "CAM 90014" })).toHaveCount(0);
   });
 
-  test("camera selector drops every 511NY camera once their feeds are down", async ({ page }) => {
+  test("camera selector drops every 511NY camera whose feed is down", async ({ page }) => {
     await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => (
       camera.cameraId < 10000 ? { ...camera, status: "feed_down" } : camera
     )));
@@ -132,20 +132,20 @@ test.describe("Homepage", () => {
     expect(await selector.boundingBox()).toEqual(pendingBox);
   });
 
-  test("camera selector falls back to CAM 80007 when statuses can't be fetched", async ({ page }) => {
+  test("camera selector falls back to CAM 5059 when statuses can't be fetched", async ({ page }) => {
     await openLiveHomepage(page, (route) => route.fulfill({ status: 500, body: "" }));
     await showSelector(page);
 
-    await expect(page.locator(".study-selector a")).toHaveText(["CAM 80007"]);
-    await expect(page.getByRole("link", { name: "CAM 80007" }))
-      .toHaveAttribute("href", "/realtime/80007");
+    await expect(page.locator(".study-selector a")).toHaveText(["CAM 5059"]);
+    await expect(page.getByRole("link", { name: "CAM 5059" }))
+      .toHaveAttribute("href", "/realtime/5059");
   });
 
-  test("camera selector falls back to CAM 80007 when every feed is down", async ({ page }) => {
+  test("camera selector falls back to CAM 5059 when every feed is down", async ({ page }) => {
     await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => ({ ...camera, status: "feed_down" })));
     await showSelector(page);
 
-    await expect(page.locator(".study-selector a")).toHaveText(["CAM 80007"]);
+    await expect(page.locator(".study-selector a")).toHaveText(["CAM 5059"]);
   });
 
   test("footer credits the tools, not a camera provider", async ({ page }) => {
