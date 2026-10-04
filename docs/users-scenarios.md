@@ -885,30 +885,53 @@ And "ABOUT" is plain text, not a link
 
 ## Camera Registry
 
-### As a user, I can review every registered camera and its fallback coverage
+### As a developer, I can review every registered camera and its feed status
 
-The internal camera-registry page makes the curated static-camera inventory
-visible at a glance while retaining a vertical column of live video feeds for
-operational reference. It is a diagnostic and curation surface, not a
-participant-facing study view.
+The camera registry is a developer tool, not a visitor-facing study: it is
+not linked from navigation. It shows every registered live camera at a glance,
+playing its live feed, so a developer can see which cameras are up and which
+are down without opening each Realtime page. The list comes from the camera
+registry, so adding or removing a camera changes the page with no other edit.
+Unlisted cameras are included, because the page is about what is registered,
+not what visitors are offered.
 
 ```gherkin
-Given I open the internal XWALK KEYBOARDS camera-registry page
+Given I open the XWALK KEYBOARDS camera-registry page
 When the page loads
-Then I see a "Priority cameras" grid containing every camera in the priority registry
+Then the page header reads "XWALK KEYBOARDS | CAMERA REGISTRY"
 And the upper-left "XWALK KEYBOARDS" wordmark is available as a link back to the homepage
-And I see a separate "Fallback cameras" grid containing every configured fallback camera
-And priority cameras appear before fallback cameras in the page reading order
-And each static-camera card displays a single current snapshot from its registered image feed
-And each priority camera card is labeled "Camera <index> · View <id>"
-And each fallback camera card is labeled "Camera <index> · View <id>"
-And each card includes its internal camera identifier beneath the label
-And each card includes a direct link to via a UI button to "https://511ny.org/map/Cctv/<id>"
-And a camera that is unavailable or under maintenance remains visible in its registered position
-And an unavailable camera uses its returned unavailable-image state rather than disappearing from the grid
-And the page does not invoke Roboflow inference for these registry snapshots
-And the page shows a vertical list of live video feeds in a right column
-And each live-feed entry remains independently visible so the team can compare its current stream state
+And I see one card for every registered live camera, listed or unlisted, in registry order
+And the cards are numbered in that order starting at 01
+And there are no section headings and no separate live-feed column
+And each card shows that camera's live video, muted
+And each card is labeled "CAMERA_<index> // VIEW_<camera ID>"
+And each card shows "STREET LOCATION: <location>" beneath the label
+And the page does not invoke Roboflow inference, stripe highlights, or audio
+And the footer reads "ABOUT // POWERED BY: Roboflow + Google Cloud Run"
+
+Given a registered camera's feed is down
+When the page loads
+Then that camera's card stays in its registry position
+And its video area shows that the feed is unavailable rather than disappearing from the grid
+
+Given a camera has a public provider page
+Then its card shows a mint external-link icon to the right of its label
+And selecting it opens the provider's page in a new tab
+And a 511NY camera's icon opens "https://511ny.org/map/Cctv/<camera ID>"
+And a Bellevue camera's icon opens the City of Bellevue traffic map
+And no upstream video URL is exposed to the browser
+
+Given a camera has no public provider page, such as the private CARLA camera
+Then its card shows no external-link icon
+```
+
+On a phone the cards stack in a single column, and the label shortens.
+
+```gherkin
+Given I open the camera-registry page on a mobile viewport
+Then the cards stack in a single column in the same order
+And each card is labeled "CAM <index> // <camera ID>"
+And each card shows "<location>" beneath the label without the "STREET LOCATION:" prefix
 ```
 
 ## Developer tools

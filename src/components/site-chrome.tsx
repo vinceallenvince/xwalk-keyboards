@@ -23,7 +23,6 @@ export function SiteHeader({ accessory, section }: { accessory?: ReactNode; sect
         </Link>
         {accessory}
       </span>
-      <span className="header-status">LOC: REGION_01_NYC_DOT</span>
     </header>
   );
 }

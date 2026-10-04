@@ -2,19 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { midiForNote } from "@/lib/realtime-scale";
 
-import { DEFAULT_LIVE_CAMERA, FALLBACK_CAMERAS, LISTED_LIVE_CAMERAS, LIVE_CAMERAS, liveCameraById, PRIORITY_CAMERAS } from "./cameras";
+import { DEFAULT_LIVE_CAMERA, LISTED_LIVE_CAMERAS, LIVE_CAMERAS, liveCameraById } from "./cameras";
 
 describe("camera registry", () => {
-  it("keeps the canonical twelve priority cameras in stable order", () => {
-    expect(PRIORITY_CAMERAS.map((camera) => camera.cameraId)).toEqual([
-      3256, 3494, 3230, 3326, 3355, 3259, 3282, 3242, 3431, 3456, 3414, 3395,
-    ]);
-    expect(PRIORITY_CAMERAS[0].displayLabel).toBe("Camera 01 · View 3256");
-    expect(PRIORITY_CAMERAS[11].displayLabel).toBe("Camera 12 · View 3395");
-  });
-
-  it("keeps fallbacks ordered and 511NY 5059 as the default live camera", () => {
-    expect(FALLBACK_CAMERAS.map((camera) => camera.cameraId)).toEqual([3107, 3231, 3257, 3245]);
+  it("keeps 511NY 5059 as the default live camera", () => {
     expect(DEFAULT_LIVE_CAMERA).toMatchObject({ cameraId: 5059, location: "West Street at W. 23 St" });
     expect(liveCameraById(5059)).toBe(DEFAULT_LIVE_CAMERA);
     expect(liveCameraById(9999)).toBeUndefined();
@@ -34,7 +25,6 @@ describe("camera registry", () => {
         sourceId,
         sourceKind: "bellevue",
         statusLabel,
-        viewUrl: `/realtime/${cameraId}`,
       });
     }
   });
@@ -72,8 +62,21 @@ describe("camera registry", () => {
       sourceId: "carla-town10-crosswalk-14",
       sourceKind: "carla",
       statusLabel: "CARLA TOWN10 @ XWALK 14",
-      viewUrl: "/realtime/90014",
     });
+  });
+
+  it("links each camera to its provider's public page, never to a stream", () => {
+    for (const camera of LIVE_CAMERAS.filter((camera) => camera.sourceKind === "511ny")) {
+      expect(camera.externalUrl).toBe(`https://511ny.org/map/Cctv/${camera.cameraId}`);
+    }
+    for (const camera of LIVE_CAMERAS.filter((camera) => camera.sourceKind === "bellevue")) {
+      expect(camera.externalUrl).toBe("https://trafficmap.bellevuewa.gov/");
+    }
+    // The CARLA origin is private: there is no public page to open.
+    expect(liveCameraById(90014)?.externalUrl).toBeUndefined();
+    for (const camera of LIVE_CAMERAS) {
+      expect(camera.externalUrl ?? "").not.toMatch(/\.m3u8|rtplive|\.stream/);
+    }
   });
 
   it("ships every camera but 5056 without baked-in geometry", () => {

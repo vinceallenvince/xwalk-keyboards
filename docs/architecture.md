@@ -15,9 +15,9 @@ The app has one study:
 Two earlier scored-snapshot studies (Orchestration and its successor design,
 Sequence) were removed in 2026-08; see VIN-18/VIN-20.
 
-The Camera Registry is an internal diagnostic view. It fetches one snapshot
-per registered static camera and may display independent live previews, but
-never runs Roboflow or the scoring agent.
+The Camera Registry is an unlinked developer view. It plays a muted live
+preview of every registered live camera, including ones whose feed is down,
+but never runs Roboflow or the calibration agent.
 
 The architecture is designed around three non-negotiable properties:
 
@@ -45,7 +45,7 @@ The architecture is designed around three non-negotiable properties:
 +--------------+---------------+
                |
                | same-origin HTTP
-               | GET /api/hls/*, GET /api/snapshot/*
+               | GET /api/hls/*
                | GET /api/calibration/*, POST /api/roboflow/*
                v
 +--------------+------------------------------------+
@@ -65,7 +65,7 @@ The architecture is designed around three non-negotiable properties:
 
 Interfaces
 ──────────
-Browser → Next.js: HLS/snapshot GETs; WebRTC offer POSTs.
+Browser → Next.js: HLS GETs; calibration GETs; WebRTC offer POSTs.
 Next.js → Roboflow: secret-authenticated WebRTC setup.
 Next.js → GCS: current calibration JSON for the requested camera.
 Secret Manager → Next.js: API keys and service configuration only; never browser.
@@ -82,8 +82,6 @@ flowchart LR
   Browser -->|"HLS via same-origin proxy"| App
   App -->|"HLS playlists and segments"| Cams
   App -->|"private HLS via Direct VPC"| CARLA
-  Browser -->|"snapshot requests"| App
-  App -->|"known static camera URLs"| Cams
   Browser -->|"WebRTC offer via server proxy"| App
   App -->|"Roboflow API key + class filter"| RF
 ```
@@ -111,7 +109,7 @@ of it.
 The client is responsible for:
 
 - page state, route transitions, and fullscreen behavior;
-- rendering HLS video and static camera images;
+- rendering HLS video;
 - rendering the Realtime stripe overlay with a canvas above the local video;
 - starting audio only after a user gesture;
 - disposing all route-owned resources on unmount.
@@ -120,35 +118,19 @@ The web server is responsible for:
 
 - validating all browser inputs and limiting payload sizes/timeouts;
 - resolving registered HLS origins server-side and proxying media requests;
-- detecting known camera-provider maintenance/unavailable images;
 - calling Roboflow with secret keys and validated runtime parameters;
 - returning only the data the browser needs.
 
 ### 2. Roboflow Workflows
 
-Use two production workflow profiles, even if they share a model:
+One production workflow profile, the **Realtime workflow**: Roboflow WebRTC
+receives a captured stream from the local HLS `<video>`, detects `person`, and
+returns **prediction data only**. Inside/outside classification against the
+crosswalk happens in the browser. It must not return annotated video.
 
-- **Realtime workflow:** Roboflow WebRTC receives a captured stream from the
-  local HLS `<video>`, detects `person`, and returns **prediction data
-  only**. Inside/outside classification against the crosswalk happens in the
-  browser. It must not return annotated video.
-- **Snapshot workflow:** accepts a changed static JPEG plus that camera's
-  calibrated crosswalk polygon(s), detects `person`, classifies detections as
-  inside/outside, and returns the annotated image plus structured counts or
-  detections. The annotated image contains green triangles for inside and
-  purple triangles for outside pedestrians.
-
-The precise output names must be configuration, not hardcoded component
-assumptions. The required logical outputs are:
-
-```text
-all predictions
-inside left crosswalk predictions     (Realtime)
-inside right crosswalk predictions    (Realtime)
-inside crosswalk predictions          (Snapshot, when one zone is used)
-outside crosswalk predictions
-annotated image                       (Snapshot)
-```
+The workflow's input and output names are configuration
+(`ROBOFLOW_IMAGE_INPUT`, `ROBOFLOW_DATA_OUTPUT`), not hardcoded component
+assumptions.
 
 ## Canonical data and calibration
 
@@ -158,17 +140,15 @@ Store camera metadata in version-controlled configuration. Do not call a
 provider's camera-inventory API during normal page loads. Inventories are
 offline curation tools, not runtime dependencies.
 
-Each camera record needs at least:
+Every registered camera is a live HLS camera. Each record needs at least:
 
 ```ts
 type CameraRecord = {
   cameraId: number;                 // stable numeric source ID; CARLA is 90014
-  role: "priority" | "fallback" | "live";
-  slot?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
-  viewUrl: string;                  // public source page or same-origin study
-  snapshotUrl?: string;             // curated static source
-  displayLabel: string;             // Camera 06 · View <id>
-  crosswalkCalibrationKey?: string;
+  location: string;                 // human-readable intersection
+  externalUrl?: string;             // provider's public page; absent when private
+  sourceKind: string;               // which provider adapter serves it
+  listed: boolean;                  // whether navigation offers it to visitors
 };
 ```
 
@@ -177,11 +157,9 @@ maps each registered live camera ID to its upstream HLS directory and resolves
 CARLA camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always request the same
 allowlisted `/api/hls/:cameraId/:path*` route.
 
-The production registry contains exactly twelve priority snapshot cameras,
-the configured fallback group, and the registered live Realtime cameras. A fallback is
-assigned to the unavailable priority camera's **slot**, not inserted as a new
-thirteenth tile. A given fallback may be assigned to at most one slot at a
-time.
+Pages that list cameras (the homepage selector, the Camera Registry) derive
+their lists from the registry, so adding or removing a camera needs no other
+edit.
 
 ### Polygons and stripe calibration
 
@@ -332,7 +310,6 @@ Recommended Next.js API routes:
 | Route | Consumer | Responsibility |
 | --- | --- | --- |
 | `GET /api/hls/:cameraId/:path*` | Realtime video | Validated HLS proxy; identity encoding and range support |
-| `GET /api/snapshot/:cameraId` | Registry | Validated static-image proxy; source status and metadata headers |
 | `POST /api/roboflow/webrtc` | Realtime | Validated WebRTC offer; server initializes workflow (class filter only; classification is client-side) |
 | `GET /api/roboflow/turn` | Realtime | Optional TURN configuration proxy, if required by the Roboflow connector |
 
@@ -356,8 +333,6 @@ capturing secrets or full image payloads.
 Emit structured metrics/logs for:
 
 - HLS connection state, stalls, retries, and recovery;
-- snapshot polling latency, byte-change frequency, and unavailable signature;
-- primary-to-fallback assignment and recovery;
 - Roboflow inference queue depth, latency, retries, and error rate;
 - audio enablement and scheduling drift.
 
@@ -381,7 +356,7 @@ Every study component must cancel its own work on unmount:
 | Leaving route | Required cleanup |
 | --- | --- |
 | Realtime | Destroy `hls.js`, pause and unload video, stop captured media tracks, clean up WebRTC worker, clear canvas state, suspend/close `AudioContext`, clear note occupancy, stop and discard any debug-panel tab recording |
-| Camera Registry | Abort snapshot/live-preview loads and release preview players |
+| Camera Registry | Destroy each preview's `hls.js`, clear retry timers, and pause and unload preview videos |
 
 Use `AbortController`, generation IDs, and `cancelled` guards so that a late
 response cannot mutate a component after it has unmounted or replace a newer
@@ -391,8 +366,7 @@ candidate. Navigation begins only the destination route’s required work.
 
 Unit tests should cover:
 
-- camera registry completeness and stable priority/fallback labeling;
-- unavailable-image fingerprint classification;
+- camera registry completeness, unique IDs, and stable order;
 - polygon and stripe scaling at reference and non-reference dimensions;
 - seam midpoint/nearest-stripe assignment, median silence, and note mapping.
 

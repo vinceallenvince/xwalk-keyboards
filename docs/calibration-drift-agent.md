@@ -169,8 +169,9 @@ needed to trust Phase 2.
   not a simple image GET.
 - Cheap checks before spending a model call:
   - **Feed down** — request failure, or bytes matching a known 511NY outage
-    signature. Reuse `src/lib/camera-maintenance.ts`, which already fingerprints
-    "camera being serviced" and "no live camera feed" images by SHA-256.
+    signature. The web app once fingerprinted "camera being serviced" and
+    "no live camera feed" images by SHA-256 in `src/lib/camera-maintenance.ts`;
+    that file was removed with the static snapshot cameras (VIN-89).
 - Model call returns geometry + `conditions` + `reasoning` + `confidence`.
 - Store the result **alongside the unmodified live calibration** — record what it
   would have done, do not apply it.
