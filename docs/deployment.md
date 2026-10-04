@@ -34,7 +34,7 @@ The pipeline is `.github/workflows/deploy.yml`:
 | Auth | Workload Identity Federation; impersonates `github-deploy@xwalk-keyboards-01.iam.gserviceaccount.com` (repo secrets `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`) |
 | Build + deploy | `google-github-actions/deploy-cloudrun@v2`, source deploy of service `xwalk-keyboards` in `us-central1`, with Direct VPC egress through the `default` subnet for private ranges |
 | Network verification | Confirms every deployed revision retains the expected network, subnet, network tag, `private-ranges-only` egress mode, and server-only CARLA origin configuration |
-| Smoke test | `/`, `/realtime`, `/realtime/80003`, `/realtime/80007`, `/realtime/80009`, `/realtime/80027`, `/realtime/5056`, `/realtime/5072`, `/about`, `/camera-registry` must all return < 400 or the run fails |
+| Smoke test | Requests the app's public routes (the homepage, `/realtime`, a set of `/realtime/[cameraId]` pages, `/about`, `/camera-registry`); every one must return < 400 or the run fails. The workflow file holds the current list |
 
 The one-time GCP setup (service account, roles, identity pool/provider) is
 documented as commands in the workflow file's header comment.
@@ -94,7 +94,7 @@ active account and project before any IAM or secret change.
 
 ## Post-deployment smoke test
 
-CI already verifies the five routes return non-error statuses on every deploy.
+CI already verifies the smoke-test routes return non-error statuses on every deploy.
 For a functional pass after notable releases:
 
 - Homepage loads with its live camera background.

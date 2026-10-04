@@ -58,7 +58,7 @@ Substitute `{stream}` with `STREAM_NAME + ".stream"`. Tested candidate:
 https://61e0c5d388c2e.streamlock.net:443/live/Broadway_E_Pike_NS.stream/playlist.m3u8
 ```
 
-![Seattle Broadway/E Pike reference frame](/Users/vince/.codex/visualizations/2026/09/25/01a0d976-5911-72e3-9dcd-eaf0a8cccf83/video-feed-research/seattle-broadway-pike-01.jpg)
+![Seattle Broadway/E Pike reference frame](feed-research/seattle-broadway-pike-01.jpg)
 
 ## 2. City of Bellevue, Washington — best sampled stripe geometry
 
@@ -83,7 +83,7 @@ The official player combines its prefix, camera `ID`, and `L.stream/playlist.m3u
 https://trafficcams.bellevuewa.gov:443/traffic-edge/CCTV007L.stream/playlist.m3u8
 ```
 
-![Bellevue Way/NE 8th reference frame](../e2e/fixtures/bellevue-cctv007-frame.jpg)
+![Bellevue Way/NE 8th reference frame](feed-research/bellevue-way-ne8-01.jpg)
 
 ## 3. Georgia 511 / GDOT — strong Midtown Atlanta views; token handling required
 
@@ -117,7 +117,7 @@ https://sfs-msc-pub-lq-01.navigator.dot.ga.gov:443/rtplive/ATL-CCTV-1004/playlis
 
 The unsigned path above is an identifier, not a guaranteed playable URL. No live tokens are saved in this report.
 
-![Atlanta Peachtree/16th reference frame](/Users/vince/.codex/visualizations/2026/09/25/01a0d976-5911-72e3-9dcd-eaf0a8cccf83/video-feed-research/atlanta-peachtree-16th-01.jpg)
+![Atlanta Peachtree/16th reference frame](feed-research/atlanta-peachtree-16th-01.jpg)
 
 ## 4. Arlington County, Virginia — urban intersection coverage; limited viewing sessions
 
@@ -143,7 +143,7 @@ https://itsvideo.arlingtonva.us:8011/live/cam12.stream/playlist.m3u8
 https://itsvideo.arlingtonva.us:8011/live/cam11.stream/playlist.m3u8
 ```
 
-![Arlington Fort Myer/Fairfax reference frame](/Users/vince/.codex/visualizations/2026/09/25/01a0d976-5911-72e3-9dcd-eaf0a8cccf83/video-feed-research/arlington-fort-myer-fairfax-01.jpg)
+![Arlington Fort Myer/Fairfax reference frame](feed-research/arlington-fort-myer-fairfax-01.jpg)
 
 ## 5. Nevada 511 / NDOT — documented video API; reserve choice for this app
 

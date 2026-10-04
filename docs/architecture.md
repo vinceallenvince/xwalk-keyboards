@@ -10,7 +10,7 @@ The app has one study:
 
 | Study | Source | Vision path | Audio path | Timing model |
 | --- | --- | --- | --- | --- |
-| Realtime | One registered live HLS camera (511NY or CARLA) | Roboflow Workflow over WebRTC | Browser Web Audio API | Event-driven, current frame only |
+| Realtime | One registered live HLS camera (public traffic camera or private CARLA) | Roboflow Workflow over WebRTC | Browser Web Audio API | Event-driven, current frame only |
 
 Two earlier scored-snapshot studies (Orchestration and its successor design,
 Sequence) were removed in 2026-08; see VIN-18/VIN-20.
@@ -59,8 +59,8 @@ The architecture is designed around three non-negotiable properties:
           v                       v
 +--------------------+  +----------------------+
 | Registered HLS     |  | Roboflow Workflows   |
-| 511NY or private   |  | Realtime predictions |
-| CARLA origin       |  | (person detections)  |
+| public cameras or  |  | Realtime predictions |
+| private CARLA      |  | (person detections)  |
 +--------------------+  +----------------------+
 
 Interfaces
@@ -75,15 +75,15 @@ Secret Manager → Next.js: API keys and service configuration only; never brows
 flowchart LR
   Browser["Browser / Next.js UI"]
   App["Next.js server routes\nCloud Run web service"]
-  NY["511NY camera sources"]
+  Cams["Public traffic-camera sources"]
   CARLA["CARLA Town10 HLS\nprivate VPC origin"]
   RF["Roboflow Workflows\nserverless + WebRTC GPU"]
 
   Browser -->|"HLS via same-origin proxy"| App
-  App -->|"HLS playlists and segments"| NY
+  App -->|"HLS playlists and segments"| Cams
   App -->|"private HLS via Direct VPC"| CARLA
   Browser -->|"snapshot requests"| App
-  App -->|"known static camera URLs"| NY
+  App -->|"known static camera URLs"| Cams
   Browser -->|"WebRTC offer via server proxy"| App
   App -->|"Roboflow API key + class filter"| RF
 ```
@@ -120,7 +120,7 @@ The web server is responsible for:
 
 - validating all browser inputs and limiting payload sizes/timeouts;
 - resolving registered HLS origins server-side and proxying media requests;
-- detecting known 511NY maintenance/unavailable images;
+- detecting known camera-provider maintenance/unavailable images;
 - calling Roboflow with secret keys and validated runtime parameters;
 - returning only the data the browser needs.
 
@@ -129,9 +129,9 @@ The web server is responsible for:
 Use two production workflow profiles, even if they share a model:
 
 - **Realtime workflow:** Roboflow WebRTC receives a captured stream from the
-  local HLS `<video>`, detects `person`, applies the calibrated left and right
-  West Street crosswalk polygons, and returns **prediction data only**. It
-  must not return annotated video.
+  local HLS `<video>`, detects `person`, and returns **prediction data
+  only**. Inside/outside classification against the crosswalk happens in the
+  browser. It must not return annotated video.
 - **Snapshot workflow:** accepts a changed static JPEG plus that camera's
   calibrated crosswalk polygon(s), detects `person`, classifies detections as
   inside/outside, and returns the annotated image plus structured counts or
@@ -154,31 +154,31 @@ annotated image                       (Snapshot)
 
 ### Camera registry
 
-Store camera metadata in version-controlled configuration. Do not call
-511NY `GetCameras` during normal page loads. It is an offline curation tool,
-not a runtime dependency.
+Store camera metadata in version-controlled configuration. Do not call a
+provider's camera-inventory API during normal page loads. Inventories are
+offline curation tools, not runtime dependencies.
 
 Each camera record needs at least:
 
 ```ts
 type CameraRecord = {
-  cameraId: number;                 // stable source ID, for example 3259 or 90014
+  cameraId: number;                 // stable numeric source ID; CARLA is 90014
   role: "priority" | "fallback" | "live";
   slot?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
   viewUrl: string;                  // public source page or same-origin study
   snapshotUrl?: string;             // curated static source
-  displayLabel: string;             // Camera 06 · View 3259
+  displayLabel: string;             // Camera 06 · View <id>
   crosswalkCalibrationKey?: string;
 };
 ```
 
 Client-importable camera records never contain upstream HLS URLs. The server
-maps the four 511NY live IDs to their public CDN directories and resolves
-camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always request the same
+maps each registered live camera ID to its upstream HLS directory and resolves
+CARLA camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always request the same
 allowlisted `/api/hls/:cameraId/:path*` route.
 
 The production registry contains exactly twelve priority snapshot cameras,
-the configured fallback group, and the live Realtime source (View `5056`). A fallback is
+the configured fallback group, and the registered live Realtime cameras. A fallback is
 assigned to the unavailable priority camera's **slot**, not inserted as a new
 thirteenth tile. A given fallback may be assigned to at most one slot at a
 time.
@@ -191,7 +191,7 @@ pixel coordinates:
 
 ```json
 {
-  "camera_5056": {
+  "camera_<id>": {
     "referenceFrame": { "width": 352, "height": 240 },
     "stripes": [{ "stripeIndex": 0, "segment": "segment0", "polygon": [[0, 0]] }]
   }
@@ -219,8 +219,8 @@ one run into two, and a sparse read yields fewer.
 The client numbers stripes **globally** across clusters in that order and plays
 `baseAnchor + globalOrdinal` -- one continuous chromatic run from the camera's
 single anchor (`C4` today), climbing left to right across the whole crossing.
-On a complete read of View `5056` this reproduces the original hand-calibrated
-keyboard exactly: 18 left stripes C4-F5, then 7 right stripes F#5-C6.
+On a complete read of the original reference camera this reproduces the
+hand-calibrated keyboard exactly: 18 left stripes C4-F5, then 7 right stripes F#5-C6.
 
 **Stripe identity is explicitly not stable across runs.** A stripe that goes
 undetected renumbers every stripe after it, transposing the rest of the crossing
@@ -269,7 +269,7 @@ sequenceDiagram
 ```
 
 The HLS proxy must fetch upstream media with `Accept-Encoding: identity` and
-forward byte ranges for media segments. This avoids the observed NYSDOT
+forward byte ranges for media segments. This avoids an observed upstream
 gzip/`206 Partial Content` decoding failure in Chrome. HLS playback should use
 `hls.js` when Media Source Extensions are available, fall back to native HLS
 where supported, and retry with bounded exponential backoff on fatal errors.
