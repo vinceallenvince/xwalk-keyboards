@@ -26,7 +26,7 @@ Package manager is **pnpm** (v8.15.3 via `packageManager` field). The Dockerfile
 - **Audio**: browser Web Audio API (`AudioContext`), one oscillator voice per occupied stripe — event-driven, no scoring
 - **Visual**: mint stripe glow on a canvas overlay, keyed by stripe identity (`segment:stripeIndex`)
 
-A previous second study (Orchestration, static snapshot cameras scored by an external agent) was removed; `/camera-registry` and `/api/snapshot/[cameraId]` survive from it because the registry page still shows static camera snapshots.
+A previous second study (Orchestration, static snapshot cameras scored by an external agent) was removed. `/camera-registry` is an unlinked developer page: one card per `LIVE_CAMERAS` entry, playing its muted live feed, with down feeds kept in place (VIN-89 dropped the static snapshot cameras and `/api/snapshot`).
 
 ### Server boundary
 
@@ -35,7 +35,6 @@ All third-party API keys (Roboflow) stay server-side in Next.js API routes. The 
 ### Key API routes
 
 - `GET /api/hls/[cameraId]/[...path]` — HLS proxy (fetches with `Accept-Encoding: identity` to avoid NYSDOT gzip/206 bug)
-- `GET /api/snapshot/[cameraId]` — static image proxy with SHA-256 unavailable-image classification
 - `POST /api/roboflow/webrtc` — WebRTC offer proxy (class filter only; inside/outside classification happens client-side)
 - `GET /api/calibration/[cameraId]` — serves the calibration agent's current published geometry from GCS
 
@@ -57,7 +56,7 @@ Single `src/app/globals.css` with CSS custom properties and plain class selector
 
 ## Testing
 
-Tests are co-located with source files (`.test.ts` siblings). Run with `pnpm test`. Coverage areas: camera registry stability, maintenance image SHA-256 classification, polygon scaling, scale generation, calibration parsing, Roboflow config parsing, detection mapping.
+Tests are co-located with source files (`.test.ts` siblings). Run with `pnpm test`. Coverage areas: camera registry stability, polygon scaling, scale generation, calibration parsing, Roboflow config parsing, detection mapping.
 
 ## Environment variables
 

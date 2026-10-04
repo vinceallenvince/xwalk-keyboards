@@ -36,7 +36,7 @@ Browser                         Next.js (Cloud Run)              External
 HLS video playback         ──▶  HLS proxy (identity enc.)   ──▶  Bellevue / 511NY / CARLA
 WebRTC frame capture       ──▶  Roboflow WebRTC proxy       ──▶  Roboflow GPU workers
 Stripe overlay (canvas)         Calibration proxy (GCS)     ──▶  Calibration agent
-Web Audio (oscillators)         Snapshot proxy                    (VLM → GCS)
+Web Audio (oscillators)                                           (VLM → GCS)
 ```
 
 All third-party API keys stay server-side in Next.js API routes. The browser

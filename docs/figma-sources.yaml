@@ -173,12 +173,19 @@ epics:
     page: "72-382"
     epic_dir: "camera-registry"
     stories:
-      - story: "As a user, I can review every registered camera and its fallback coverage"
-        scenario: "73-696"
+      # VIN-89 dropped the static priority/fallback cameras; the registry now
+      # lists every registered live camera. The Figma section is still titled
+      # "As a user, I can review every registered camera and its fallback
+      # coverage" and its scenario text (73:697) still describes the static
+      # inventory. Rename the section on the next Figma pass to restore the
+      # exact-title convention. Frame street locations are placeholders; the
+      # runtime shows locations from src/data/cameras.ts.
+      - story: "As a developer, I can review every registered camera and its feed status"
+        scenario: "106-9"
         ui:
-          - { node: "73-723", shot: "camera-registry" } # priority/fallback grids and live-feed column
+          - { node: "483-247", shot: "camera-registry" } # 2-column grid of live-camera cards
         ui_mobile:
-          - { node: "386-64", shot: null }              # priority/fallback grids and live-feed column
+          - { node: "483-364", shot: "camera-registry" } # single-column stack, short labels
 
   # Cross-page chrome. The shared footer is authored inside the homepage frames
   # on the Homepage page (0-1); the same footer renders on Realtime and About.

@@ -1,149 +1,57 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
-import type { CameraRecord, LiveCameraRecord } from "@/data/cameras";
+import type { LiveCameraRecord } from "@/data/cameras";
 import { RegistryLivePreview } from "./registry-live-preview";
 
-type SnapshotState = {
-  imageSource?: string;
-  status: "loading" | "active" | "unavailable" | "error";
-  message?: string;
+type RegistryCamera = Pick<LiveCameraRecord, "cameraId" | "externalUrl" | "location" | "sourceKind">;
+
+const PROVIDER_NAMES: Record<LiveCameraRecord["sourceKind"], string> = {
+  "511ny": "511NY",
+  bellevue: "the City of Bellevue traffic map",
+  carla: "CARLA",
 };
 
-type RegistryCamera = Pick<CameraRecord, "cameraId" | "cameraKey" | "displayLabel" | "location" | "viewUrl">;
-
-type RegistryLiveCamera = Pick<CameraRecord, "cameraId" | "location" | "viewUrl">
-  & Pick<LiveCameraRecord, "sourceKind">;
-
-function CameraCard({ camera, state }: { camera: RegistryCamera; state: SnapshotState | undefined }) {
-  const snapshot = state ?? { status: "loading" as const };
-  const stateLabel =
-    snapshot.status === "active"
-      ? "Snapshot captured once"
-      : snapshot.status === "unavailable"
-        ? "Unavailable source"
-        : snapshot.status === "error"
-          ? "Snapshot unavailable"
-          : "Capturing one snapshot…";
+function CameraCard({ camera, index }: { camera: RegistryCamera; index: number }) {
+  const number = String(index + 1).padStart(2, "0");
 
   return (
-    <article className="camera-card">
-      <div className="snapshot-frame">
-        {snapshot.imageSource ? (
-          // The registry intentionally uses the raw 511NY snapshot, never an inference result.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={snapshot.imageSource} alt={`511NY camera view ${camera.cameraId}`} />
-        ) : (
-          <div className="snapshot-placeholder">{snapshot.message ?? stateLabel}</div>
-        )}
-        {snapshot.status !== "unavailable" && snapshot.status !== "active" && (
-          <span className={`snapshot-state snapshot-state--${snapshot.status}`}>{stateLabel}</span>
-        )}
-      </div>
-      <div className="camera-card__details">
-        <div>
-          <h3>{camera.displayLabel}</h3>
-          <p>cam-id: {camera.cameraKey}</p>
+    <article className="registry-card">
+      <RegistryLivePreview cameraId={camera.cameraId} />
+      <div className="registry-card__meta">
+        <div className="registry-card__title">
+          <h2>
+            <span className="registry-card__label--wide">{`CAMERA_${number} // VIEW_${camera.cameraId}`}</span>
+            <span className="registry-card__label--compact">{`CAM ${number} // ${camera.cameraId}`}</span>
+          </h2>
+          {camera.externalUrl && (
+            <a
+              className="registry-card__link"
+              href={camera.externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Open camera ${camera.cameraId} on ${PROVIDER_NAMES[camera.sourceKind]}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative icon from the Figma frame */}
+              <img src="/icons/external-link.svg" width={17.75} height={17.75} alt="" />
+            </a>
+          )}
         </div>
-        <a href={camera.viewUrl} target="_blank" rel="noreferrer" aria-label={`Open View ${camera.cameraId} on 511NY`}>OPEN ↗</a>
+        <p>
+          <span className="registry-card__label--wide">STREET LOCATION: </span>
+          {camera.location}
+        </p>
       </div>
     </article>
   );
 }
 
-export function CameraRegistry({ fallbackCameras, liveCameras, priorityCameras }: {
-  fallbackCameras: readonly RegistryCamera[];
-  liveCameras: readonly RegistryLiveCamera[];
-  priorityCameras: readonly RegistryCamera[];
-}) {
-  const [snapshots, setSnapshots] = useState<Record<number, SnapshotState>>({});
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const objectUrls: string[] = [];
-    let cancelled = false;
-    const cameras = [...priorityCameras, ...fallbackCameras];
-
-    async function loadSnapshot(camera: RegistryCamera) {
-      try {
-        const response = await fetch(`/api/snapshot/${camera.cameraId}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error(`Source returned HTTP ${response.status}`);
-        const imageSource = URL.createObjectURL(await response.blob());
-        objectUrls.push(imageSource);
-        if (cancelled) return;
-        setSnapshots((current) => ({
-          ...current,
-          [camera.cameraId]: {
-            imageSource,
-            status: response.headers.get("x-camera-status") === "unavailable" ? "unavailable" : "active",
-          },
-        }));
-      } catch (error) {
-        if (cancelled || (error instanceof DOMException && error.name === "AbortError")) return;
-        setSnapshots((current) => ({
-          ...current,
-          [camera.cameraId]: {
-            message: error instanceof Error ? error.message : "Unable to load snapshot",
-            status: "error",
-          },
-        }));
-      }
-    }
-
-    void Promise.all(cameras.map(loadSnapshot));
-    return () => {
-      cancelled = true;
-      controller.abort();
-      objectUrls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [fallbackCameras, priorityCameras]);
-
+/**
+ * Every registered live camera, in registry order, each playing its own feed.
+ * A camera whose feed is down keeps its place and reads as unavailable; that
+ * is what makes the page useful to developers.
+ */
+export function CameraRegistry({ cameras }: { cameras: readonly RegistryCamera[] }) {
   return (
-    <div className="registry-layout">
-      <div className="registry-content">
-        <section aria-labelledby="priority-cameras">
-          <div className="section-heading">
-            <h2 id="priority-cameras">Priority cameras</h2>
-            <i aria-hidden="true" />
-          </div>
-          <div className="camera-grid">
-            {priorityCameras.map((camera) => <CameraCard key={camera.cameraId} camera={camera} state={snapshots[camera.cameraId]} />)}
-          </div>
-        </section>
-        <section aria-labelledby="fallback-cameras">
-          <div className="section-heading section-heading--spaced">
-            <h2 id="fallback-cameras">Fallback cameras</h2>
-            <i aria-hidden="true" />
-          </div>
-          <div className="camera-grid camera-grid--fallback">
-            {fallbackCameras.map((camera) => <CameraCard key={camera.cameraId} camera={camera} state={snapshots[camera.cameraId]} />)}
-          </div>
-        </section>
-      </div>
-      <aside className="live-column" aria-labelledby="live-feeds">
-        <h2 id="live-feeds"><span className="live-indicator" aria-hidden="true" />Live feeds</h2>
-        {liveCameras.map((camera, index) => (
-          <article className="live-feed-card" key={camera.cameraId}>
-            <RegistryLivePreview cameraId={camera.cameraId} />
-            <p>{`Feed ${String(index + 1).padStart(2, "0")} // ${camera.location}`}</p>
-            <a
-              href={camera.viewUrl}
-              target={camera.sourceKind === "511ny" ? "_blank" : undefined}
-              rel={camera.sourceKind === "511ny" ? "noreferrer" : undefined}
-              aria-label={camera.sourceKind === "511ny"
-                ? `Open View ${camera.cameraId} on 511NY`
-                : `Open ${camera.location} Realtime study`}
-            >
-              {camera.sourceKind === "511ny" ? "OPEN 511NY ↗" : "OPEN STUDY →"}
-            </a>
-          </article>
-        ))}
-        <p className="aside-note">One snapshot per static source. No polling or Roboflow inference occurs here.</p>
-      </aside>
+    <div className="registry-grid">
+      {cameras.map((camera, index) => <CameraCard key={camera.cameraId} camera={camera} index={index} />)}
     </div>
   );
 }

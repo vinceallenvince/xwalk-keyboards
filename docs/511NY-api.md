@@ -10,13 +10,13 @@ Center webcams API (city, undocumented). Last verified 2026-08-19.
 
 | Purpose | Upstream endpoint | Proxied via |
 | --- | --- | --- |
-| HLS live stream (View 5056) | `https://s9.nysdot.skyvdn.com:443/rtplive/R11_272/playlist.m3u8` | `GET /api/hls/[cameraId]/[...path]` |
-| Camera snapshots | `https://511ny.org/map/Cctv/{cameraId}` | `GET /api/snapshot/[cameraId]` |
+| HLS live streams (Views 5056, 5059, 5062, 5072) | `https://s9.nysdot.skyvdn.com/rtplive/R11_27x/playlist.m3u8` | `GET /api/hls/[cameraId]/[...path]` |
 
-The HLS stream is defined in `src/data/cameras.ts`, fetched with
-`Accept-Encoding: identity` to avoid an NYSDOT gzip/206 bug. Snapshot camera
-IDs in use: 5056 (live) plus registry cameras 3107, 3230, 3231, 3242, 3245,
-3256, 3257, 3259, 3282, 3326, 3355, 3395, 3414, 3431, 3456, 3494.
+The HLS upstreams are defined server-side in `src/server/hls-sources.ts` and
+fetched with `Accept-Encoding: identity` to avoid an NYSDOT gzip/206 bug. The
+app no longer proxies 511NY still images: VIN-89 removed `/api/snapshot` and
+the 16 static registry cameras. The Camera Registry only links out to each
+live camera's public page, `https://511ny.org/map/Cctv/{cameraId}`.
 
 ### xwalk-camera-calibration-agent
 

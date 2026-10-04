@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 
 type FeedStatus = "connecting" | "live" | "reconnecting" | "unavailable";
 
+/** Consecutive failed loads before a feed reads as unavailable rather than reconnecting. */
+const FAILURES_BEFORE_UNAVAILABLE = 3;
+const RETRY_DELAY_MS = 2_500;
+/** A feed already marked unavailable keeps retrying, just less often, so it recovers on its own. */
+const UNAVAILABLE_RETRY_DELAY_MS = 15_000;
+
 export function RegistryLivePreview({ cameraId }: { cameraId: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState<FeedStatus>("connecting");
@@ -17,20 +23,22 @@ export function RegistryLivePreview({ cameraId }: { cameraId: number }) {
     let cancelled = false;
     let hls: import("hls.js").default | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let failures = 0;
 
     const retry = () => {
       if (cancelled || retryTimer) return;
-      setStatus("reconnecting");
+      failures += 1;
+      const unavailable = failures >= FAILURES_BEFORE_UNAVAILABLE;
+      setStatus(unavailable ? "unavailable" : "reconnecting");
       retryTimer = setTimeout(() => {
         retryTimer = null;
         void load();
-      }, 2_500);
+      }, unavailable ? UNAVAILABLE_RETRY_DELAY_MS : RETRY_DELAY_MS);
     };
 
     const load = async () => {
       hls?.destroy();
       hls = null;
-      setStatus("connecting");
       try {
         const { default: Hls } = await import("hls.js");
         if (cancelled) return;
@@ -57,7 +65,10 @@ export function RegistryLivePreview({ cameraId }: { cameraId: number }) {
       }
     };
 
-    const markLive = () => setStatus("live");
+    const markLive = () => {
+      failures = 0;
+      setStatus("live");
+    };
     video.addEventListener("playing", markLive);
     video.addEventListener("error", retry);
     void load();
@@ -75,18 +86,16 @@ export function RegistryLivePreview({ cameraId }: { cameraId: number }) {
   }, [cameraId]);
 
   const statusLabel =
-    status === "live" ? "LIVE"
-    : status === "connecting" ? "CONNECTING…"
+    status === "connecting" ? "CONNECTING…"
     : status === "reconnecting" ? "RECONNECTING…"
-    : "UNAVAILABLE";
+    : "FEED UNAVAILABLE";
 
   return (
     <div className="live-preview">
       <video ref={videoRef} className="live-preview__video" autoPlay muted playsInline />
-      <div className="live-preview__overlay">
-        <span>VIEW {cameraId}</span>
-        <small className={status === "live" ? "live-preview__status--live" : undefined}>{statusLabel}</small>
-      </div>
+      {status !== "live" && (
+        <span className={`live-preview__status live-preview__status--${status}`}>{statusLabel}</span>
+      )}
     </div>
   );
 }

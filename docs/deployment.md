@@ -15,7 +15,7 @@ deployment, executed by GitHub Actions on Cloud Run.
 
 | Service | Repository / runtime | Responsibility | URL |
 | --- | --- | --- | --- |
-| `xwalk-keyboards` | This repo, Next.js | Public web app; server-side HLS/snapshot/Roboflow/calibration proxies | https://xwalk-keyboards-21826886868.us-central1.run.app |
+| `xwalk-keyboards` | This repo, Next.js | Public web app; server-side HLS/Roboflow/calibration proxies | https://xwalk-keyboards-21826886868.us-central1.run.app |
 | `xwalk-camera-calibration-agent` | [xwalk-camera-calibration-agent](https://github.com/vinceallenvince/xwalk-camera-calibration-agent), Python | Publishes crosswalk stripe geometry to GCS; serves on-demand recalibration | https://xwalk-camera-calibration-agent-21826886868.us-central1.run.app |
 
 The calibration agent deploys from its own repository. This runbook covers the
@@ -100,7 +100,7 @@ For a functional pass after notable releases:
 - Homepage loads with its live camera background.
 - Realtime video starts independently from Roboflow inference.
 - Realtime camera and inference recovery states work independently.
-- The Camera Registry loads snapshots without invoking Roboflow.
+- The Camera Registry plays every registered camera's preview without invoking Roboflow.
 - Leaving the study stops its audio and background work.
 - Mobile layouts render per the `ui_mobile` Figma frames (spot-check the
   homepage and Realtime on a phone-sized viewport).
