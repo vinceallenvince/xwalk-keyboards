@@ -60,15 +60,27 @@ Server-only variables (never `NEXT_PUBLIC_`; see `.env.example`):
 | --- | --- | --- |
 | `CARLA_HLS_BASE_URL` | Env | Private HLS directory for registered CARLA camera 90014; resolved only by the server-side proxy |
 
-The `ROBOFLOW_*` and `CALIBRATION_*` variables, the `roboflow-api-key` secret,
-and the runtime service account's calibration-bucket read and agent-invoker
-grants served the retired Realtime study. Nothing reads them now; remove them
-from the service configuration once the retirement deploy is confirmed.
+That is the service's only variable, and the project holds no secrets. On
+2026-10-27, after the retirement deploy, the settings for retired features
+were removed:
+
+- the 13 `ROBOFLOW_*` variables and the `ROBOFLOW_API_KEY` mount of the
+  `roboflow-api-key` secret (the Realtime study), in revision
+  `xwalk-keyboards-00101-cc8`
+- `CROSSWALK_AGENT_URL` and the `CROSSWALK_AGENT_API_KEY` mount of the
+  `crosswalk-agent-api-key` secret (the earlier Orchestration study), in
+  revision `xwalk-keyboards-00102-md8`
+
+Both secrets were then deleted, and the Roboflow API key was rolled in the
+Roboflow dashboard. Revisions `00101` and earlier mount those deleted secrets
+and can no longer start, so `00102-md8` is the oldest revision you can roll
+back to. The calibration agent's resources were shut down from its own
+repository.
 
 ## Local gcloud setup
 
 Routine deploys never touch local gcloud. This is needed only for IAM changes
-and Secret Manager operations, such as removing the retired Roboflow secret:
+and Secret Manager operations:
 
 ```bash
 gcloud auth list
@@ -77,7 +89,9 @@ gcloud config get-value project
 ```
 
 Do not use a work-account credential or project accidentally. Confirm the
-active account and project before any IAM or secret change.
+active account and project before any IAM or secret change. If your gcloud
+default points at another project, pass `--project xwalk-keyboards-01` (and
+`--region us-central1` for Cloud Run) on every command instead of switching.
 
 ## Deploy flow
 
