@@ -70,6 +70,8 @@ test.describe("Homepage", () => {
     await expect(band.getByRole("link", { name: "AI Tinkerers hackathon" }))
       .toHaveAttribute("href", "https://nyc.aitinkerers.org/hackathons/h_zvqhzy3dMEY");
     await expect(band.getByRole("link", { name: "Roboflow" })).toHaveAttribute("href", "https://roboflow.com/");
+    await expect(band.locator(".home-watch__description").nth(1)).toHaveText("More details at vinceallen.com");
+    await expect(band.getByRole("link", { name: "vinceallen.com" })).toHaveAttribute("href", "https://vinceallen.com");
     await expect(band.locator("iframe")).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/buOyciFqpY4\?/);
     await expect(band.locator("iframe")).toHaveAttribute("loading", "lazy");
     // The retired camera selector is gone, and nothing links to /realtime.
