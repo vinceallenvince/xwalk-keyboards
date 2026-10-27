@@ -45,7 +45,7 @@ test.describe("Camera Registry", () => {
 
     await expect(page.locator(".site-header")).toContainText("CAMERA REGISTRY");
     const cards = page.locator(".registry-card");
-    await expect(cards).toHaveCount(9);
+    await expect(cards).toHaveCount(8);
     await expect(cards.locator("h2 .registry-card__label--wide")).toHaveText([
       "CAMERA_01 // VIEW_5056",
       "CAMERA_02 // VIEW_5059",
@@ -55,18 +55,16 @@ test.describe("Camera Registry", () => {
       "CAMERA_06 // VIEW_80007",
       "CAMERA_07 // VIEW_80009",
       "CAMERA_08 // VIEW_80027",
-      "CAMERA_09 // VIEW_90014",
     ]);
     await expect(cards.nth(1).locator("p")).toHaveText("STREET LOCATION: West Street at W. 23 St");
     // One flat grid: no priority/fallback sections and no live-feed column.
     await expect(page.locator(".section-heading, .live-column")).toHaveCount(0);
 
-    // External links: provider pages only, and none for the private CARLA origin.
+    // External links: every card links to its provider's page, never a stream.
     await expect(page.getByRole("link", { name: "Open camera 5059 on 511NY" }))
       .toHaveAttribute("href", "https://511ny.org/map/Cctv/5059");
     await expect(page.getByRole("link", { name: "Open camera 80007 on the City of Bellevue traffic map" }))
       .toHaveAttribute("href", "https://trafficmap.bellevuewa.gov/");
-    await expect(cards.nth(8).locator(".registry-card__link")).toHaveCount(0);
     await expect(page.locator(".registry-card__link")).toHaveCount(8);
 
     // The down feed stays first in the grid and says so; the rest play.

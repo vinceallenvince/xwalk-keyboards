@@ -6,7 +6,6 @@ type RegistryCamera = Pick<LiveCameraRecord, "cameraId" | "externalUrl" | "locat
 const PROVIDER_NAMES: Record<LiveCameraRecord["sourceKind"], string> = {
   "511ny": "511NY",
   bellevue: "the City of Bellevue traffic map",
-  carla: "CARLA",
 };
 
 function CameraCard({ camera, index }: { camera: RegistryCamera; index: number }) {
@@ -21,18 +20,16 @@ function CameraCard({ camera, index }: { camera: RegistryCamera; index: number }
             <span className="registry-card__label--wide">{`CAMERA_${number} // VIEW_${camera.cameraId}`}</span>
             <span className="registry-card__label--compact">{`CAM ${number} // ${camera.cameraId}`}</span>
           </h2>
-          {camera.externalUrl && (
-            <a
-              className="registry-card__link"
-              href={camera.externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`Open camera ${camera.cameraId} on ${PROVIDER_NAMES[camera.sourceKind]}`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative icon from the Figma frame */}
-              <img src="/icons/external-link.svg" width={17.75} height={17.75} alt="" />
-            </a>
-          )}
+          <a
+            className="registry-card__link"
+            href={camera.externalUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open camera ${camera.cameraId} on ${PROVIDER_NAMES[camera.sourceKind]}`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size decorative icon from the Figma frame */}
+            <img src="/icons/external-link.svg" width={17.75} height={17.75} alt="" />
+          </a>
         </div>
         <p>
           <span className="registry-card__label--wide">STREET LOCATION: </span>

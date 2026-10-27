@@ -30,8 +30,8 @@ describe("camera registry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("keeps 511NY cameras north to south, then Bellevue, then CARLA", () => {
-    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072, 80003, 80007, 80009, 80027, 90014]);
+  it("keeps 511NY cameras north to south, then Bellevue", () => {
+    expect(LIVE_CAMERAS.map((camera) => camera.cameraId)).toEqual([5056, 5059, 5062, 5072, 80003, 80007, 80009, 80027]);
     expect(liveCameraById(5059)).toMatchObject({
       cameraId: 5059,
       location: "West Street at W. 23 St",
@@ -42,12 +42,6 @@ describe("camera registry", () => {
       location: "West Street at Chambers St",
       statusLabel: "WEST STREET @ CHAMBERS ST",
     });
-    expect(liveCameraById(90014)).toMatchObject({
-      location: "Town10 - Crosswalk 14",
-      sourceId: "carla-town10-crosswalk-14",
-      sourceKind: "carla",
-      statusLabel: "CARLA TOWN10 @ XWALK 14",
-    });
   });
 
   it("links each camera to its provider's public page, never to a stream", () => {
@@ -57,24 +51,22 @@ describe("camera registry", () => {
     for (const camera of LIVE_CAMERAS.filter((camera) => camera.sourceKind === "bellevue")) {
       expect(camera.externalUrl).toBe("https://trafficmap.bellevuewa.gov/");
     }
-    // The CARLA origin is private: there is no public page to open.
-    expect(liveCameraById(90014)?.externalUrl).toBeUndefined();
     for (const camera of LIVE_CAMERAS) {
-      expect(camera.externalUrl ?? "").not.toMatch(/\.m3u8|rtplive|\.stream/);
+      expect(camera.externalUrl).not.toMatch(/\.m3u8|rtplive|\.stream/);
     }
   });
 
   it("gives every live camera a source kind and a status label", () => {
     for (const camera of LIVE_CAMERAS) {
-      expect(["511ny", "bellevue", "carla"]).toContain(camera.sourceKind);
+      expect(["511ny", "bellevue"]).toContain(camera.sourceKind);
       expect(camera.statusLabel.length).toBeGreaterThan(0);
     }
   });
 
   it("keeps upstream stream configuration out of client-importable metadata", () => {
     const serialized = JSON.stringify(LIVE_CAMERAS);
-    expect(serialized).not.toContain("CARLA_HLS_BASE_URL");
-    expect(serialized).not.toContain("10.150.0.2");
+    expect(serialized).not.toContain("skyvdn.com");
+    expect(serialized).not.toContain("trafficcams.bellevuewa.gov");
     expect(LIVE_CAMERAS.every((camera) => !("hlsUrl" in camera))).toBe(true);
   });
 });

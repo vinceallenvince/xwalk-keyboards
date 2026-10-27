@@ -14,8 +14,8 @@ inference or plays notes.
 
 ### Camera placeholders
 
-Live cameras come from more than one public provider (511NY in New York,
-the City of Bellevue in Washington, and a private CARLA simulation), so
+Live cameras come from more than one public provider (511NY in New York
+and the City of Bellevue in Washington), so
 scenarios that apply to every camera use a placeholder rather than one
 intersection's copy:
 
@@ -197,10 +197,11 @@ Then the header reads "XWALK KEYBOARDS | ABOUT"
 And the ABOUT label is rendered as plain text, not underlined, because I am already on the About page
 And a feed status reads "CONNECTING // WEST STREET @ W23 ST" with an inactive status dot
 And a dark viewport panel is visible below the feed status
-And the viewport opens with a paragraph explaining that XWalk Keyboards uses traffic camera video feeds to transform crosswalks into piano keyboards
-And the paragraph mentions that pedestrians step on white stripes and the app plays the corresponding notes
+And the viewport opens with a paragraph explaining that XWalk Keyboards used traffic camera video feeds to transform crosswalks into piano keyboards
+And the paragraph mentions that pedestrians stepped on white stripes and the app played the corresponding notes
+And a second paragraph says the live app is in retirement and points to the video on the homepage, with "homepage" linking to "/"
 And "HOW IT STARTED", "HOW IT WORKS", and "MORE DETAILS" sections follow
-And "HOW IT WORKS" says the web app uses Roboflow to detect pedestrians in a traffic cam video in real time
+And "HOW IT WORKS" says the web app used Roboflow to detect pedestrians in a traffic cam video in real time
 And no copy attributes the live cameras to a provider or city (no "511NY" or "Bellevue"; the NYC hackathon history in "HOW IT STARTED" is not a camera attribution)
 And body copy is set in 12px monospace
 And no study links or eyebrow labels are shown
@@ -268,15 +269,12 @@ When the page loads
 Then that camera's card stays in its registry position
 And its video area shows that the feed is unavailable rather than disappearing from the grid
 
-Given a camera has a public provider page
+Given any registered camera
 Then its card shows a mint external-link icon to the right of its label
 And selecting it opens the provider's page in a new tab
 And a 511NY camera's icon opens "https://511ny.org/map/Cctv/<camera ID>"
 And a Bellevue camera's icon opens the City of Bellevue traffic map
 And no upstream video URL is exposed to the browser
-
-Given a camera has no public provider page, such as the private CARLA camera
-Then its card shows no external-link icon
 ```
 
 On a phone the cards stack in a single column, and the label shortens.

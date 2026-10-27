@@ -3,10 +3,10 @@ export type CameraRecord = {
   displayLabel: string;
   /**
    * The provider's public page for this camera, opened from the camera
-   * registry. Absent when there is none (the private CARLA origin). Never an
-   * upstream media URL: those stay server-side in src/server/hls-sources.ts.
+   * registry. Never an upstream media URL: those stay server-side in
+   * src/server/hls-sources.ts.
    */
-  externalUrl?: string;
+  externalUrl: string;
   location: string;
   sourceId: string;
 };
@@ -22,7 +22,7 @@ const BELLEVUE_TRAFFIC_MAP_URL = "https://trafficmap.bellevuewa.gov/";
  * registry show. Upstream locations deliberately live in a server-only module.
  */
 export type LiveCameraRecord = CameraRecord & {
-  sourceKind: "511ny" | "bellevue" | "carla";
+  sourceKind: "511ny" | "bellevue";
   statusLabel: string;
 };
 
@@ -67,7 +67,7 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
   },
   {
     // Bellevue cameras use made-up IDs: 8 then the city's CCTV number,
-    // zero-padded (CCTV007 -> 80007), in CARLA's 90014 style. The city's own
+    // zero-padded (CCTV007 -> 80007). The city's own
     // IDs aren't numeric, and the retired calibration agent's BigQuery schema
     // stored camera_id as an integer.
     cameraId: 80003,
@@ -104,14 +104,6 @@ export const LIVE_CAMERAS: readonly LiveCameraRecord[] = [
     sourceKind: "bellevue",
     statusLabel: "110TH AVE @ NE 8TH ST",
     externalUrl: BELLEVUE_TRAFFIC_MAP_URL,
-  },
-  {
-    cameraId: 90014,
-    displayLabel: "Live Feed · CARLA 90014",
-    location: "Town10 - Crosswalk 14",
-    sourceId: "carla-town10-crosswalk-14",
-    sourceKind: "carla",
-    statusLabel: "CARLA TOWN10 @ XWALK 14",
   },
 ];
 

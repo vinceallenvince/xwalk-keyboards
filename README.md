@@ -17,7 +17,7 @@ screen recordings from the study, over a live ambient traffic-camera feed.
 A registered traffic-camera feed streamed to the browser over same-origin HLS,
 from [511NY](https://511ny.org) cameras on West Street in New York, the City
 of Bellevue, WA's public [traffic cameras](https://trafficmap.bellevuewa.gov),
-and a private CARLA Town10 simulation. The browser sent frames to a
+and, for a while, a private CARLA Town10 simulation. The browser sent frames to a
 [Roboflow](https://roboflow.com) workflow over WebRTC for person detection,
 mapped each pedestrian to the crosswalk stripe they stood on, and played the
 corresponding note through the Web Audio API, with occupied stripes glowing
@@ -34,7 +34,7 @@ contract.
 ```
 Browser                         Next.js (Cloud Run)              External
 ─────────────────────────       ─────────────────────────        ─────────────────────
-Live background / registry ──▶  HLS proxy (identity enc.)   ──▶  Bellevue / 511NY / CARLA
+Live background / registry ──▶  HLS proxy (identity enc.)   ──▶  Bellevue / 511NY
 Introduction video         ──────────────────────────────────▶  YouTube (nocookie embed)
 ```
 
@@ -64,5 +64,5 @@ pnpm lint         # eslint
 pnpm test         # vitest
 ```
 
-Requires Node.js and [pnpm](https://pnpm.io). Server-only environment
-variables are listed in `.env.example`.
+Requires Node.js and [pnpm](https://pnpm.io). No environment variables are
+needed.

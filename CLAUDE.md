@@ -28,7 +28,7 @@ Package manager is **pnpm** (v8.15.3 via `packageManager` field). The Dockerfile
 
 ### Cameras
 
-Live HLS cameras are registered in `LIVE_CAMERAS` (`src/data/cameras.ts`), with upstream URLs server-only in `src/server/hls-sources.ts`: City of Bellevue 80003/80007/80009/80027 (made-up numeric IDs, 8 + the CCTV number — VIN-85), 511NY 5056/5059/5062/5072 (West Street, NYC), and private CARLA 90014 (resolved from `CARLA_HLS_BASE_URL` over Direct VPC egress).
+Live HLS cameras are registered in `LIVE_CAMERAS` (`src/data/cameras.ts`), with upstream URLs server-only in `src/server/hls-sources.ts`: City of Bellevue 80003/80007/80009/80027 (made-up numeric IDs, 8 + the CCTV number — VIN-85) and 511NY 5056/5059/5062/5072 (West Street, NYC). A private CARLA simulation camera (90014) was retired with its GPU VM.
 
 ### Server boundary
 
@@ -53,7 +53,7 @@ Tests are co-located with source files (`.test.ts` siblings). Run with `pnpm tes
 
 ## Environment variables
 
-All server-only (never `NEXT_PUBLIC_`). See `.env.example`; the only one is `CARLA_HLS_BASE_URL`.
+None are required. If one is added, keep it server-only (never `NEXT_PUBLIC_`).
 
 ## Deployment
 

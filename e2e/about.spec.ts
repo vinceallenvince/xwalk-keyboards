@@ -29,7 +29,9 @@ test.describe("About", () => {
     // Dark viewport panel with the project description.
     const viewport = page.locator(".about-viewport");
     await expect(viewport).toBeVisible();
-    await expect(viewport).toContainText("uses traffic camera video feeds to transform crosswalks into piano keyboards");
+    await expect(viewport).toContainText("used traffic camera video feeds to transform crosswalks into piano keyboards");
+    await expect(viewport).toContainText("the live app is in retirement");
+    await expect(viewport.getByRole("link", { name: "homepage" })).toHaveAttribute("href", "/");
     await expect(viewport).toContainText("detect pedestrians in a traffic cam video in real time");
     // Cameras come from more than one provider, so none is named.
     await expect(viewport).not.toContainText("511NY");
