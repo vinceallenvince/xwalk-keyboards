@@ -66,8 +66,10 @@ test.describe("Homepage", () => {
 
     const band = page.locator(".home-watch__band");
     await expect(band.locator(".home-watch__label")).toHaveText("XWALK KEYBOARDS // WATCH");
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText("THE STREET.THE RHYTHM.");
-    await expect(band.locator(".home-watch__sound")).toHaveText("FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS");
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText("CROSSWALKS.KEYBOARDS.");
+    await expect(band.getByRole("link", { name: "AI Tinkerers hackathon" }))
+      .toHaveAttribute("href", "https://nyc.aitinkerers.org/hackathons/h_zvqhzy3dMEY");
+    await expect(band.getByRole("link", { name: "Roboflow" })).toHaveAttribute("href", "https://roboflow.com/");
     await expect(band.locator("iframe")).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/buOyciFqpY4\?/);
     await expect(band.locator("iframe")).toHaveAttribute("loading", "lazy");
     // The retired camera selector is gone, and nothing links to /realtime.
@@ -75,15 +77,15 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-scrolled-video.png") });
   });
 
-  test("on a phone the sound prompt sits under the video", async ({ page }) => {
+  test("on a phone the video stacks under the introduction", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openLiveHomepage(page);
     await showIntroduction(page);
 
+    const intro = await page.locator(".home-watch__intro").boundingBox();
     const video = await page.locator(".intro-video").boundingBox();
-    const sound = await page.locator(".home-watch__sound").boundingBox();
-    expect(video).not.toBeNull();
-    expect(sound!.y).toBeGreaterThanOrEqual(video!.y + video!.height);
+    expect(intro).not.toBeNull();
+    expect(video!.y).toBeGreaterThanOrEqual(intro!.y + intro!.height);
     await page.screenshot({ path: join(SHOTS, "mobile", "homepage-scrolled-video.png") });
   });
 

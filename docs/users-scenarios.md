@@ -23,8 +23,10 @@ intersection's copy:
   `WEST STREET @ W23 ST` (CAM 5059, New York) or
   `BELLEVUE WAY @ NE 8TH ST` (CAM 80007, Bellevue, WA).
 
-Visitor-facing copy does not credit a camera provider. The status line names
-the intersection; the footer credits only the tools that power the site.
+Visitor-facing copy does not credit a camera provider, with one exception:
+the homepage introduction says the project used NYC DOT traffic cam video.
+The status line names the intersection; the footer credits only the tools
+that power the site.
 
 The homepage and About backgrounds use 511NY's West Street at W. 23 St camera
 (CAM 5059).
@@ -64,10 +66,10 @@ And the live traffic-camera background remains fixed in place behind the experie
 And a full-width dark band sits in the vertical center of the viewport
 And the band's left column reads, top to bottom:
   | XWALK KEYBOARDS // WATCH (mint section label) |
-  | THE STREET. / THE RHYTHM. (two-line headline) |
+  | CROSSWALKS. / KEYBOARDS. (two-line headline)  |
   | a short mint rule                             |
-  | A crosswalk. A passing moment. A different way to listen to the city. Watch an introduction to XWalk Keyboards, set on West Street. |
-  | FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS (mint) |
+  | XWalkKeyboards was created at an AI Tinkerers hackathon and used NYC DOT traffic cam video and Roboflow computer vision to transform crosswalks into piano keyboards. |
+And "AI Tinkerers hackathon" and "Roboflow" in the description are mint links that open in a new tab
 And the band's right column holds a 16:9 embedded YouTube player for the introduction video
 And no camera links, inference, stripe highlights, or synthesized audio are on the page
 ```
@@ -94,9 +96,8 @@ And the embed is lazy-loaded rather than fetched with the hero
 
 ```gherkin
 Given a visitor opens the homepage on a mobile viewport and scrolls past the hero
-Then the band stacks: section label, headline, rule, description, video, sound prompt
+Then the band stacks: section label, headline, rule, description, video
 And the video spans the content width at 16:9
-And "FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS" sits beneath the video rather than above it
 ```
 
 ### As a visitor, an old Realtime link brings me to the homepage

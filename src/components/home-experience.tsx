@@ -30,20 +30,20 @@ export function HomeExperience() {
         </div>
       </section>
       <section className="home-watch" id="studies" aria-labelledby="home-watch-title">
-        {/* One sound prompt, placed by grid area: in the text column on
-            desktop, under the video on mobile (Figma 506:449 / 508:75). */}
         <div className="home-watch__band">
           <div className="home-watch__intro">
             <p className="home-watch__label">XWALK KEYBOARDS // WATCH</p>
-            <h2 className="home-watch__title" id="home-watch-title">THE STREET.<br />THE RHYTHM.</h2>
+            <h2 className="home-watch__title" id="home-watch-title">CROSSWALKS.<br />KEYBOARDS.</h2>
             <i className="home-watch__rule" aria-hidden="true" />
             <p className="home-watch__description">
-              A crosswalk. A passing moment. A different way to listen to the city. Watch an introduction to XWalk
-              Keyboards, set on West Street.
+              XWalkKeyboards was created at an{" "}
+              <a href="https://nyc.aitinkerers.org/hackathons/h_zvqhzy3dMEY" target="_blank" rel="noreferrer">AI Tinkerers hackathon</a>
+              {" "}and used NYC DOT traffic cam video and{" "}
+              <a href="https://roboflow.com/" target="_blank" rel="noreferrer">Roboflow</a>
+              {" "}computer vision to transform crosswalks into piano keyboards.
             </p>
           </div>
           <IntroVideo />
-          <p className="home-watch__sound">FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS</p>
         </div>
       </section>
       <footer className="home-footer">

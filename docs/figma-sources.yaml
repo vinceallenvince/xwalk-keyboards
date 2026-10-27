@@ -59,7 +59,7 @@ epics:
         ui:
           - { node: "506-449", shot: "homepage-scrolled-video" }          # editorial split: intro text left, YouTube player right
         ui_mobile:
-          - { node: "508-75", shot: "homepage-scrolled-video" }           # stacked: intro text, player, sound prompt
+          - { node: "508-75", shot: "homepage-scrolled-video" }           # stacked: intro text above the player
 
   - epic: "About"
     page: "322-10"

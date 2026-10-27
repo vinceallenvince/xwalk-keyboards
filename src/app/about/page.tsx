@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import { HomeVideoBackground, homeFeedLabel, type HomeFeedStatus } from "@/components/home-video-background";
@@ -23,10 +24,14 @@ export default function AboutPage() {
         </span>
         <div className="about-viewport">
           <p>
-            XWalk Keyboards uses traffic camera video feeds to transform
+            XWalk Keyboards used traffic camera video feeds to transform
             crosswalks into piano keyboards. As pedestrians
-            step on the white stripes of the crosswalk, the app plays the
+            stepped on the white stripes of the crosswalk, the app plays the
             corresponding notes.
+          </p>
+          <p>
+            After running with live detection for a few months, the live app is in retirement.
+            To view the experience, see the video on the <Link href="/">homepage</Link>.
           </p>
           <h2>HOW IT STARTED</h2>
           <p>
@@ -36,16 +41,16 @@ export default function AboutPage() {
           </p>
           <h2>HOW IT WORKS</h2>
           <p>
-            The web app uses Roboflow to detect pedestrians in a traffic cam
-            video in real time. An AI agent running on Cloud Run orchestrates a
-            calibration cycle and uses Roboflow to detect crosswalk stripes on
-            regular intervals. When the web app detects a pedestrian inside
-            a crosswalk stripe boundary, it plays the note corresponding to the stripe&apos;s
+            The web app used Roboflow to detect pedestrians in a traffic cam
+            video in real time. An AI agent running on Cloud Run orchestrated a
+            calibration cycle and used Roboflow to detect crosswalk stripes on
+            regular intervals. When the web app detected a pedestrian inside
+            a crosswalk stripe boundary, it played the note corresponding to the stripe&apos;s
             position on a piano keyboard.
           </p>
           <h2>MORE DETAILS</h2>
           <p>
-            Get more details on how the app works
+            Get more details on how the app worked
             at <a href="https://vinceallen.com" target="_blank" rel="noreferrer" aria-label="Open link to vinceallen.com">vinceallen.com</a>!
           </p>
         </div>
