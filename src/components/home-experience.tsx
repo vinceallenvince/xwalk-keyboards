@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { Fragment, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { HomeVideoBackground, homeFeedLabel, type HomeFeedStatus } from "@/components/home-video-background";
+import { IntroVideo } from "@/components/intro-video";
 import { FooterCredits } from "@/components/site-chrome";
 import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
-import { useCameraLinks } from "@/lib/use-camera-links";
 
 export function HomeExperience() {
   const [feedStatus, setFeedStatus] = useState<HomeFeedStatus>("connecting");
   const reportFeedStatus = useCallback((status: HomeFeedStatus) => setFeedStatus(status), []);
-  const { cameras, loading } = useCameraLinks();
 
   return (
     <main className="home-shell">
@@ -31,15 +29,22 @@ export function HomeExperience() {
           </a>
         </div>
       </section>
-      <section className="home-studies" id="studies" aria-label="Choose a camera">
-        <nav className="study-selector" aria-busy={loading}>
-          {cameras.map((cam, i) => (
-            <Fragment key={cam.cameraId}>
-              {i > 0 && <i aria-hidden="true" />}
-              <Link className="study-selector__link" href={`/realtime/${cam.cameraId}`}>CAM {cam.cameraId}</Link>
-            </Fragment>
-          ))}
-        </nav>
+      <section className="home-watch" id="studies" aria-labelledby="home-watch-title">
+        {/* One sound prompt, placed by grid area: in the text column on
+            desktop, under the video on mobile (Figma 506:449 / 508:75). */}
+        <div className="home-watch__band">
+          <div className="home-watch__intro">
+            <p className="home-watch__label">XWALK KEYBOARDS // WATCH</p>
+            <h2 className="home-watch__title" id="home-watch-title">THE STREET.<br />THE RHYTHM.</h2>
+            <i className="home-watch__rule" aria-hidden="true" />
+            <p className="home-watch__description">
+              A crosswalk. A passing moment. A different way to listen to the city. Watch an introduction to XWalk
+              Keyboards, set on West Street.
+            </p>
+          </div>
+          <IntroVideo />
+          <p className="home-watch__sound">FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS</p>
+        </div>
       </section>
       <footer className="home-footer">
         <FooterCredits />

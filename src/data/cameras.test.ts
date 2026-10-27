@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { midiForNote } from "@/lib/realtime-scale";
-
-import { DEFAULT_LIVE_CAMERA, LISTED_LIVE_CAMERAS, LIVE_CAMERAS, liveCameraById } from "./cameras";
+import { DEFAULT_LIVE_CAMERA, LIVE_CAMERAS, liveCameraById } from "./cameras";
 
 describe("camera registry", () => {
   it("keeps 511NY 5059 as the default live camera", () => {
@@ -19,23 +17,12 @@ describe("camera registry", () => {
       [80027, "CCTV027", "110th Ave NE & NE 8th St", "110TH AVE @ NE 8TH ST"],
     ] as const) {
       expect(liveCameraById(cameraId)).toMatchObject({
-        baseAnchor: "C4",
-        cameraKey: `camera_${cameraId}`,
         location,
         sourceId,
         sourceKind: "bellevue",
         statusLabel,
       });
     }
-  });
-
-  it("keeps Bellevue 80003, 80009, and 80027 unlisted", () => {
-    expect(LIVE_CAMERAS.filter((camera) => !camera.listed).map((camera) => camera.cameraId))
-      .toEqual([80003, 80009, 80027]);
-    expect(LISTED_LIVE_CAMERAS.map((camera) => camera.cameraId))
-      .toEqual([5056, 5059, 5062, 5072, 80007, 90014]);
-    // The default camera backs the homepage fallback, so it must stay listed.
-    expect(DEFAULT_LIVE_CAMERA.listed).toBe(true);
   });
 
   it("never registers two live cameras under one ID", () => {
@@ -56,8 +43,6 @@ describe("camera registry", () => {
       statusLabel: "WEST STREET @ CHAMBERS ST",
     });
     expect(liveCameraById(90014)).toMatchObject({
-      baseAnchor: "C4",
-      cameraKey: "camera_90014",
       location: "Town10 - Crosswalk 14",
       sourceId: "carla-town10-crosswalk-14",
       sourceKind: "carla",
@@ -79,12 +64,10 @@ describe("camera registry", () => {
     }
   });
 
-  it("ships every camera but 5056 without baked-in geometry", () => {
-    // They ship with an empty reference on purpose: no keys until the
-    // calibration agent first publishes for them (VIN-39).
-    for (const cameraId of [5059, 5062, 5072, 80003, 80007, 80009, 80027, 90014]) {
-      expect(liveCameraById(cameraId)?.calibration.stripes).toHaveLength(0);
-      expect(liveCameraById(cameraId)?.calibration.referenceFrame).toEqual({ height: 240, width: 352 });
+  it("gives every live camera a source kind and a status label", () => {
+    for (const camera of LIVE_CAMERAS) {
+      expect(["511ny", "bellevue", "carla"]).toContain(camera.sourceKind);
+      expect(camera.statusLabel.length).toBeGreaterThan(0);
     }
   });
 
@@ -93,15 +76,5 @@ describe("camera registry", () => {
     expect(serialized).not.toContain("CARLA_HLS_BASE_URL");
     expect(serialized).not.toContain("10.150.0.2");
     expect(LIVE_CAMERAS.every((camera) => !("hlsUrl" in camera))).toBe(true);
-  });
-
-  it("equips every live camera to drive the realtime study on its own", () => {
-    for (const camera of LIVE_CAMERAS) {
-      expect(["511ny", "bellevue", "carla"]).toContain(camera.sourceKind);
-      expect(camera.statusLabel.length).toBeGreaterThan(0);
-      expect(camera.baseAnchor).toBeTruthy();
-      expect(midiForNote(camera.baseAnchor)).not.toBeNull();
-      expect(camera.calibration.referenceFrame.width).toBeGreaterThan(0);
-    }
   });
 });

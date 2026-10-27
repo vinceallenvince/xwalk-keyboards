@@ -2,45 +2,49 @@
 
 **[xwalkkeyboards.app](https://xwalkkeyboards.app)**
 
-XWALK KEYBOARDS turns live traffic-camera crosswalks into playable piano
+XWALK KEYBOARDS turned live traffic-camera crosswalks into playable piano
 keyboards. Pedestrians stepping on the painted white stripes of a crosswalk
-trigger notes — each stripe is a key, and the whole crossing plays an ascending
-chromatic scale from left to right.
+triggered notes — each stripe a key, the whole crossing an ascending chromatic
+scale from left to right.
+
+The live study has been retired. The site now plays an introduction video of
+screen recordings from the study, over a live ambient traffic-camera feed.
 
 [![XWALK KEYBOARDS — Realtime study, West Street at W. 23 St](https://www.vinceallen.com/images/xwalk-keyboards/screenshot-01.png)](https://xwalkkeyboards.app)
 
-## How it works
+## How it worked
 
-A registered traffic-camera feed streams to the browser over same-origin HLS.
-Production sources are [511NY](https://511ny.org) cameras on West Street in
-New York (the default camera), the City of Bellevue, WA's public
-[traffic cameras](https://trafficmap.bellevuewa.gov), and a temporary private
-CARLA Town10 simulation. The
-browser captures frames and sends them to a [Roboflow](https://roboflow.com) workflow over WebRTC for person detection. The
-app maps each detected pedestrian's position to the crosswalk stripe they are
-standing on and plays the corresponding note through the Web Audio API. Occupied
-stripes glow mint in a canvas overlay on top of the live video.
+A registered traffic-camera feed streamed to the browser over same-origin HLS,
+from [511NY](https://511ny.org) cameras on West Street in New York, the City
+of Bellevue, WA's public [traffic cameras](https://trafficmap.bellevuewa.gov),
+and a private CARLA Town10 simulation. The browser sent frames to a
+[Roboflow](https://roboflow.com) workflow over WebRTC for person detection,
+mapped each pedestrian to the crosswalk stripe they stood on, and played the
+corresponding note through the Web Audio API, with occupied stripes glowing
+mint over the video.
 
-The crosswalk geometry — where each stripe is, how wide it is, and how the
-stripes group into clusters — comes from a separate
+The crosswalk geometry came from a separate
 [calibration agent](https://github.com/vinceallenvince/xwalk-camera-calibration-agent)
-that uses a reasoning vision-language model to locate the painted stripes in
-the current camera frame. The agent publishes stripe polygons; the web app maps
-them to notes. The agent owns geometry; the app owns the musical contract.
+that used a reasoning vision-language model to locate the painted stripes in
+the current camera frame. The agent owned geometry; the app owned the musical
+contract.
 
-## Architecture
+## What runs today
 
 ```
 Browser                         Next.js (Cloud Run)              External
 ─────────────────────────       ─────────────────────────        ─────────────────────
-HLS video playback         ──▶  HLS proxy (identity enc.)   ──▶  Bellevue / 511NY / CARLA
-WebRTC frame capture       ──▶  Roboflow WebRTC proxy       ──▶  Roboflow GPU workers
-Stripe overlay (canvas)         Calibration proxy (GCS)     ──▶  Calibration agent
-Web Audio (oscillators)                                           (VLM → GCS)
+Live background / registry ──▶  HLS proxy (identity enc.)   ──▶  Bellevue / 511NY / CARLA
+Introduction video         ──────────────────────────────────▶  YouTube (nocookie embed)
 ```
 
-All third-party API keys stay server-side in Next.js API routes. The browser
-never contacts Roboflow or the calibration agent directly.
+- **Homepage**: the introduction video over a darkened live camera feed.
+- **About**: the project description over the same feed.
+- **Camera Registry** (`/camera-registry`, unlinked): every registered camera's
+  live feed, for developers.
+
+Upstream media origins stay server-side; the browser only requests the
+same-origin HLS proxy. Old `/realtime` links redirect to the homepage.
 
 ## Design
 
@@ -49,7 +53,7 @@ never contacts Roboflow or the calibration agent directly.
 
 ## Related repositories
 
-- **[xwalk-camera-calibration-agent](https://github.com/vinceallenvince/xwalk-camera-calibration-agent)** — Python Cloud Run service that publishes crosswalk stripe geometry to GCS
+- **[xwalk-camera-calibration-agent](https://github.com/vinceallenvince/xwalk-camera-calibration-agent)** — Python Cloud Run service that published crosswalk stripe geometry to GCS (retired)
 
 ## Development
 

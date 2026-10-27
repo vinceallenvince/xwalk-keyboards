@@ -9,11 +9,9 @@
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "recalibrate": "bash scripts/recalibrate.sh"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@roboflow/inference-sdk": "^0.4.0",
     "hls.js": "^1.6.15",
     "next": "^16.2.6",
     "react": "^19.0.0",

@@ -6,13 +6,6 @@ import { expect, test, type Page } from "@playwright/test";
 const SHOTS = join(__dirname, "__screens__", "homepage");
 const CAMERA_STILL = join(__dirname, "fixtures", "511ny-5059-frame.png");
 
-type CameraStatus = { cameraId: number; status: string; crosswalkRank: number };
-
-// Includes the unlisted Bellevue cameras (80003, 80009, 80027): the status
-// route reports them, and the selector must still leave them out (VIN-86).
-const ALL_CAMERAS_OK: CameraStatus[] = [5056, 5059, 5062, 5072, 80003, 80007, 80009, 80027, 90014]
-  .map((cameraId) => ({ cameraId, status: "ok", crosswalkRank: 3 }));
-
 /**
  * The homepage background is a live 511NY HLS stream, which is neither
  * available nor stable in a test run. Rather than screenshot a black viewport,
@@ -26,16 +19,14 @@ const ALL_CAMERAS_OK: CameraStatus[] = [5056, 5059, 5062, 5072, 80003, 80007, 80
  *  - the `playing` event the component already listens for is dispatched, so
  *    the real status-to-label mapping produces "FEED LIVE // ...".
  *
- * Camera statuses are stubbed too: the real route probes every upstream
- * playlist, so its answer would depend on which feeds are up today.
+ * The YouTube embed is stubbed with a blank document so runs stay offline and
+ * screenshots don't depend on YouTube's player.
  */
-type StatusHandler = Parameters<Page["route"]>[1];
-
-async function openLiveHomepage(page: Page, statuses: CameraStatus[] | StatusHandler = ALL_CAMERAS_OK) {
-  await page.route("**/api/calibration/status", typeof statuses === "function"
-    ? statuses
-    : (route) => route.fulfill({ json: { cameras: statuses } }));
+async function openLiveHomepage(page: Page) {
   await page.route("**/api/hls/**", () => new Promise(() => {}));
+  await page.route("https://www.youtube-nocookie.com/**", (route) =>
+    route.fulfill({ body: "<!doctype html><body style=\"margin:0;background:#000\"></body>", contentType: "text/html" }),
+  );
   await page.route("**/__fixture/camera-still.png", (route) =>
     route.fulfill({ body: readFileSync(CAMERA_STILL), contentType: "image/png" }),
   );
@@ -57,9 +48,9 @@ async function openLiveHomepage(page: Page, statuses: CameraStatus[] | StatusHan
   await expect(page.locator(".home-feed-status")).toHaveText("FEED LIVE // WEST STREET @ W23 ST");
 }
 
-async function showSelector(page: Page) {
-  await page.locator("#studies").scrollIntoViewIfNeeded();
-  await expect(page.locator(".study-selector")).toBeInViewport();
+async function showIntroduction(page: Page) {
+  await page.getByRole("link", { name: "SCROLL" }).click();
+  await expect(page.locator(".home-watch__band")).toBeInViewport();
 }
 
 test.describe("Homepage", () => {
@@ -69,83 +60,40 @@ test.describe("Homepage", () => {
     await page.screenshot({ path: join(SHOTS, "homepage-initial.png") });
   });
 
-  test("camera selector, no link previewed", async ({ page }) => {
+  test("scrolling reveals the introduction video band", async ({ page }) => {
     await openLiveHomepage(page);
-    await showSelector(page);
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: join(SHOTS, "homepage-scrolled-inactive.png") });
+    await showIntroduction(page);
+
+    const band = page.locator(".home-watch__band");
+    await expect(band.locator(".home-watch__label")).toHaveText("XWALK KEYBOARDS // WATCH");
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText("THE STREET.THE RHYTHM.");
+    await expect(band.locator(".home-watch__sound")).toHaveText("FOR BEST EXPERIENCE, TURN ON YOUR SPEAKERS");
+    await expect(band.locator("iframe")).toHaveAttribute("src", /^https:\/\/www\.youtube-nocookie\.com\/embed\/buOyciFqpY4\?/);
+    await expect(band.locator("iframe")).toHaveAttribute("loading", "lazy");
+    // The retired camera selector is gone, and nothing links to /realtime.
+    await expect(page.locator('a[href^="/realtime"]')).toHaveCount(0);
+    await page.screenshot({ path: join(SHOTS, "homepage-scrolled-video.png") });
   });
 
-  test("camera selector, 5059 previewed", async ({ page }) => {
+  test("on a phone the sound prompt sits under the video", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await openLiveHomepage(page);
-    await showSelector(page);
-    await page.getByRole("link", { name: "CAM 5059" }).hover();
-    await page.screenshot({ path: join(SHOTS, "homepage-scrolled-realtime.png") });
+    await showIntroduction(page);
+
+    const video = await page.locator(".intro-video").boundingBox();
+    const sound = await page.locator(".home-watch__sound").boundingBox();
+    expect(video).not.toBeNull();
+    expect(sound!.y).toBeGreaterThanOrEqual(video!.y + video!.height);
+    await page.screenshot({ path: join(SHOTS, "mobile", "homepage-scrolled-video.png") });
   });
 
-  test("camera selector lists every available listed camera, ties by descending ID", async ({ page }) => {
+  test("old Realtime links land on the homepage", async ({ page }) => {
     await openLiveHomepage(page);
-    await showSelector(page);
-    await expect(page.locator(".study-selector a")).toHaveText([
-      "CAM 90014", "CAM 80007", "CAM 5072", "CAM 5062", "CAM 5059", "CAM 5056",
-    ]);
-    await expect(page.getByRole("link", { name: "CAM 80007" }))
-      .toHaveAttribute("href", "/realtime/80007");
-  });
-
-  test("camera selector excludes CARLA while its feed is down", async ({ page }) => {
-    await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => (
-      camera.cameraId === 90014 ? { ...camera, status: "feed_down" } : camera
-    )));
-    await showSelector(page);
-
-    await expect(page.locator(".study-selector a")).toHaveCount(5);
-    await expect(page.getByRole("link", { name: "CAM 90014" })).toHaveCount(0);
-  });
-
-  test("camera selector drops every 511NY camera whose feed is down", async ({ page }) => {
-    await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => (
-      camera.cameraId < 10000 ? { ...camera, status: "feed_down" } : camera
-    )));
-    await showSelector(page);
-
-    await expect(page.locator(".study-selector a")).toHaveText(["CAM 90014", "CAM 80007"]);
-  });
-
-  test("camera selector shows no links until availability is known", async ({ page }) => {
-    let releaseStatuses = () => {};
-    await openLiveHomepage(page, (route) => new Promise<void>((resolve) => {
-      releaseStatuses = () => resolve(route.fulfill({ json: { cameras: ALL_CAMERAS_OK.map((camera) => (
-        camera.cameraId < 10000 ? { ...camera, status: "feed_down" } : camera
-      )) } }));
-    }));
-    await showSelector(page);
-
-    const selector = page.locator(".study-selector");
-    await expect(selector).toHaveAttribute("aria-busy", "true");
-    await expect(selector.locator("a")).toHaveCount(0);
-    const pendingBox = await selector.boundingBox();
-
-    releaseStatuses();
-    await expect(selector.locator("a")).toHaveText(["CAM 90014", "CAM 80007"]);
-    await expect(selector).toHaveAttribute("aria-busy", "false");
-    expect(await selector.boundingBox()).toEqual(pendingBox);
-  });
-
-  test("camera selector falls back to CAM 5059 when statuses can't be fetched", async ({ page }) => {
-    await openLiveHomepage(page, (route) => route.fulfill({ status: 500, body: "" }));
-    await showSelector(page);
-
-    await expect(page.locator(".study-selector a")).toHaveText(["CAM 5059"]);
-    await expect(page.getByRole("link", { name: "CAM 5059" }))
-      .toHaveAttribute("href", "/realtime/5059");
-  });
-
-  test("camera selector falls back to CAM 5059 when every feed is down", async ({ page }) => {
-    await openLiveHomepage(page, ALL_CAMERAS_OK.map((camera) => ({ ...camera, status: "feed_down" })));
-    await showSelector(page);
-
-    await expect(page.locator(".study-selector a")).toHaveText(["CAM 5059"]);
+    for (const path of ["/realtime", "/realtime/5059"]) {
+      await page.goto(path);
+      await expect(page).toHaveURL("/");
+      await expect(page.getByRole("heading", { name: "XWALK KEYBOARDS" })).toBeVisible();
+    }
   });
 
   test("footer credits the tools, not a camera provider", async ({ page }) => {

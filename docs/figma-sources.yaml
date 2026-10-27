@@ -13,11 +13,13 @@
 # that captures the same state. `shot: null` means no runtime screenshot exists
 # yet. Node ids change when frames are rebuilt — re-run the sync to regenerate.
 #
-# The current Homepage Figma story combines the initial hero and camera-link
-# selector in one section. Its UI frames retain the initial state, neutral
-# selector state (all three camera links inactive), the two hover-preview
-# states, and the excluded-cam state (one camera rotated, 2 links) in
-# reading order.
+# The homepage hero story keeps its initial-state frames. The camera-link
+# selector frames it used to carry (inactive, hover, excluded-camera states)
+# were dropped when the Realtime study was retired; the scrolled state is now
+# the introduction-video band (frames 506-449 desktop, 508-75 mobile). Those
+# frames draw a mock YouTube player ("ILLUSTRATIVE VIDEO PREVIEW", custom
+# controls); the runtime embeds YouTube's own player, so player chrome is
+# expected drift, not a layout mismatch.
 #
 # Mobile: a story whose mobile (@mobile) behaviour diverges from desktop carries a
 # parallel `ui_mobile:` list of the same { node, shot } shape, captured at the
@@ -28,8 +30,7 @@
 # entry whose frame does not exist yet (its `shot` stem is still reserved).
 #
 # Camera copy (VIN-79, VIN-87): the scenarios use 511NY's West Street at W. 23 St
-# camera (CAM 5059) for the homepage and About backgrounds and the default
-# /realtime camera, and a camera-agnostic `<CAMERA STATUS LABEL>` placeholder
+# camera (CAM 5059) for the homepage and About backgrounds, and a camera-agnostic `<CAMERA STATUS LABEL>` placeholder
 # everywhere else. VIN-79 briefly moved the default to Bellevue CAM 80007; VIN-87
 # moved it back. The footer no longer credits a camera provider (frames 3-30
 # and 372-51: "ABOUT // POWERED BY: Roboflow + Google Cloud Run"). Frames may
@@ -50,111 +51,15 @@ epics:
         scenario: "57-19"
         ui:
           - { node: "3-6", shot: "homepage-initial" }                     # homepage initial hero
-          - { node: "69-354", shot: "homepage-scrolled-inactive" }        # scrolled selector: all camera links inactive
-          - { node: "10-5", shot: "homepage-scrolled-realtime" }          # scrolled selector: CAM 5059 hover
-          - { node: "69-327", shot: null }                                # scrolled selector: CAM 5072 hover
-          - { node: "441-224", shot: null }                               # scrolled selector: one camera excluded (2 links)
         ui_mobile:
-          - { node: "372-29", shot: null }                                # homepage initial hero
-          - { node: "384-2", shot: null }                                 # scrolled selector: all camera links inactive
-          - { node: "384-30", shot: null }                                # scrolled selector: CAM 5059 hover
-          - { node: "384-58", shot: null }                                # scrolled selector: CAM 5072 hover
-          - { node: null, shot: null }                                    # scrolled selector: one camera excluded (2 links)
-      # "Camera links appear only once availability is known" (VIN-82) has no
-      # frame of its own. While statuses load, the selector is an empty space
-      # in the scrolled layout, and the resolved states are the frames above.
+          - { node: "372-29", shot: "homepage-initial" }                  # homepage initial hero
 
-  - epic: "Realtime Study"
-    page: "57-23"
-    epic_dir: "realtime-study"
-    stories:
-      # The Figma section is titled "As a first-time visitor, I am told how to
-      # hear the crosswalk and recieve an update on the crosswalk's current
-      # environmental conditions" — it retains the older "first-time visitor"
-      # phrasing (the sequence now runs on every visit) and a "recieve"
-      # spelling. Rename the section on the next Figma pass to restore the
-      # exact-title convention.
-      # Conditions-variant shots: only the unknown variant is deterministic in
-      # Layer 1 (no live calibration agent in the e2e environment). good/fair/
-      # bad need a live or mocked calibration status; keyboard-ready needs a
-      # real Roboflow WebRTC GPU session.
-      - story: "As a visitor, I am told how to hear the crosswalk and receive an update on the crosswalk's current environmental conditions"
-        scenario: "352-3"
-        ui:
-          - { node: "352-5", shot: "realtime-onboarding-how-to-hear" }        # step 1: how to hear, NEXT control
-          - { node: "353-49", shot: null }                                    # step 2: conditions GOOD (mint, no caveat)
-          - { node: "353-86", shot: null }                                    # step 2: conditions FAIR (amber, caveat)
-          - { node: "353-123", shot: null }                                   # step 2: conditions BAD (red, caveat)
-          - { node: "357-41", shot: "realtime-onboarding-conditions-unknown" } # step 2: conditions unavailable (no readout line)
-          - { node: "354-160", shot: "realtime-onboarding-warming-up" }       # step 3: warming up, no dismissal control
-          - { node: "367-41", shot: null }                                    # step 3 variant: GPU active, awaiting first predictions — needs a real session
-          - { node: "355-197", shot: null }                                   # overlay removed on first predictions
-        ui_mobile:
-          - { node: "386-84", shot: null }                                    # step 1: how to hear
-          - { node: "399-2", shot: null }                                     # step 2: conditions GOOD
-          - { node: "399-36", shot: null }                                    # step 2: conditions FAIR
-          - { node: "399-70", shot: null }                                    # step 2: conditions BAD
-          - { node: "399-104", shot: null }                                   # step 2: conditions unavailable
-          - { node: "399-138", shot: null }                                   # step 3: warming up
-          - { node: "399-172", shot: null }                                   # step 3 variant: GPU active, awaiting first predictions
-          - { node: "399-206", shot: null }                                   # overlay removed on first predictions
-
-      # The info icon appears only after first predictions, which need a real
-      # GPU session — no deterministic Layer 1 shot.
-      - story: "As a visitor, I can reopen the how-to-hear instructions from the header"
+      - story: "As a visitor, I can scroll from the title into the introduction video"
         scenario: null
         ui:
-          - { node: "361-2", shot: null } # step 1 reopened alone with CLOSE control
+          - { node: "506-449", shot: "homepage-scrolled-video" }          # editorial split: intro text left, YouTube player right
         ui_mobile:
-          - { node: "399-240", shot: null } # step 1 reopened alone with CLOSE control
-
-      # Reaching "KEYBOARD READY!" needs a real Roboflow WebRTC GPU session,
-      # which cannot be stood up deterministically in Layer 1. Both frames
-      # still carry the pre-rename "STATUS: ROBOFLOW ACTIVE" and "W23 ST"
-      # status copy — the runtime says "STATUS: KEYBOARD READY!" / "W34 ST".
-      - story: "As a visitor, I can experience the fully active Realtime study"
-        scenario: "106-7"
-        ui:
-          - { node: "57-80", shot: null }   # camera and inference active
-          - { node: "140-2", shot: null }   # performing: occupied stripes highlighted
-        ui_mobile:
-          - { node: "386-159", shot: null }  # performing: occupied stripes highlighted
-
-      # Connection-loss states need a live session to fail mid-run — no
-      # deterministic Layer 1 shots. Frames still carry the pre-rename
-      # "ROBOFLOW ACTIVE" / "ROBOFLOW RECONNECTING" status copy.
-      - story: "As a visitor, I can understand and recover from a Realtime connection loss"
-        scenario: "138-1258"
-        ui:
-          - { node: "149-2", shot: null }   # camera lost, keyboard still active
-          - { node: "149-34", shot: null }  # camera live, keyboard reconnecting
-        ui_mobile:
-          - { node: "386-194", shot: null }  # camera lost, keyboard still active
-          - { node: "386-297", shot: null }  # camera live, keyboard reconnecting
-
-      - story: "As a visitor, if the video feed is unavailable, I see a confirmation message"
-        scenario: "283-3"
-        ui:
-          - { node: "285-2", shot: null }  # feed down overlay
-        ui_mobile:
-          - { node: "386-124", shot: null }  # feed down overlay
-
-      - story: "As a visitor, after five minutes I am asked whether to continue"
-        scenario: "293-38"
-        ui:
-          - { node: "295-41", shot: null }  # five-minute pause modal
-          - { node: "295-88", shot: null }  # inference closed / reload to continue
-        ui_mobile:
-          - { node: "386-331", shot: null }  # five-minute pause modal
-          - { node: "386-401", shot: null }  # inference closed / reload to continue
-
-      - story: "As a visitor, I can view the live Realtime study full screen"
-        scenario: "106-8"
-        ui:
-          - { node: "57-127", shot: null } # edge-to-edge live feed
-        ui_mobile:
-          - { node: "386-366", shot: null } # landscape: edge-to-edge live feed
-          - { node: "418-507", shot: null } # portrait: feed centered, rotate-for-best-experience hint
+          - { node: "508-75", shot: "homepage-scrolled-video" }           # stacked: intro text, player, sound prompt
 
   - epic: "About"
     page: "322-10"
@@ -188,7 +93,8 @@ epics:
           - { node: "483-364", shot: "camera-registry" } # single-column stack, short labels
 
   # Cross-page chrome. The shared footer is authored inside the homepage frames
-  # on the Homepage page (0-1); the same footer renders on Realtime and About.
+  # on the Homepage page (0-1); the same footer renders on About and the
+  # Camera Registry.
   # No e2e screenshot isolates it yet.
   - epic: "Shared Navigation"
     page: "0-1"
