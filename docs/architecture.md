@@ -47,11 +47,11 @@ Two properties still hold:
 | HLS proxy, input validation |   +-----------+
 +------+----------------------+
        |
-       | server-side GETs (Direct VPC egress for CARLA)
+       | server-side GETs
        v
 +---------------------------------+
 | Registered HLS sources          |
-| 511NY, City of Bellevue, CARLA  |
+| 511NY, City of Bellevue         |
 +---------------------------------+
 ```
 
@@ -62,19 +62,19 @@ inventory API is called at runtime.
 
 ```ts
 type LiveCameraRecord = {
-  cameraId: number;                 // stable numeric ID; Bellevue = 8 + CCTV number, CARLA = 90014
+  cameraId: number;                 // stable numeric ID; Bellevue = 8 + CCTV number
   displayLabel: string;
   location: string;                 // human-readable intersection
   sourceId: string;                 // the provider's own identifier
-  externalUrl?: string;             // provider's public page; absent when private
-  sourceKind: "511ny" | "bellevue" | "carla";
+  externalUrl: string;              // provider's public page, opened from the registry
+  sourceKind: "511ny" | "bellevue";
   statusLabel: string;              // short status-bar name, e.g. "WEST STREET @ W23 ST"
 };
 ```
 
 Client-importable records never contain upstream HLS URLs. The server maps
-each camera ID to its upstream HLS directory in `src/server/hls-sources.ts`
-and resolves CARLA camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always
+each camera ID to its upstream HLS directory in `src/server/hls-sources.ts`;
+a unit test keeps every registered camera mapped. Browsers always
 request the same allowlisted `/api/hls/:cameraId/:path*` route.
 `DEFAULT_LIVE_CAMERA` (5059) backs the homepage and About backgrounds.
 
@@ -106,15 +106,10 @@ runtime uses YouTube's own player and controls instead.
 
 ## Configuration
 
-One server-only environment value is required:
-
-```text
-CARLA_HLS_BASE_URL (private HLS directory for camera 90014)
-```
-
-Cloud Run keeps Direct VPC egress (`private-ranges-only`) so the server can
-reach the CARLA origin. The deploy workflow verifies that configuration on
-every revision.
+No environment variables or secrets are required, and the service needs no
+VPC access: every upstream is a public HTTPS origin. A private CARLA
+simulation camera (90014), reached over Direct VPC egress, was retired with its
+GPU VM; its infrastructure lived in the `carla-min-gcp` repository.
 
 ## Route cleanup contract
 
