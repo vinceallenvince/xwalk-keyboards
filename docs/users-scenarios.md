@@ -69,7 +69,8 @@ And the band's left column reads, top to bottom:
   | CROSSWALKS. / KEYBOARDS. (two-line headline)  |
   | a short mint rule                             |
   | XWalkKeyboards was created at an AI Tinkerers hackathon and used NYC DOT traffic cam video and Roboflow computer vision to transform crosswalks into piano keyboards. |
-And "AI Tinkerers hackathon" and "Roboflow" in the description are mint links that open in a new tab
+  | More details at vinceallen.com                |
+And "AI Tinkerers hackathon", "Roboflow", and "vinceallen.com" are mint links that open in a new tab
 And the band's right column holds a 16:9 embedded YouTube player for the introduction video
 And no camera links, inference, stripe highlights, or synthesized audio are on the page
 ```

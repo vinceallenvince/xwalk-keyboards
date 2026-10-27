@@ -42,6 +42,9 @@ export function HomeExperience() {
               <a href="https://roboflow.com/" target="_blank" rel="noreferrer">Roboflow</a>
               {" "}computer vision to transform crosswalks into piano keyboards.
             </p>
+            <p className="home-watch__description">
+              More details at <a href="https://vinceallen.com" target="_blank" rel="noreferrer">vinceallen.com</a>
+            </p>
           </div>
           <IntroVideo />
         </div>
