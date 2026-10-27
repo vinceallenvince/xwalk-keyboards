@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@roboflow/inference-sdk':
-    specifier: ^0.4.0
-    version: 0.4.0
   hls.js:
     specifier: ^1.6.15
     version: 1.6.17
@@ -1071,10 +1068,6 @@ packages:
     hasBin: true
     dependencies:
       playwright: 1.62.1
-
-  /@roboflow/inference-sdk@0.4.0:
-    resolution: {integrity: sha512-jyuWSIRSwz54NXufDvODToumZ/qhCy4FF7AvW1mvhjFHxj0dQQd2LBD0Hpbmw4aibXHGFPHLCxTm93TLwYB1VA==}
-    dev: false
 
   /@rolldown/pluginutils@1.0.0-beta.27:
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-XWALK KEYBOARDS turns live traffic-camera crosswalks into playable piano keyboards. Pedestrians inside a crosswalk trigger notes mapped chromatically by stripe position. Deployed to Google Cloud Run (project `xwalk-keyboards-01`).
+XWALK KEYBOARDS turned live traffic-camera crosswalks into playable piano keyboards: pedestrians inside a crosswalk triggered notes mapped chromatically by stripe position. The live study (Realtime: Roboflow person detection, calibration-agent geometry, Web Audio notes) has been retired. The site is now an archive: the homepage plays an introduction video (YouTube) of screen recordings of the study over a live ambient camera feed, plus the About page and the unlinked Camera Registry. Deployed to Google Cloud Run (project `xwalk-keyboards-01`).
 
 ## Commands
 
@@ -19,32 +19,25 @@ Package manager is **pnpm** (v8.15.3 via `packageManager` field). The Dockerfile
 
 ## Architecture
 
-### One study: Realtime (`/realtime`)
+### Pages
 
-- **Source**: live HLS cameras registered in `LIVE_CAMERAS` (`src/data/cameras.ts`), with upstream URLs server-only in `src/server/hls-sources.ts`: City of Bellevue 80003/80007/80009/80027 (CCTV003/007/009/027 in downtown Bellevue; made-up numeric IDs, 8 + the CCTV number, because the calibration agent's BigQuery `camera_id` is an integer — VIN-85), 511NY 5056/5059/5062/5072 (West Street, NYC), and private CARLA 90014. 511NY kept live video through its 2026-09-30 vendor cutover (VIN-87); the homepage hides any camera whose playlist probe fails (`hls-availability.ts`). 80003/80009/80027 ship with `listed: false` (VIN-86): reachable by URL but left out of navigation until Vince flips them by hand. `DEFAULT_LIVE_CAMERA` is 5059: it backs `/realtime` (no param) and the homepage and About backgrounds (VIN-87; briefly 80007 under VIN-79).
-- **Vision**: Roboflow WebRTC — the browser streams decoded frames, the workflow returns person detections for the current frame
-- **Audio**: browser Web Audio API (`AudioContext`), one oscillator voice per occupied stripe — event-driven, no scoring
-- **Visual**: mint stripe glow on a canvas overlay, keyed by stripe identity (`segment:stripeIndex`)
+- **Homepage (`/`)**: hero over a darkened live HLS background (`DEFAULT_LIVE_CAMERA`, 511NY 5059), then an editorial band with the introduction video (`src/components/intro-video.tsx`, a lazy `youtube-nocookie.com` iframe; video ID in `INTRO_VIDEO_ID`). Figma: 506:449 desktop, 508:75 mobile.
+- **About (`/about`)**: same live background behind the project description.
+- **Camera Registry (`/camera-registry`)**: unlinked developer page, one card per `LIVE_CAMERAS` entry playing its muted live feed, down feeds kept in place.
+- `/realtime` and `/realtime/:cameraId` redirect permanently to `/` (`next.config.mjs`).
 
-A previous second study (Orchestration, static snapshot cameras scored by an external agent) was removed. `/camera-registry` is an unlinked developer page: one card per `LIVE_CAMERAS` entry, playing its muted live feed, with down feeds kept in place (VIN-89 dropped the static snapshot cameras and `/api/snapshot`).
+### Cameras
+
+Live HLS cameras are registered in `LIVE_CAMERAS` (`src/data/cameras.ts`), with upstream URLs server-only in `src/server/hls-sources.ts`: City of Bellevue 80003/80007/80009/80027 (made-up numeric IDs, 8 + the CCTV number — VIN-85), 511NY 5056/5059/5062/5072 (West Street, NYC), and private CARLA 90014 (resolved from `CARLA_HLS_BASE_URL` over Direct VPC egress).
 
 ### Server boundary
 
-All third-party API keys (Roboflow) stay server-side in Next.js API routes. The browser never contacts Roboflow or Gemini directly. Every API route uses `force-dynamic`, validates inputs, has explicit `AbortSignal.timeout`, and returns `Cache-Control: no-store`.
+Upstream media origins stay server-side. Every API route uses `force-dynamic`, validates inputs, has explicit `AbortSignal.timeout`, and returns `Cache-Control: no-store`.
 
-### Key API routes
+### API routes
 
 - `GET /api/hls/[cameraId]/[...path]` — HLS proxy (fetches with `Accept-Encoding: identity` to avoid NYSDOT gzip/206 bug)
-- `POST /api/roboflow/webrtc` — WebRTC offer proxy (class filter only; inside/outside classification happens client-side)
-- `GET /api/calibration/[cameraId]` — serves the calibration agent's current published geometry from GCS
-
-### Calibration
-
-Realtime stripe geometry is hardcoded in `src/lib/realtime-calibration.ts` — 25 stripes across two crosswalk clusters, mapped C4–C6. It uses a reference frame with explicit dimensions; polygons scale to the actual input frame via `x * targetWidth / referenceWidth`.
-
-The hardcoded stripes are the **fallback and the scale**, not the live geometry. `src/lib/use-calibration.ts` fetches live polygons from the calibration agent via `/api/calibration/[cameraId]`, falling back to `public/calibration-fallback-[cameraId].json` and then to the hardcoded reference.
-
-**The app owns the musical contract; the agent owns geometry.** The agent is camera-agnostic — it publishes gap-separated stripe clusters (`segment0`, `segment1`, … in positional order) with an ordinal `stripeIndex` inside each, and no note names. The client numbers stripes globally across clusters and plays `baseAnchor + globalOrdinal` (`noteForOrdinal` in `src/lib/realtime-scale.ts`; `baseAnchor` is `C4` for every live camera). Stripe identity is deliberately **not** stable across runs — a missed stripe transposes everything after it until the next calibration (VIN-44).
+- `GET /api/health` — health check
 
 ### State management
 
@@ -56,11 +49,11 @@ Single `src/app/globals.css` with CSS custom properties and plain class selector
 
 ## Testing
 
-Tests are co-located with source files (`.test.ts` siblings). Run with `pnpm test`. Coverage areas: camera registry stability, polygon scaling, scale generation, calibration parsing, Roboflow config parsing, detection mapping.
+Tests are co-located with source files (`.test.ts` siblings). Run with `pnpm test`. Coverage areas: camera registry stability, HLS source resolution, the HLS proxy route. Playwright e2e specs live in `e2e/` (`pnpm test:e2e`).
 
 ## Environment variables
 
-All server-only (never `NEXT_PUBLIC_`). See `.env.example` for the Roboflow bindings.
+All server-only (never `NEXT_PUBLIC_`). See `.env.example`; the only one is `CARLA_HLS_BASE_URL`.
 
 ## Deployment
 

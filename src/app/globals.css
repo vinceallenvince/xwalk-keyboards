@@ -11,7 +11,7 @@ a { color: inherit; }
 .site-footer { margin-top: auto; color: var(--muted); }
 .site-footer a { color: var(--mint); text-decoration: none; }
 .wordmark { display: inline-flex; align-items: center; color: var(--ink); font-size: 1rem; font-weight: 700; letter-spacing: .031em; text-decoration: none; }
-.wordmark b { color: var(--muted); font-weight: 400; margin-inline: .35em; }.wordmark u { text-underline-offset: .18em; }.wordmark-mark, .home-title > span { display: inline-flex; }.wordmark-mark { gap: 3px; margin-right: 12px; }.home-title > span { gap: 8px; }.wordmark-mark i { display: block; width: 2px; height: 16px; background: var(--mint); }
+.wordmark b { color: var(--muted); font-weight: 400; margin-inline: .35em; }.wordmark-mark, .home-title > span { display: inline-flex; }.wordmark-mark { gap: 3px; margin-right: 12px; }.home-title > span { gap: 8px; }.wordmark-mark i { display: block; width: 2px; height: 16px; background: var(--mint); }
 .home-shell { position: relative; isolation: isolate; min-height: 200svh; overflow-x: clip; background: var(--ground); }
 .home-video-background, .home-video-wash { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }.home-video-background { object-fit: cover; opacity: .42; }.home-video-wash { z-index: 1; background: linear-gradient(rgba(5,5,7,.34), rgba(5,5,7,.52)), radial-gradient(ellipse at 50% 40%, rgba(20,36,29,.16), transparent 58%); }
 .home-grid { position: fixed; inset: 0; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); width: min(100% - 15rem, 1200px); margin: auto; pointer-events: none; }.home-grid i { justify-self: center; width: 1px; height: 100%; background: rgba(255,255,255,.06); }
@@ -25,14 +25,17 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
 .home-cue { display: grid; justify-items: center; gap: 25px; margin-top: 3rem; }
 .home-speaker-note { margin: 0; color: var(--ink); font-size: .625rem; font-weight: 500; letter-spacing: .2em; text-align: center; }
 .scroll-cue { display: grid; justify-items: center; gap: 7px; color: rgba(255,255,255,.4); text-align: center; text-decoration: none; font-size: .625rem; font-weight: 500; letter-spacing: .2em; }.scroll-cue svg { color: var(--mint); }
-.home-studies { position: relative; z-index: 2; min-height: 100svh; display: grid; place-items: center; padding: 5rem 0; text-align: center; }
-.study-selector { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 10rem; padding: 1.25rem 2.5rem; border-bottom: 1px solid #1a1b22; background: #08080c; }
-.study-selector a, .study-selector span { flex: 1; color: rgba(255,255,255,.31); font-family: var(--font-selector), Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; font-size: clamp(2.35rem, 4vw, 3.25rem); font-variation-settings: "opsz" 52; font-weight: 700; text-decoration: none; text-transform: uppercase; transition: color .16s ease, text-shadow .16s ease; }
-.study-selector a:hover, .study-selector a:focus-visible { color: var(--mint); text-shadow: 0 0 16px rgba(148,215,181,.19); }
-.study-selector i { width: 2px; height: 5rem; background: var(--mint); }
-.study-selector__link, .study-selector i { animation: study-selector-reveal .4s ease both; }
-@keyframes study-selector-reveal { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .study-selector__link, .study-selector i { animation: none; } }
+/* Introduction band (Figma 506:449 desktop, 508:75 mobile): text column left, video right; stacked on mobile. */
+.home-watch { position: relative; z-index: 2; min-height: 100svh; display: grid; align-items: center; padding: 5rem 0; }
+.home-watch__band { display: grid; grid-template-columns: 360px minmax(0, 792px); align-items: center; column-gap: clamp(2.5rem, 5.7vw, 82px); justify-content: space-between; padding: 34px var(--home-inset); border-bottom: 1px solid #1a1b22; background: #08080c; }
+.home-watch__intro { display: flex; flex-direction: column; align-items: flex-start; gap: 24px; }
+.home-watch__label, .home-watch__description { margin: 0; font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 400; }
+.home-watch__label { color: var(--mint); font-size: .6875rem; }
+.home-watch__title { margin: 0; color: #f0f2f0; font-family: var(--font-selector), Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; font-size: clamp(3rem, 4.72vw, 68px); font-variation-settings: "opsz" 68; font-weight: 700; line-height: 1.02; }
+.home-watch__rule { display: block; width: 40px; height: 2px; background: var(--mint); }
+.home-watch__description { color: #a2aaa5; font-size: .8125rem; line-height: 23px; }.home-watch__description a { color: var(--mint); text-decoration: none; }.home-watch__description a:hover, .home-watch__description a:focus-visible { text-decoration: underline; text-underline-offset: .18em; }
+.intro-video { aspect-ratio: 16 / 9; width: 100%; overflow: hidden; border: 1px solid #1a1b22; background: #000; }
+.intro-video iframe { display: block; width: 100%; height: 100%; border: 0; }
 .home-note { max-width: 33rem; margin: auto; color: var(--muted); font-size: .78rem; line-height: 1.6; }
 .home-footer { position: fixed; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 2rem var(--home-inset); color: var(--muted); font: 400 .6875rem/1.2 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .045em; }.home-footer a { color: var(--mint); text-decoration: none; }
 .placeholder-study, .registry-page { width: min(100% - 2rem, 1240px); margin: 0 auto; padding: 1.5rem 0 3rem; }
@@ -55,8 +58,8 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
 .live-preview__status--unavailable { top: 50%; right: 0; left: 0; transform: translateY(-50%); padding: 0; background: transparent; color: #ff5f56; font-size: .75rem; font-weight: 700; text-align: center; }
 /* Mobile (ui_mobile Figma frames, authored at 390 x 844). The header keeps
    only the wordmark. The homepage title wraps with its crosswalk bars pinned
-   to the first line, the study selector stays a split row at a smaller size,
-   and the registry stacks its cards (ui_mobile: camera_registry, 483-364). */
+   to the first line, the introduction band stacks text above the video
+   (ui_mobile: homepage-scrolled-video, 508-75), and the registry stacks its cards (ui_mobile: camera_registry, 483-364). */
 @media (max-width: 740px) {
   :root { --home-inset: 1.25rem; }
   .site-header, .site-footer { font-size: .54rem; }
@@ -67,10 +70,14 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
   .home-title { align-items: flex-start; gap: 1.5rem; }
   .home-title h1 { white-space: normal; }
   .home-title > span i { width: 4px; height: 2.5rem; }
+  .home-watch { padding: 4rem 0 9rem; }
+  .home-watch__band { grid-template-columns: minmax(0, 1fr); padding: 28px 20px; }
+  .home-watch__intro { gap: 20px; }
+  .home-watch__label { margin-bottom: -4px; font-size: .625rem; }
+  .home-watch__title { font-size: 56px; font-variation-settings: "opsz" 56; }
+  .home-watch__description { line-height: 22px; }
+  .intro-video { margin-top: 24px; }
   .home-footer { flex-direction: column; align-items: flex-start; gap: .75rem; font-size: .625rem; }
-  .study-selector { min-height: 8.75rem; padding-inline: .625rem; }
-  .study-selector a, .study-selector span { font-size: 1.75rem; }
-  .study-selector i { height: 3.75rem; }
   .registry-grid { grid-template-columns: 1fr; gap: 16px; }
   .registry-card { border-radius: 6px; }
   .registry-card .live-preview { aspect-ratio: 350 / 180; }
@@ -80,126 +87,7 @@ h1 { margin-bottom: 1rem; font-size: clamp(2.5rem, 7.2vw, 6rem); line-height: .9
   .registry-card__label--wide { display: none; }
   .registry-card__label--compact { display: inline; }
 }
-/* Inference pause modal — left-aligned overlay on the dimmed feed, matching
-   the onboarding-panel pattern (not a centered card). */
-.realtime-inference-status--paused { color: #e5b233; }
-.realtime-pause-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
-.realtime-pause-modal { position: absolute; z-index: 7; top: 50%; left: clamp(24px, 5.1%, 48px); transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: min(100% - 48px, 540px); text-align: left; }
-.realtime-pause-modal__title { margin: 0; font: 700 .875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; letter-spacing: .05em; text-transform: uppercase; }
-.realtime-pause-modal__subtitle { margin: 0; font: 400 .75rem/20px var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(255,255,255,.6); }
-.realtime-pause-modal__buttons { display: flex; gap: 16px; }
-.realtime-pause-modal__btn { padding: 8px 20px; border: 1px solid rgba(255,255,255,.2); background: transparent; color: rgba(255,255,255,.6); font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
-.realtime-pause-modal__btn:hover { border-color: var(--ink); color: var(--ink); }
-.realtime-pause-modal__btn--continue { border-color: rgba(148,214,181,.3); background: rgba(148,214,181,.15); color: var(--mint); }
-.realtime-pause-modal__btn--continue:hover { background: rgba(148,214,181,.25); }
-/* Onboarding sequence. The header lead groups the wordmark with its info
-   icon so the icon rides beside the section label instead of being pushed to
-   the far edge by the header's space-between. */
-.site-header__lead { display: inline-flex; align-items: center; }
-/* Matches `.wordmark b` so this pipe reads as the same separator as the one
-   before the section label, rather than the header's smaller base type. */
-.realtime-onboarding-sep { color: var(--muted); font-size: 1rem; font-weight: 400; margin-inline: .35em; }
-.realtime-onboarding-button { display: inline-flex; align-items: center; justify-content: center; padding: 2px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
-.realtime-onboarding-button:hover, .realtime-onboarding-button:focus-visible { color: var(--mint); }
-.realtime-onboarding-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
-/* Left-aligned copy over the dimmed viewport — not a centered card. The
-   design places the block a fixed inset from the viewport's left edge,
-   vertically centered. Focus lands on the panel, not the button, so arriving
-   at a step does not light up a focus ring; hence `outline: none` here and a
-   real ring on the button for anyone who tabs to it. */
-.realtime-onboarding-panel { position: absolute; z-index: 7; top: 50%; left: clamp(24px, 5.1%, 48px); transform: translateY(-50%); display: flex; max-width: min(100% - 48px, 540px); flex-direction: column; align-items: flex-start; gap: 20px; outline: none; text-align: left; }
-.realtime-onboarding__title { margin: 0; font: 700 1rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #e8e8ea; letter-spacing: .25em; text-transform: uppercase; }
-.realtime-onboarding__body { margin: 0; font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #9a9aa6; }
-.realtime-onboarding__value { font-weight: 700; }
-.realtime-onboarding__value--good { color: var(--mint); }
-.realtime-onboarding__value--fair { color: #e5b233; }
-.realtime-onboarding__value--bad { color: #cc4d4d; }
-.realtime-onboarding__btn { margin-top: 4px; padding: 9px 18px; border: 1px solid #5a5a66; border-radius: 2px; background: transparent; color: #9a9aa6; font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
-.realtime-onboarding__btn:hover { border-color: var(--ink); color: var(--ink); }
-.realtime-onboarding__btn:focus-visible { outline: 1px solid var(--mint); outline-offset: 2px; border-color: var(--mint); color: var(--mint); }
-@media (max-width: 740px) { .realtime-onboarding-panel { left: 16px; gap: 14px; }.realtime-onboarding__title { font-size: .8125rem; letter-spacing: .18em; }.realtime-onboarding__body { font-size: .6875rem; } }
-
-/* Feed-unavailable overlay */
-.realtime-unavailable-overlay { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border-radius: 4px; overflow: hidden; pointer-events: none; }
-.realtime-unavailable-overlay::before { content: ""; position: absolute; inset: 0; background: rgba(20,20,26,.65); }
-.realtime-unavailable-title { position: relative; font: 700 1.125rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(217,217,217,.9); letter-spacing: .5em; text-transform: uppercase; }
-.realtime-unavailable-subtitle { position: relative; font: 400 .75rem/1.4 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(153,153,153,.7); }
-
-/* No-crosswalk notice — camera rotated away from the crosswalk */
-.realtime-nocrosswalk-scrim { position: absolute; inset: 0; z-index: 6; background: rgba(5,5,8,.7); border-radius: 4px; }
-.realtime-nocrosswalk-notice { position: absolute; z-index: 7; top: 50%; left: clamp(24px, 5.1%, 48px); transform: translateY(-50%); display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: min(100% - 48px, 540px); text-align: left; }
-.realtime-nocrosswalk-notice__title { margin: 0; font: 700 1rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #e8e8ea; letter-spacing: .25em; text-transform: uppercase; }
-.realtime-nocrosswalk-notice__body { margin: 0; font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; color: #9a9aa6; }
-.realtime-nocrosswalk-notice__links { display: flex; gap: 12px; }
-.realtime-nocrosswalk-notice__link { display: inline-block; padding: 8px 20px; border: 1px solid #666673; border-radius: 2px; background: transparent; color: var(--mint); font: 400 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .125em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
-.realtime-nocrosswalk-notice__link:hover { border-color: var(--mint); }
-.realtime-inference-status--no-crosswalk { color: #e5b233; }
-@media (max-width: 740px) { .realtime-nocrosswalk-notice { left: 16px; max-width: calc(100% - 32px); gap: 12px; }.realtime-nocrosswalk-notice__title { font-size: .8125rem; letter-spacing: .18em; }.realtime-nocrosswalk-notice__body { font-size: .6875rem; } }
-
-/* Debug panel — toggled by Ctrl+Shift+D */
-.realtime-debug-canvas { position: absolute; inset: 0; z-index: 5; width: 100%; height: 100%; pointer-events: none; }
-.realtime-debug-panel { position: absolute; z-index: 10; top: 12px; left: 12px; width: 320px; max-height: calc(100% - 24px); overflow-y: auto; padding: 12px; border: 1px solid #2e2e36; border-radius: 4px; background: rgba(8,8,12,.92); backdrop-filter: blur(8px); color: var(--ink); font: 400 .625rem/1.5 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; }
-.realtime-debug-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; color: var(--mint); font-weight: 700; font-size: .6875rem; letter-spacing: .12em; }
-.realtime-debug-header button { background: none; border: none; color: #8e8e9a; font-size: .8rem; cursor: pointer; padding: 0 2px; }
-.realtime-debug-header button:hover { color: var(--ink); }
-.realtime-debug-data { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
-.realtime-debug-data dt { color: #8e8e9a; text-align: right; }
-.realtime-debug-data dd { margin: 0; word-break: break-word; }
-.realtime-debug-live { color: var(--mint); font-weight: 700; }
-.realtime-debug-link { color: var(--mint); text-decoration: underline; text-underline-offset: 2px; }
-.realtime-debug-link:hover { background: rgba(148,215,181,.15); }
-.realtime-debug-actions { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.realtime-debug-toggle { width: 100%; padding: 6px 8px; border: 1px solid #8e8e9a; border-radius: 2px; background: rgba(8,8,10,.8); color: #8e8e9a; font: inherit; letter-spacing: inherit; cursor: pointer; }
-.realtime-debug-toggle:not(:disabled):hover { background: rgba(148,215,181,.15); color: var(--mint); border-color: var(--mint); }
-.realtime-debug-toggle:disabled { opacity: .5; cursor: default; }
-.realtime-debug-toggle--active { color: var(--mint); border-color: var(--mint); }
-.realtime-debug-toggle--recording { color: #ff6b6b; border-color: #ff6b6b; }
-.realtime-debug-note { margin: 0; color: #ffbe5a; }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .orchestration-shell .site-header, .orchestration-shell .site-footer { width: min(100% - 4rem, 1240px); }.orchestration-shell .site-header { padding: 2rem 0 0; border: 0; }.orchestration-shell .site-footer { padding: 2rem 0; }.orchestration-shell .wordmark u { text-decoration: none; }.orchestration-page { width: min(100% - 4rem, 1240px); margin: 0 auto; padding: 1.5rem 0; }.orchestration-grid { margin: 0; }.orchestration-statusbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: 1rem; color: #8e939b; font: 500 .65rem/1.4 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; }.orchestration-statusbar span { display: inline-flex; align-items: center; }.orchestration-controls { gap: .75rem; }.orchestration-sound-button { padding: .28rem .45rem; border: 1px solid rgba(148,215,181,.52); border-radius: 2px; background: rgba(8,8,10,.8); color: var(--mint); font: inherit; letter-spacing: inherit; cursor: pointer; }.orchestration-sound-button:disabled { border-color: var(--line); color: #606662; cursor: default; }.orchestration-sound-button:not(:disabled):hover { background: rgba(148,215,181,.15); }.orchestration-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }.orchestration-tile { position: relative; aspect-ratio: 352 / 210; overflow: hidden; border: 1px solid #222; border-radius: 2px; background: #101114; transition: box-shadow .24s ease, border-color .24s ease; }.orchestration-tile img { display: block; width: 100%; height: 100%; object-fit: cover; transform: scale(1.090909); transform-origin: center bottom; transition: filter .18s ease; }.orchestration-tiles--playing .orchestration-tile:not(.orchestration-tile--active) img { filter: grayscale(1) brightness(.65); }.orchestration-tile--active { border-color: rgba(148,215,181,.38); box-shadow: 0 0 7px 1px rgba(148,215,181,.42), 0 0 18px 3px rgba(148,215,181,.16); }.orchestration-tile__placeholder { display: grid; width: 100%; height: 100%; place-items: center; color: #8e939b; font: 600 .58rem/1.4 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-align: center; }@media (max-width: 900px) { .orchestration-shell .site-header, .orchestration-shell .site-footer, .orchestration-page { width: min(100% - 2rem, 1240px); }.orchestration-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }@media (max-width: 600px) { .orchestration-statusbar { align-items: flex-start; flex-direction: column; }.orchestration-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.about-shell { position: relative; isolation: isolate; }.about-shell .home-video-background { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; opacity: .42; pointer-events: none; }.about-video-wash { position: fixed; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(rgba(5,5,7,.34), rgba(5,5,7,.52)), radial-gradient(ellipse at 50% 40%, rgba(20,36,29,.16), transparent 58%); }.about-shell .site-header, .about-shell .site-footer { position: relative; z-index: 2; width: min(100% - 4rem, 1240px); }.about-shell .site-header { padding: 2rem 0 0; border: 0; }.about-shell .site-footer { padding: 2rem 0; }.about-page { position: relative; z-index: 2; width: min(100% - 4rem, 1240px); margin: 0 auto; padding: 1.5rem 0 3rem; }.about-feed-status { display: inline-flex; align-items: center; margin-bottom: .75rem; color: #8e8e9a; font: 700 .75rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .125em; }.about-feed-status--live { color: var(--mint); }.about-viewport { width: min(100%, 940px); min-height: 550px; border: 1px solid #2e2e36; border-radius: 4px; background: rgba(20,20,26,.85); padding: 24px; }.about-viewport h2 { margin: 2rem 0 .5rem; color: var(--ink); font: 700 .75rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .125em; }.about-viewport h2:first-child { margin-top: 0; }.about-viewport p { margin: 0; max-width: 892px; color: var(--ink); font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .03em; }.about-viewport a { color: var(--mint); text-decoration: underline; text-underline-offset: .18em; }.about-viewport a:hover { text-decoration: none; }@media (max-width: 740px) { .about-shell .site-header, .about-shell .site-footer, .about-page { width: min(100% - 2.5rem, 1240px); }.about-viewport { min-height: 520px; padding: 16px; } }
-.realtime-shell .site-header, .realtime-shell .site-footer { width: min(100% - 4rem, 1240px); }.realtime-shell .site-header { padding: 2rem 0 0; border: 0; }.realtime-shell .site-footer { padding: 2rem 0; }.realtime-shell .wordmark u { text-decoration: none; }.realtime-page { flex: 1; width: min(100% - 4rem, 1240px); margin: 0 auto; padding: 1.5rem 0; }.realtime-camera { width: min(100%, 940px); }.realtime-statusbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; }.realtime-statusbar > span { display: inline-flex; align-items: center; }.realtime-feed-status { color: #8e8e9a; font-size: .75rem; font-weight: 700; letter-spacing: .125em; }.realtime-feed-status--live { color: var(--mint); }
-/* The feed status is a flex row, which would swallow the loc span's leading
-   space; `pre` keeps " // LOCATION" intact. */
-.realtime-feed-status__loc { white-space: pre; }
-.realtime-inference-status { color: var(--mint); font-size: .6875rem; font-weight: 400; letter-spacing: .091em; }.realtime-inference-status--active { color: var(--ink); }.realtime-inference-status--unavailable { color: #cc4d4d; }.status-dot { box-sizing: border-box; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border: 2px solid #8e8e9a; border-radius: 50%; background: transparent; }.status-dot--live { border-color: var(--mint); background: var(--mint); box-shadow: 0 0 .8rem var(--mint); }.status-dot--reconnecting { border-color: #ffcf94; }.status-dot--unavailable { border-color: #ff5f56; }/* Sized to the real 352 x 240 feed so an object-contain video fills the box
-   with no letterboxing. Figma draws this viewport 940 x 550 around a wider
-   crop; 940 x 641 is that frame's own content height and shows the source
-   uncropped, which the stripe overlay's contain-box math depends on. */
-.realtime-viewport { position: relative; display: grid; width: 100%; aspect-ratio: 352 / 240; margin: 0; place-items: center; overflow: hidden; border: 1px solid #2e2e36; border-radius: 4px; background: #14141a; }.realtime-viewport:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border: 0; border-radius: 0; }.realtime-viewport video, .realtime-overlay { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }.realtime-overlay { z-index: 2; pointer-events: none; }.realtime-wait { position: absolute; z-index: 3; color: #8e939b; font: 500 .7rem/1.2 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }.realtime-controls { position: absolute; z-index: 4; right: 24px; bottom: 24px; display: flex; align-items: center; gap: 16px; }.realtime-controls--idle { opacity: .4; }/* The docked copy sits after the viewport in flow for the mobile layout;
-   the overlay copy keeps living inside the viewport so it still paints when
-   the viewport element itself is fullscreened. */.realtime-controls--docked { position: static; display: none; justify-content: flex-end; margin-top: 12px; }.realtime-control { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid #2e2e36; border-radius: 2px; background: rgba(8,8,10,.8); color: #8e8e9a; font: 400 .625rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; cursor: pointer; }.realtime-control:disabled { cursor: default; }.realtime-control:not(:disabled):hover { background: rgba(148,215,181,.15); }.realtime-fullscreen-button { border-color: #8e8e9a; }.realtime-fullscreen-button--ready { border-color: var(--mint); color: var(--mint); }.realtime-sound-button__dot { width: 6px; height: 6px; border-radius: 50%; background: #8e8e9a; }.realtime-sound-button--on { color: var(--ink); }.realtime-sound-button--on .realtime-sound-button__dot { background: var(--mint); box-shadow: 0 0 .5rem var(--mint); }
-/* Pseudo-fullscreen fallback (iOS Safari / Chrome where
-   Element.requestFullscreen is unavailable for non-video elements).
-   Mirrors :fullscreen but uses fixed positioning + scroll lock. */
-.realtime-viewport--pseudo-fullscreen { position: fixed; inset: 0; z-index: 9999; width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; background: #000; }.realtime-viewport--pseudo-fullscreen .realtime-controls--overlay { display: none; }.realtime-viewport--pseudo-fullscreen video, .realtime-viewport--pseudo-fullscreen .realtime-overlay { object-fit: cover; }
-/* Tap-anywhere exit layer, banner, and rotate-for-best-experience hint */
-.realtime-fullscreen-exit-layer { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.realtime-fullscreen-banner { margin: 0 0 max(24px, env(safe-area-inset-bottom)); padding: 10px 20px; background: rgba(8,8,10,.85); color: #8e8e9a; font: 400 .625rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; animation: exit-banner-fade 3s ease-out forwards; }
-@keyframes exit-banner-fade { 0%, 66% { opacity: 1; } 100% { opacity: 0; } }
-.realtime-rotate-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px 36px; background: rgba(8,8,10,.88); border-radius: 8px; animation: rotate-hint-fade 3s ease-out forwards; }
-.realtime-rotate-hint__text { margin: 0; color: #fff; font: 700 .6875rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
-@keyframes rotate-hint-fade { 0%, 66% { opacity: 1; } 100% { opacity: 0; } }
-/* Realtime mobile (ui_mobile frames): the status bar keeps one row by
-   dropping the feed line's location suffix, the controls dock below the
-   viewport, and the pause modal / feed-down overlay flatten into the same
-   left-inset panel treatment as the onboarding copy. */
-@media (max-width: 740px) {
-  .realtime-shell .site-header, .realtime-shell .site-footer, .realtime-page { width: min(100% - 2.5rem, 1240px); }
-  .realtime-shell .site-header { padding-top: 1.25rem; }
-  .realtime-statusbar { gap: .75rem; }
-  .realtime-feed-status__loc { display: none; }
-  .realtime-feed-status { font-size: .625rem; }
-  .realtime-inference-status { font-size: .625rem; }
-  .realtime-controls--overlay { display: none; }
-  .realtime-viewport:fullscreen .realtime-controls--overlay { display: flex; }
-  .realtime-controls--docked { display: flex; }
-  .realtime-pause-modal { left: 16px; max-width: calc(100% - 32px); }
-  .realtime-pause-modal__title { font-size: .8125rem; letter-spacing: .18em; }
-  .realtime-pause-modal__subtitle { font-size: .6875rem; }
-  .realtime-pause-modal__subtitle br { display: none; }
-  .realtime-unavailable-overlay { align-items: flex-start; padding: 0 16px; }
-  .realtime-unavailable-title { font-size: .8125rem; letter-spacing: .3em; }
-  .realtime-unavailable-subtitle { font-size: .6875rem; }
-}
+.about-shell { position: relative; isolation: isolate; }.about-shell .home-video-background { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; opacity: .42; pointer-events: none; }.about-video-wash { position: fixed; inset: 0; z-index: 1; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(rgba(5,5,7,.34), rgba(5,5,7,.52)), radial-gradient(ellipse at 50% 40%, rgba(20,36,29,.16), transparent 58%); }.about-shell .site-header, .about-shell .site-footer { position: relative; z-index: 2; width: min(100% - 4rem, 1240px); }.about-shell .site-header { padding: 2rem 0 0; border: 0; }.about-shell .site-footer { padding: 2rem 0; }.about-page { position: relative; z-index: 2; width: min(100% - 4rem, 1240px); margin: 0 auto; padding: 1.5rem 0 3rem; }.about-feed-status { display: inline-flex; align-items: center; margin-bottom: .75rem; color: #8e8e9a; font: 700 .75rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .125em; }.about-feed-status--live { color: var(--mint); }.about-viewport { width: min(100%, 940px); min-height: 550px; border: 1px solid #2e2e36; border-radius: 4px; background: rgba(20,20,26,.85); padding: 24px; }.about-viewport h2 { margin: 2rem 0 .5rem; color: var(--ink); font: 700 .75rem/1 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .125em; }.about-viewport h2:first-child { margin-top: 0; }.about-viewport p { margin: 0; max-width: 892px; color: var(--ink); font: 400 .75rem/1.65 var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .03em; }.about-viewport a { color: var(--mint); text-decoration: underline; text-underline-offset: .18em; }.about-viewport a:hover { text-decoration: none; }.about-viewport p + p { margin-top: 1.65em; }@media (max-width: 740px) { .about-shell .site-header, .about-shell .site-footer, .about-page { width: min(100% - 2.5rem, 1240px); }.about-viewport { min-height: 520px; padding: 16px; } }

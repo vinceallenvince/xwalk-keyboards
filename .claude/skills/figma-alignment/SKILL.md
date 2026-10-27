@@ -6,8 +6,7 @@ description: >-
   a per-epic alignment report. Use when asked to check or regenerate the
   Figma↔runtime visual alignment, run the "Layer 2" / visual-alignment review,
   confirm the UI generally matches the design frames, or produce/update an
-  alignment report for an epic (Homepage, Orchestration Study, Realtime Study,
-  Camera Registry) — typically after the e2e screenshots change. Depends on
+  alignment report for an epic (Homepage, About, Camera Registry) — typically after the e2e screenshots change. Depends on
   Layer 1: it consumes the screenshots captured by the Playwright e2e suite
   (run the e2e tests first if they are missing or stale).
 

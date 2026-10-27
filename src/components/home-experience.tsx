@@ -1,17 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { Fragment, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { HomeVideoBackground, homeFeedLabel, type HomeFeedStatus } from "@/components/home-video-background";
+import { IntroVideo } from "@/components/intro-video";
 import { FooterCredits } from "@/components/site-chrome";
 import { DEFAULT_LIVE_CAMERA } from "@/data/cameras";
-import { useCameraLinks } from "@/lib/use-camera-links";
 
 export function HomeExperience() {
   const [feedStatus, setFeedStatus] = useState<HomeFeedStatus>("connecting");
   const reportFeedStatus = useCallback((status: HomeFeedStatus) => setFeedStatus(status), []);
-  const { cameras, loading } = useCameraLinks();
 
   return (
     <main className="home-shell">
@@ -31,15 +29,22 @@ export function HomeExperience() {
           </a>
         </div>
       </section>
-      <section className="home-studies" id="studies" aria-label="Choose a camera">
-        <nav className="study-selector" aria-busy={loading}>
-          {cameras.map((cam, i) => (
-            <Fragment key={cam.cameraId}>
-              {i > 0 && <i aria-hidden="true" />}
-              <Link className="study-selector__link" href={`/realtime/${cam.cameraId}`}>CAM {cam.cameraId}</Link>
-            </Fragment>
-          ))}
-        </nav>
+      <section className="home-watch" id="studies" aria-labelledby="home-watch-title">
+        <div className="home-watch__band">
+          <div className="home-watch__intro">
+            <p className="home-watch__label">XWALK KEYBOARDS // WATCH</p>
+            <h2 className="home-watch__title" id="home-watch-title">CROSSWALKS.<br />KEYBOARDS.</h2>
+            <i className="home-watch__rule" aria-hidden="true" />
+            <p className="home-watch__description">
+              XWalkKeyboards was created at an{" "}
+              <a href="https://nyc.aitinkerers.org/hackathons/h_zvqhzy3dMEY" target="_blank" rel="noreferrer">AI Tinkerers hackathon</a>
+              {" "}and used NYC DOT traffic cam video and{" "}
+              <a href="https://roboflow.com/" target="_blank" rel="noreferrer">Roboflow</a>
+              {" "}computer vision to transform crosswalks into piano keyboards.
+            </p>
+          </div>
+          <IntroVideo />
+        </div>
       </section>
       <footer className="home-footer">
         <FooterCredits />

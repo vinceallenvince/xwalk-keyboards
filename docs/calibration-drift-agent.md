@@ -1,5 +1,9 @@
 # Realtime Calibration Drift Agent
 
+> **Retired (2026-10).** The Realtime study and the calibration agent were shut
+> down; the web app no longer reads calibration. This document is kept as the
+> design record. See [`architecture.md`](architecture.md) for what runs now.
+
 ## Problem
 
 The Realtime study's crosswalk polygons and stripe keyboard are calibrated by

@@ -15,13 +15,11 @@ deployment, executed by GitHub Actions on Cloud Run.
 
 | Service | Repository / runtime | Responsibility | URL |
 | --- | --- | --- | --- |
-| `xwalk-keyboards` | This repo, Next.js | Public web app; server-side HLS/Roboflow/calibration proxies | https://xwalk-keyboards-21826886868.us-central1.run.app |
-| `xwalk-camera-calibration-agent` | [xwalk-camera-calibration-agent](https://github.com/vinceallenvince/xwalk-camera-calibration-agent), Python | Publishes crosswalk stripe geometry to GCS; serves on-demand recalibration | https://xwalk-camera-calibration-agent-21826886868.us-central1.run.app |
+| `xwalk-keyboards` | This repo, Next.js | Public web app; server-side HLS proxy | https://xwalk-keyboards-21826886868.us-central1.run.app |
 
-The calibration agent deploys from its own repository. This runbook covers the
-web app; the agent matters here only as the upstream for
-`/api/calibration/[cameraId]` (GCS reads) and `/api/calibration/recalibrate`
-(identity-token authenticated calls to the agent service).
+The calibration agent (`xwalk-camera-calibration-agent`) served the retired
+Realtime study and is being shut down from its own repository. The web app no
+longer calls it.
 
 ## How the web app deploys (GitHub Actions)
 
@@ -34,7 +32,7 @@ The pipeline is `.github/workflows/deploy.yml`:
 | Auth | Workload Identity Federation; impersonates `github-deploy@xwalk-keyboards-01.iam.gserviceaccount.com` (repo secrets `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`) |
 | Build + deploy | `google-github-actions/deploy-cloudrun@v2`, source deploy of service `xwalk-keyboards` in `us-central1`, with Direct VPC egress through the `default` subnet for private ranges |
 | Network verification | Confirms every deployed revision retains the expected network, subnet, network tag, `private-ranges-only` egress mode, and server-only CARLA origin configuration |
-| Smoke test | Requests the app's public routes (the homepage, `/realtime`, a set of `/realtime/[cameraId]` pages, `/about`, `/camera-registry`); every one must return < 400 or the run fails. The workflow file holds the current list |
+| Smoke test | Requests the app's public routes (the homepage, `/realtime`, which redirects to the homepage, `/about`, `/camera-registry`); every one must return < 400 or the run fails. The workflow file holds the current list |
 
 The one-time GCP setup (service account, roles, identity pool/provider) is
 documented as commands in the workflow file's header comment.
@@ -60,22 +58,17 @@ Server-only variables (never `NEXT_PUBLIC_`; see `.env.example`):
 
 | Variable | Source | Purpose |
 | --- | --- | --- |
-| `ROBOFLOW_API_KEY` | Secret Manager (`roboflow-api-key`) | Authenticates server-side Roboflow workflow and WebRTC initialization |
-| `ROBOFLOW_WORKSPACE`, `ROBOFLOW_REALTIME_WORKFLOW_ID` | Env | Selects the Realtime detection workflow |
-| `ROBOFLOW_IMAGE_INPUT`, `ROBOFLOW_DATA_OUTPUT`, `ROBOFLOW_CLASSES` | Env | Workflow input/output bindings; class filter (default `person`) |
-| `ROBOFLOW_WEBRTC_PLAN`, `ROBOFLOW_WEBRTC_REGION` | Env | WebRTC worker sizing (defaults `webrtc-gpu-medium`, `us`) |
 | `CARLA_HLS_BASE_URL` | Env | Private HLS directory for registered CARLA camera 90014; resolved only by the server-side proxy |
-| `CALIBRATION_BUCKET`, `CALIBRATION_GCS_PREFIX` | Env (defaults `xwalk-keyboards-01`, `calibration`) | Where published calibrations are read from |
-| `CALIBRATION_AGENT_URL` | Env (defaults to the agent's Cloud Run URL) | Recalibrate proxy target |
-| `CALIBRATION_AGENT_API_KEY` | Local dev only | On Cloud Run the web app uses identity tokens instead |
 
-The web app's runtime service account needs read access to the calibration GCS
-objects and invoker rights on the calibration agent service.
+The `ROBOFLOW_*` and `CALIBRATION_*` variables, the `roboflow-api-key` secret,
+and the runtime service account's calibration-bucket read and agent-invoker
+grants served the retired Realtime study. Nothing reads them now; remove them
+from the service configuration once the retirement deploy is confirmed.
 
 ## Local gcloud setup
 
 Routine deploys never touch local gcloud. This is needed only for IAM changes
-and Secret Manager operations:
+and Secret Manager operations, such as removing the retired Roboflow secret:
 
 ```bash
 gcloud auth list
@@ -97,13 +90,12 @@ active account and project before any IAM or secret change.
 CI already verifies the smoke-test routes return non-error statuses on every deploy.
 For a functional pass after notable releases:
 
-- Homepage loads with its live camera background.
-- Realtime video starts independently from Roboflow inference.
-- Realtime camera and inference recovery states work independently.
-- The Camera Registry plays every registered camera's preview without invoking Roboflow.
-- Leaving the study stops its audio and background work.
+- Homepage loads with its live camera background, and the introduction video
+  plays with sound.
+- `/realtime/5059` redirects to the homepage.
+- The Camera Registry plays every registered camera's preview.
 - Mobile layouts render per the `ui_mobile` Figma frames (spot-check the
-  homepage and Realtime on a phone-sized viewport).
+  homepage on a phone-sized viewport).
 
 ## Related references
 

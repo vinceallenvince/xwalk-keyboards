@@ -2,386 +2,133 @@
 
 ## Purpose and scope
 
-This document defines the production architecture for **XWALK KEYBOARDS**. It
-is based on the working `511NY-test` and `crosswalk-agent` prototypes, but is
-written as the implementation contract for the production app.
+This document describes the production architecture of **XWALK KEYBOARDS**
+after the live study was retired.
 
-The app has one study:
+XWALK KEYBOARDS turned live traffic-camera crosswalks into piano keyboards.
+The Realtime study ran Roboflow person detection over WebRTC, read stripe
+geometry from a separate calibration agent, and played notes with the Web
+Audio API. That pipeline has been removed. Its design lives in this file's git
+history, before the retirement commit, and in
+[`calibration-drift-agent.md`](calibration-drift-agent.md).
 
-| Study | Source | Vision path | Audio path | Timing model |
-| --- | --- | --- | --- | --- |
-| Realtime | One registered live HLS camera (public traffic camera or private CARLA) | Roboflow Workflow over WebRTC | Browser Web Audio API | Event-driven, current frame only |
+What remains:
 
-Two earlier scored-snapshot studies (Orchestration and its successor design,
-Sequence) were removed in 2026-08; see VIN-18/VIN-20.
+| Page | Purpose | Media |
+| --- | --- | --- |
+| Homepage (`/`) | Hero, then an introduction video of screen recordings from the study | Live 5059 HLS background; YouTube embed |
+| About (`/about`) | Project description | Live 5059 HLS background |
+| Camera Registry (`/camera-registry`) | Unlinked developer view of every registered camera | One muted live HLS preview per camera |
 
-The Camera Registry is an unlinked developer view. It plays a muted live
-preview of every registered live camera, including ones whose feed is down,
-but never runs Roboflow or the calibration agent.
+`/realtime` and `/realtime/:cameraId` redirect permanently to `/`, so links
+shared while the study ran still land somewhere.
 
-The architecture is designed around three non-negotiable properties:
+Two properties still hold:
 
-1. **No secrets or private origins in the browser.** Upstream media locations,
-   Roboflow credentials, and agent credentials stay in server-only modules,
-   environment variables, or Secret Manager.
-2. **A visual frame and its sound must be attributable to the same source.**
-   Realtime only uses current prediction data.
-3. **Media work stops when its route is left.** Navigation disposes of HLS,
-   WebRTC, polling, queued inference, audio schedules, and audio nodes that
-   belong to the previous route.
+1. **No private origins in the browser.** Upstream HLS locations stay in
+   server-only modules or environment variables.
+2. **Media work stops when its route is left.** Navigation disposes of the HLS
+   players that belong to the previous route.
 
 ## System overview
-
-### High-level system diagram
 
 ```text
 +------------------------------+
 | Browser                      |
-| Homepage, Realtime,          |
+| Homepage, About,             |
 | and Camera Registry          |
-|                              |
-| Owns UI, audio scheduling,   |
-| and cleanup.                 |
-+--------------+---------------+
-               |
-               | same-origin HTTP
-               | GET /api/hls/*
-               | GET /api/calibration/*, POST /api/roboflow/*
-               v
-+--------------+------------------------------------+
-| Next.js web app / Cloud Run: xwalk-keyboards      |
-| media/source proxies | vendor-key boundary        |
-| Roboflow proxies | input/schema validation        |
-+---------+-----------------------+-----------------+
-          |                       |
-          | server-side GETs      | secret-auth
-          |                       | workflow calls
-          v                       v
-+--------------------+  +----------------------+
-| Registered HLS     |  | Roboflow Workflows   |
-| public cameras or  |  | Realtime predictions |
-| private CARLA      |  | (person detections)  |
-+--------------------+  +----------------------+
-
-Interfaces
-──────────
-Browser → Next.js: HLS GETs; calibration GETs; WebRTC offer POSTs.
-Next.js → Roboflow: secret-authenticated WebRTC setup.
-Next.js → GCS: current calibration JSON for the requested camera.
-Secret Manager → Next.js: API keys and service configuration only; never browser.
++------+---------------+-------+
+       |               |
+       | same-origin   | youtube-nocookie.com iframe
+       | GET /api/hls/*| (homepage only)
+       v               v
++------+----------------------+   +-----------+
+| Next.js web app / Cloud Run |   | YouTube   |
+| HLS proxy, input validation |   +-----------+
++------+----------------------+
+       |
+       | server-side GETs (Direct VPC egress for CARLA)
+       v
++---------------------------------+
+| Registered HLS sources          |
+| 511NY, City of Bellevue, CARLA  |
++---------------------------------+
 ```
 
-```mermaid
-flowchart LR
-  Browser["Browser / Next.js UI"]
-  App["Next.js server routes\nCloud Run web service"]
-  Cams["Public traffic-camera sources"]
-  CARLA["CARLA Town10 HLS\nprivate VPC origin"]
-  RF["Roboflow Workflows\nserverless + WebRTC GPU"]
+## Camera registry
 
-  Browser -->|"HLS via same-origin proxy"| App
-  App -->|"HLS playlists and segments"| Cams
-  App -->|"private HLS via Direct VPC"| CARLA
-  Browser -->|"WebRTC offer via server proxy"| App
-  App -->|"Roboflow API key + class filter"| RF
-```
-
-The browser owns presentation and audio scheduling. The Next.js service acts
-as a boundary for third-party sources and secrets. Roboflow performs person
-detection; the browser classifies detections against calibration geometry.
-
-## Deployment units and responsibilities
-
-### 1. Next.js web application
-
-Deploy the XWALK KEYBOARDS web app to Cloud Run. It serves pages, client
-components, and the same-origin API routes below. Keeping the routes in the
-web service avoids CORS issues, protects vendor keys, and gives the browser a
-stable API even when source-camera URLs change.
-
-Build the app from the
-[`web-scaffold-static-nextjs`](../../web-scaffold-static-nextjs/) repository.
-That scaffold is the required Next.js foundation for the production web app;
-retain its Cloud Run-ready container and deployment conventions, then add the
-XWALK KEYBOARDS routes, media components, and server-side API handlers on top
-of it.
-
-The client is responsible for:
-
-- page state, route transitions, and fullscreen behavior;
-- rendering HLS video;
-- rendering the Realtime stripe overlay with a canvas above the local video;
-- starting audio only after a user gesture;
-- disposing all route-owned resources on unmount.
-
-The web server is responsible for:
-
-- validating all browser inputs and limiting payload sizes/timeouts;
-- resolving registered HLS origins server-side and proxying media requests;
-- calling Roboflow with secret keys and validated runtime parameters;
-- returning only the data the browser needs.
-
-### 2. Roboflow Workflows
-
-One production workflow profile, the **Realtime workflow**: Roboflow WebRTC
-receives a captured stream from the local HLS `<video>`, detects `person`, and
-returns **prediction data only**. Inside/outside classification against the
-crosswalk happens in the browser. It must not return annotated video.
-
-The workflow's input and output names are configuration
-(`ROBOFLOW_IMAGE_INPUT`, `ROBOFLOW_DATA_OUTPUT`), not hardcoded component
-assumptions.
-
-## Canonical data and calibration
-
-### Camera registry
-
-Store camera metadata in version-controlled configuration. Do not call a
-provider's camera-inventory API during normal page loads. Inventories are
-offline curation tools, not runtime dependencies.
-
-Every registered camera is a live HLS camera. Each record needs at least:
+Camera metadata is version-controlled in `src/data/cameras.ts`. No provider
+inventory API is called at runtime.
 
 ```ts
-type CameraRecord = {
-  cameraId: number;                 // stable numeric source ID; CARLA is 90014
+type LiveCameraRecord = {
+  cameraId: number;                 // stable numeric ID; Bellevue = 8 + CCTV number, CARLA = 90014
+  displayLabel: string;
   location: string;                 // human-readable intersection
+  sourceId: string;                 // the provider's own identifier
   externalUrl?: string;             // provider's public page; absent when private
-  sourceKind: string;               // which provider adapter serves it
-  listed: boolean;                  // whether navigation offers it to visitors
+  sourceKind: "511ny" | "bellevue" | "carla";
+  statusLabel: string;              // short status-bar name, e.g. "WEST STREET @ W23 ST"
 };
 ```
 
-Client-importable camera records never contain upstream HLS URLs. The server
-maps each registered live camera ID to its upstream HLS directory and resolves
-CARLA camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always request the same
-allowlisted `/api/hls/:cameraId/:path*` route.
+Client-importable records never contain upstream HLS URLs. The server maps
+each camera ID to its upstream HLS directory in `src/server/hls-sources.ts`
+and resolves CARLA camera `90014` from `CARLA_HLS_BASE_URL`. Browsers always
+request the same allowlisted `/api/hls/:cameraId/:path*` route.
+`DEFAULT_LIVE_CAMERA` (5059) backs the homepage and About backgrounds.
 
-Pages that list cameras (the homepage selector, the Camera Registry) derive
-their lists from the registry, so adding or removing a camera needs no other
-edit.
+The Camera Registry derives its cards from the registry, so adding or removing
+a camera needs no other edit.
 
-### Polygons and stripe calibration
+## HLS proxy
 
-Calibration must be keyed by camera ID, never grid position or display label.
-The production source of truth should store both the reference frame size and
-pixel coordinates:
+`GET /api/hls/:cameraId/:path*` validates the camera ID and path segments
+against the registry, then fetches the upstream with
+`Accept-Encoding: identity` and forwards byte ranges for media segments. This
+avoids an observed upstream gzip / `206 Partial Content` decoding failure in
+Chrome. Responses are `no-store`, and every fetch carries an explicit timeout.
 
-```json
-{
-  "camera_<id>": {
-    "referenceFrame": { "width": 352, "height": 240 },
-    "stripes": [{ "stripeIndex": 0, "segment": "segment0", "polygon": [[0, 0]] }]
-  }
-}
-```
+Playback uses `hls.js` when Media Source Extensions are available and falls
+back to native HLS where supported. On fatal network or media errors it
+retries with a fixed backoff. The ambient backgrounds report `connecting`,
+`live`, `reconnecting`, or `unavailable` to the status line
+("FEED LIVE // WEST STREET @ W23 ST").
 
-The example is intentionally abbreviated. Real files contain three or more
-points per polygon. Note what is absent: no crosswalk boundary polygons (the
-client hulls each cluster's own stripes) and no note names (the client derives
-pitch from a stripe's position across the whole crossing).
+## Introduction video
 
-Coordinates must be scaled to the exact input frame passed to Roboflow:
+`src/components/intro-video.tsx` embeds the video with an iframe from
+`youtube-nocookie.com`, so YouTube sets no cookies until the visitor plays it.
+The iframe is lazy-loaded with `loading="lazy"`, which keeps it out of the
+hero's first paint. The video ID is the exported constant `INTRO_VIDEO_ID`.
+The Figma frames (506:449 desktop, 508:75 mobile) draw a mock player. The
+runtime uses YouTube's own player and controls instead.
 
-```text
-x_target = x_reference * targetWidth / referenceWidth
-y_target = y_reference * targetHeight / referenceHeight
-```
+## Configuration
 
-The calibration agent partitions each Realtime frame into **clusters** of white
-stripes by gap, publishing them as `segment0`, `segment1`, ... in positional
-order along the crosswalk axis, with stripes numbered ordinally `0..n-1` inside
-each cluster. Cluster count is not fixed: a vehicle parked mid-crosswalk splits
-one run into two, and a sparse read yields fewer.
-
-The client numbers stripes **globally** across clusters in that order and plays
-`baseAnchor + globalOrdinal` -- one continuous chromatic run from the camera's
-single anchor (`C4` today), climbing left to right across the whole crossing.
-On a complete read of the original reference camera this reproduces the
-hand-calibrated keyboard exactly: 18 left stripes C4-F5, then 7 right stripes F#5-C6.
-
-**Stripe identity is explicitly not stable across runs.** A stripe that goes
-undetected renumbers every stripe after it, transposing the rest of the crossing
-until the next calibration. This is a deliberate trade (VIN-44): an ascending
-scale that starts somewhere different each day is still an ascending scale, and
-the machinery that guaranteed otherwise cost more than the property was worth.
-Freshness -- keys sitting on the paint -- is the guarantee that survives.
-
-The agent does not publish crosswalk boundary polygons. The client synthesizes
-one hit-region per cluster as a convex hull of that cluster's stripes, expanded
-vertically, so a pedestrian stepping just off the paint still triggers the
-nearest stripe. Because each cluster hulls separately, the median between two
-crosswalk runs falls outside every hull and stays unplayable.
-
-Validate calibration at build/test time:
-
-- every configured polygon has finite points and a valid reference frame;
-- every Realtime stripe carries a cluster and an ordinal within it.
-
-## Realtime study architecture
-
-### Video display and detection are separate paths
-
-Realtime uses the original local HLS video as the viewport. Roboflow does not
-send a replacement video stream back to the browser. This is essential: the
-display remains at the best available HLS frame rate even when detection is
-slower.
-
-```mermaid
-sequenceDiagram
-  participant UI as Realtime browser UI
-  participant HLS as Next.js HLS proxy
-  participant Source as Registered HLS source
-  participant RFRoute as Next.js WebRTC route
-  participant RF as Roboflow WebRTC workflow
-
-  UI->>HLS: request playlist / segments
-  HLS->>Source: fetch allowlisted upstream media
-  Source-->>HLS: HLS content
-  HLS-->>UI: local HLS video
-  UI->>UI: video.captureStream()
-  UI->>RFRoute: WebRTC offer + frame size
-  RFRoute->>RF: offer, person class, scaled polygons
-  RF-->>UI: prediction data for sampled frames
-  UI->>UI: map current detections to stripes; draw overlay; play notes
-```
-
-The HLS proxy must fetch upstream media with `Accept-Encoding: identity` and
-forward byte ranges for media segments. This avoids an observed upstream
-gzip/`206 Partial Content` decoding failure in Chrome. HLS playback should use
-`hls.js` when Media Source Extensions are available, fall back to native HLS
-where supported, and retry with bounded exponential backoff on fatal errors.
-
-### Realtime lifecycle
-
-The camera and GPU start independently. Model this as two state machines, not
-one combined loading boolean:
+One server-only environment value is required:
 
 ```text
-camera:    connecting -> live <-> reconnecting -> unavailable
-inference: waiting -> starting -> active <-> reconnecting -> unavailable
-```
-
-- If the camera becomes live first, show video immediately while inference
-  continues starting.
-- If inference becomes active first, retain the waiting viewport until video
-  is live.
-- If the camera drops, retain inference state but clear stripe highlights and
-  suppress notes until there is a current video frame.
-- If inference drops, keep video playing, clear highlights, and suppress new
-  notes without restarting HLS.
-- On either recovery, use only new prediction data; never overlay stale
-  detections onto later video.
-
-The browser passes the captured stream's actual frame width and height to the
-server WebRTC route, which initializes the workflow with `person` as the class
-filter. No polygons are sent: the workflow is plain person detection and the
-browser decides inside/outside against its current calibration, which is what
-lets geometry hot-swap without restarting inference. Configure the WebRTC
-worker for prediction data outputs and no annotated video output.
-
-### Realtime visual and audio behavior
-
-The overlay is a transparent `<canvas>` positioned over the `<video>`. It
-maps the video’s intrinsic frame coordinates to the displayed `object-contain`
-box on every resize. Only the occupied stripe polygons are filled with mint
-at the specified visual opacity. Realtime has **no green or purple floating
-triangles**.
-
-The browser uses `AudioContext`, not Tone.js, for Realtime notes. After the
-visitor enables sound:
-
-1. Parse only inside-left and inside-right prediction outputs.
-2. Use each detection's lower-body/foot point to find its calibrated stripe.
-3. Trigger a short synthesized piano-like note only when a note becomes newly
-   occupied; debounce repeat triggers for the same occupied note.
-4. Do not trigger any outside-crosswalk detection.
-5. When sound is disabled, suspend the audio context and clear occupancy
-   state so re-enabling does not replay a stale event.
-
-`SOUND ON` is a current-state label: qualifying new events must be audible.
-An interval with no eligible pedestrian is intentionally silent. Fullscreen
-retains video and overlay, hides surrounding UI, and exits on click or Escape.
-
-## API boundary and configuration
-
-Recommended Next.js API routes:
-
-| Route | Consumer | Responsibility |
-| --- | --- | --- |
-| `GET /api/hls/:cameraId/:path*` | Realtime video | Validated HLS proxy; identity encoding and range support |
-| `POST /api/roboflow/webrtc` | Realtime | Validated WebRTC offer; server initializes workflow (class filter only; classification is client-side) |
-| `GET /api/roboflow/turn` | Realtime | Optional TURN configuration proxy, if required by the Roboflow connector |
-
-At minimum, configure these server-only environment values:
-
-```text
-ROBOFLOW_API_KEY
-ROBOFLOW_WORKSPACE
-ROBOFLOW_REALTIME_WORKFLOW_ID
-ROBOFLOW_IMAGE_INPUT / ROBOFLOW_DATA_OUTPUT parameter-name bindings
 CARLA_HLS_BASE_URL (private HLS directory for camera 90014)
 ```
 
-Keep all keys in Secret Manager for Cloud Run deployments. Use small body-size
-limits, explicit timeouts, no-store cache headers for live sources, allowlists
-for camera IDs and path segments, and server-side request logging without
-capturing secrets or full image payloads.
-
-## Observability and operational behavior
-
-Emit structured metrics/logs for:
-
-- HLS connection state, stalls, retries, and recovery;
-- Roboflow inference queue depth, latency, retries, and error rate;
-- audio enablement and scheduling drift.
-
-Do not log API keys, raw WebRTC offers, full image bytes, or personally
-identifying user data. Camera images should be treated as operational data;
-retain only as long as needed for an active batch and debugging unless an
-explicit durable-storage policy is approved.
-
-The first production version does **not** require Google Cloud Storage or
-Eventarc. Direct browser → Next.js → scoring-service requests minimize
-latency and complexity. Add GCS/Eventarc only when durable replay, audit
-history, asynchronous scoring, or multi-viewer synchronization is a real
-requirement. If added, upload all assets under a `batchId` prefix and write
-`manifest.json` last; process that manifest idempotently because Eventarc is
-at-least-once.
+Cloud Run keeps Direct VPC egress (`private-ranges-only`) so the server can
+reach the CARLA origin. The deploy workflow verifies that configuration on
+every revision.
 
 ## Route cleanup contract
 
-Every study component must cancel its own work on unmount:
-
 | Leaving route | Required cleanup |
 | --- | --- |
-| Realtime | Destroy `hls.js`, pause and unload video, stop captured media tracks, clean up WebRTC worker, clear canvas state, suspend/close `AudioContext`, clear note occupancy, stop and discard any debug-panel tab recording |
+| Homepage, About | Destroy the background `hls.js`, clear retry timers, pause and unload the video |
 | Camera Registry | Destroy each preview's `hls.js`, clear retry timers, and pause and unload preview videos |
 
-Use `AbortController`, generation IDs, and `cancelled` guards so that a late
-response cannot mutate a component after it has unmounted or replace a newer
-candidate. Navigation begins only the destination route’s required work.
+## Verification
 
-## Verification and test plan
-
-Unit tests should cover:
-
-- camera registry completeness, unique IDs, and stable order;
-- polygon and stripe scaling at reference and non-reference dimensions;
-- seam midpoint/nearest-stripe assignment, median silence, and note mapping.
-
-Integration tests should cover:
-
-- HLS proxy identity encoding and range forwarding;
-- Realtime independent camera/inference startup and recovery;
-- cleanup when moving between Homepage, Realtime, and Registry.
-
-## User-scenario alignment
-
-This architecture aligns with [`users-scenarios.md`](users-scenarios.md):
-
-| Scenario requirement | Architectural mechanism |
-| --- | --- |
-| Independent Realtime camera and GPU startup/recovery | Separate HLS and WebRTC state machines; neither restarts the other |
-| Realtime striped-keyboard visual/audio with no triangles | Local video + canvas stripe overlay + Web Audio API, based only on inside predictions |
-| Fullscreen, sound controls, Camera Registry, navigation cleanup | Route-scoped component resources, fullscreen presentation modes, Registry bypasses inference |
+- Unit tests (`pnpm test`): registry completeness, unique IDs, stable order,
+  no upstream URLs in client metadata, HLS source resolution, and HLS proxy
+  validation and encoding.
+- End-to-end tests (`pnpm test:e2e`): homepage hero and introduction band
+  (desktop and mobile), `/realtime` redirects, About, Camera Registry.
+- See [`users-scenarios.md`](users-scenarios.md) for the behaviour each test
+  covers.
