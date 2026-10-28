@@ -40,7 +40,7 @@ export function HomeExperience() {
               <a href="https://nyc.aitinkerers.org/hackathons/h_zvqhzy3dMEY" target="_blank" rel="noreferrer">AI Tinkerers hackathon</a>
               {" "}and used NYC DOT traffic cam video and{" "}
               <a href="https://roboflow.com/" target="_blank" rel="noreferrer">Roboflow</a>
-              {" "}computer vision to transform crosswalks into piano keyboards.
+              {" "}computer vision to transform crosswalks into piano keyboards. Watch the video to see how it worked!
             </p>
             <p className="home-watch__description">
               More details at <a href="https://vinceallen.com" target="_blank" rel="noreferrer">vinceallen.com</a>
